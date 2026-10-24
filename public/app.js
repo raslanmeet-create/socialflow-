@@ -54,6 +54,10 @@ const webhookVerifyToken = document.getElementById('webhookVerifyToken');
 const btnCopyWebhookUrl = document.getElementById('btnCopyWebhookUrl');
 const btnCopyWebhookToken = document.getElementById('btnCopyWebhookToken');
 
+const onboardingBanner = document.getElementById('onboardingBanner');
+const btnBannerConnect = document.getElementById('btnBannerConnect');
+
+
 
 // حالة إعدادات المستخدم والصفحات
 let userConfig = {
@@ -498,7 +502,8 @@ postForm.addEventListener('submit', async (e) => {
 
     const selectedPageId = pageSelector.value;
     if ((selectedPlatforms.includes('facebook') || selectedPlatforms.includes('instagram')) && !selectedPageId) {
-        showAlert('يرجى اختيار الصفحة المستهدفة من القائمة أولاً!', 'error');
+        showAlert('⚠️ يرجى ربط صفحاتك أولاً عبر نافذة الإعدادات لاختيار الصفحة المستهدفة!', 'error');
+        openSettingsModal();
         return;
     }
 
@@ -962,6 +967,7 @@ function populateActiveAccounts() {
     }
 
     if (activePages.length > 0) {
+        if (onboardingBanner) onboardingBanner.style.display = 'none';
         currentAccounts = activePages;
         pageSelector.innerHTML = '';
         currentAccounts.forEach(acc => {
@@ -972,38 +978,28 @@ function populateActiveAccounts() {
             pageSelector.appendChild(opt);
         });
         updateMockupHeader();
-        headerStatusText.textContent = `متصل: ${currentAccounts.length} صفحة مفعلة`;
+        headerStatusText.textContent = `🟢 متصل: ${currentAccounts.length} صفحة مفعلة`;
     } else {
-        // محاولة جلب الصفحات الافتراضية من السيرفر
-        fetchServerDefaultAccounts();
+        // حالة البداية النظيفة لأي عميل أو زائر جديد للمنصة
+        currentAccounts = [];
+        if (onboardingBanner) onboardingBanner.style.display = 'flex';
+        pageSelector.innerHTML = '<option value="">⚠️ لم تقم بربط صفحاتك بعد — اضغط هنا لربط الحساب</option>';
+        headerStatusText.textContent = '⚪ غير متصل (بانتظار ربط الحساب)';
+        mockupProfileName.textContent = 'اسم صفحتك هنا';
+        mockupAvatar.innerHTML = '👤';
     }
 }
 
-// جلب الصفحات من السيرفر كخيار احتياطي
-async function fetchServerDefaultAccounts() {
-    try {
-        const res = await fetch('/api/accounts');
-        const data = await res.json();
-        if (data.success && data.accounts && data.accounts.length > 0) {
-            currentAccounts = data.accounts;
-            pageSelector.innerHTML = '';
-            currentAccounts.forEach(acc => {
-                const opt = document.createElement('option');
-                opt.value = acc.id;
-                const hasIg = acc.instagram ? ' 📸 (مربوط بانستجرام)' : '';
-                opt.textContent = `${acc.name}${hasIg}`;
-                pageSelector.appendChild(opt);
-            });
-            updateMockupHeader();
-            headerStatusText.textContent = `متصل بالسحابة (${currentAccounts.length} صفحة)`;
-        } else {
-            pageSelector.innerHTML = '<option value="">⚠️ لم تقم بربط صفحات بعد - اضغط على إدارة وربط الصفحات</option>';
-            headerStatusText.textContent = 'في انتظار ربط الحسابات';
-        }
-    } catch (e) {
-        pageSelector.innerHTML = '<option value="">تعذر جلب الصفحات</option>';
-    }
+// فتح نافذة الإعدادات عند الضغط على زر الترحيب أو القائمة الفارغة
+if (btnBannerConnect) {
+    btnBannerConnect.addEventListener('click', openSettingsModal);
 }
+pageSelector.addEventListener('click', () => {
+    if (currentAccounts.length === 0) {
+        openSettingsModal();
+    }
+});
+
 
 // دالة تحديث اسم ولوجو المنصة في المعاينة الحية
 function updateMockupHeader() {

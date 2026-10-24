@@ -91,8 +91,8 @@ async function saveScheduledPosts(posts) {
 // 1. مسار جلب صفحات فيسبوك وحسابات انستجرام المرتبطة باللوجو والاسم (يدعم المفتاح العام أو مفتاح المستخدم)
 app.get('/api/accounts', async (req, res) => {
     try {
-        const token = req.query.metaToken || META_ACCESS_TOKEN;
-        if (!token) {
+        const token = req.query.metaToken;
+        if (!token || !token.trim()) {
             return res.json({ success: true, accounts: [] });
         }
 

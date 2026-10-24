@@ -34,6 +34,18 @@
             </div>
         </header>
 
+        <!-- شريط الترحيب والبدء للعملاء الجدد (يظهر إذا لم تكن هناك صفحات مربوطة) -->
+        <div id="onboardingBanner" class="onboarding-banner" style="display: none;">
+            <div class="onboarding-content">
+                <span class="onboarding-icon">🚀</span>
+                <div class="onboarding-text">
+                    <h4>مرحباً بك في SocialFlow!</h4>
+                    <p>منصتك السحابية لنشر وجدولة المنشورات على فيسبوك وانستجرام مع التعليق الأول التلقائي. ابدأ بربط صفحاتك وحسابك الآن.</p>
+                </div>
+            </div>
+            <button type="button" class="btn-onboarding-action" id="btnBannerConnect">⚙️ ربط الحساب والصفحات الآن</button>
+        </div>
+
         <!-- المحتوى الرئيسي (شبكة عمودين) -->
         <main class="dashboard-grid">
             <!-- العمود الأيمن: نموذج إنشاء المنشور -->
@@ -351,6 +363,53 @@
                     </div>
                     <div id="metaStatusMsg" class="settings-status-msg" style="display: none;"></div>
 
+                    <!-- دليل شرح استخراج Meta System User Token -->
+                    <details class="setup-guide-details" style="margin-top: 12px;">
+                        <summary class="setup-guide-summary">
+                            <span>📖 كيف أحصل على رمز Meta System User Token الدائم لصفحاتي؟ (اضغط للشرح)</span>
+                            <span class="guide-arrow">▼</span>
+                        </summary>
+                        <div class="setup-guide-content">
+                            <ol class="guide-steps">
+                                <li>
+                                    توجه إلى <strong><a href="https://business.facebook.com/settings" target="_blank" rel="noopener">إعدادات أعمال Meta (Business Settings)</a></strong>.
+                                </li>
+                                <li>
+                                    من القائمة الجانبية، اضغط على <strong>المستخدمون (Users)</strong> ثم اختر <strong>المستخدمون الأساسيون (System Users)</strong>.
+                                </li>
+                                <li>
+                                    اضغط على زر <strong>إضافة (Add)</strong>، اكتب اسماً له (مثلاً: <code>SocialFlow</code>) واختر الدور <strong>مسؤول (Admin)</strong> ثم اضغط إنشاء.
+                                </li>
+                                <li>
+                                    اضغط على زر <strong>تعيين أصول (Assign Assets)</strong>:
+                                    <ul>
+                                        <li>اختر <strong>الصفحات (Pages)</strong>، حدد صفحاتك وفعّل خيار <strong>التحكم الكامل (Full Control)</strong>.</li>
+                                        <li>اختر <strong>حسابات Instagram</strong> وحدد حسابك وفعّل <strong>التحكم الكامل (Full Control)</strong>، ثم احفظ التغييرات.</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    اضغط على زر <strong>إنشاء رمز جديد (Generate New Token)</strong>:
+                                    <ul>
+                                        <li>اختر تطبيقك (App).</li>
+                                        <li>في صلاحية الرمز (Token Expiration) اختر: <strong>Never (دائم لا ينتهي أبداً)</strong>.</li>
+                                        <li>حدد الصلاحيات التالية:
+                                            <div class="perms-pills">
+                                                <code>pages_show_list</code>
+                                                <code>pages_read_engagement</code>
+                                                <code>pages_manage_posts</code>
+                                                <code>instagram_basic</code>
+                                                <code>instagram_content_publish</code>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    اضغط <strong>Generate Token</strong>، انسخ الرمز والصقه في خانة الرمز أعلاه، ثم اضغط <strong>🔍 جلب وفحص الصفحات</strong>!
+                                </li>
+                            </ol>
+                        </div>
+                    </details>
+
                     <!-- قائمة الصفحات المكتشفة مع إمكانية التحديد والفرز -->
                     <div id="discoveredPagesContainer" class="discovered-pages-container" style="display: none;">
                         <div class="pages-list-header">
@@ -389,6 +448,35 @@
                         <button type="button" class="btn-test-cloud" id="btnTestCloudinary">⚡ اختبار اتصال Cloudinary</button>
                         <span id="cloudStatusMsg" class="cloud-status-msg" style="display: none;"></span>
                     </div>
+
+                    <!-- دليل شرح استخراج بيانات Cloudinary -->
+                    <details class="setup-guide-details" style="margin-top: 12px;">
+                        <summary class="setup-guide-summary">
+                            <span>📖 كيف أحصل على بيانات Cloudinary المجانية الخاصة بي؟ (اضغط للشرح)</span>
+                            <span class="guide-arrow">▼</span>
+                        </summary>
+                        <div class="setup-guide-content">
+                            <ol class="guide-steps">
+                                <li>
+                                    توجه إلى موقع <strong><a href="https://cloudinary.com/users/register_free" target="_blank" rel="noopener">Cloudinary.com</a></strong> وسجل حساباً مجانياً (Free Forever).
+                                </li>
+                                <li>
+                                    بعد تسجيل الدخول، ستفتح لك لوحة التحكم الرئيسية (Dashboard).
+                                </li>
+                                <li>
+                                    ستجد في أعلى الصفحة صندوقاً بعنوان <strong>Product Environment Credentials</strong> يحتوي على بياناتك الثلاثة:
+                                    <ul>
+                                        <li><strong>Cloud Name</strong></li>
+                                        <li><strong>API Key</strong></li>
+                                        <li><strong>API Secret</strong> (اضغط على أيقونة العين لإظهاره أو نسخه)</li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    انسخ كل قيمة وضعها في الحقل المخصص لها بالأعلى، ثم اضغط <strong>⚡ اختبار اتصال Cloudinary</strong> لتتأكد من نجاح الاتصال!
+                                </li>
+                            </ol>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- 3. قسم ربط الويبهوك وتطبيق Meta (Webhooks & App Config) -->

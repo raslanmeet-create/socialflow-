@@ -1620,5 +1620,73 @@ textarea:focus {
     font-family: monospace;
 }
 
+/* شريط الترحيب والبدء */
+.onboarding-banner {
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.12), rgba(35, 134, 54, 0.12));
+    border: 1px solid rgba(88, 166, 255, 0.35);
+    border-radius: var(--radius-lg);
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    animation: fadeIn 0.4s ease;
+}
+
+@media (max-width: 768px) {
+    .onboarding-banner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+.onboarding-content {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.onboarding-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.onboarding-text h4 {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.onboarding-text p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.btn-onboarding-action {
+    background: linear-gradient(90deg, #1f6feb, #238636);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 15px rgba(31, 111, 235, 0.4);
+    transition: var(--transition);
+}
+
+.btn-onboarding-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(35, 134, 54, 0.5);
+}
+
+
 
 
