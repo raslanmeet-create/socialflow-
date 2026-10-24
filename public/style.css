@@ -1687,6 +1687,748 @@ textarea:focus {
     box-shadow: 0 6px 20px rgba(35, 134, 54, 0.5);
 }
 
+/* ========================================================
+   شريط التبويبات الرئيسي (Main Navigation Tabs)
+   ======================================================== */
+.main-nav-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
 
+.nav-tab-btn {
+    background: rgba(22, 27, 34, 0.75);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    padding: 13px 24px;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: var(--transition);
+    backdrop-filter: blur(10px);
+    position: relative;
+    user-select: none;
+}
 
+.nav-tab-btn:hover {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(88, 166, 255, 0.4);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+}
 
+.nav-tab-btn.active {
+    background: linear-gradient(135deg, rgba(31, 111, 235, 0.25), rgba(88, 166, 255, 0.12));
+    border-color: var(--accent);
+    color: var(--text-primary);
+    box-shadow: 0 4px 20px rgba(31, 111, 235, 0.35);
+}
+
+.nav-tab-btn .tab-icon {
+    font-size: 18px;
+}
+
+.nav-tab-btn .tab-badge {
+    background: var(--accent);
+    color: #0d1117;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-right: 4px;
+}
+
+/* ========================================================
+   شريط التنبيه بحجز موعد من الجدول (Selected Slot Banner)
+   ======================================================== */
+.selected-slot-banner {
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.15), rgba(35, 134, 54, 0.15));
+    border: 1.5px solid var(--accent);
+    border-radius: var(--radius-md);
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    animation: pulseGlow 1.5s infinite alternate ease-in-out;
+}
+
+@keyframes pulseGlow {
+    from { box-shadow: 0 0 10px rgba(88, 166, 255, 0.2); }
+    to { box-shadow: 0 0 20px rgba(88, 166, 255, 0.5); }
+}
+
+.slot-banner-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.slot-banner-icon {
+    font-size: 24px;
+}
+
+.slot-banner-date {
+    display: inline-block;
+    color: var(--accent);
+    font-weight: 800;
+    margin-right: 6px;
+    background: rgba(88, 166, 255, 0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.btn-clear-slot {
+    background: rgba(218, 54, 51, 0.15);
+    border: 1px solid rgba(218, 54, 51, 0.4);
+    color: #ff7b72;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-clear-slot:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* زر التحويل إلى مخطط ميتا في القائمة الجانبية */
+.scheduled-planner-cta {
+    margin-bottom: 16px;
+}
+
+.btn-open-planner-cta {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(31, 111, 235, 0.15), rgba(88, 166, 255, 0.08));
+    border: 1px dashed rgba(88, 166, 255, 0.4);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: inherit;
+    text-align: right;
+    transition: var(--transition);
+}
+
+.btn-open-planner-cta:hover {
+    background: linear-gradient(135deg, rgba(31, 111, 235, 0.3), rgba(88, 166, 255, 0.2));
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(31, 111, 235, 0.25);
+}
+
+.btn-open-planner-cta .cta-icon {
+    font-size: 24px;
+}
+
+.btn-open-planner-cta .cta-text {
+    flex: 1;
+}
+
+.btn-open-planner-cta .cta-text strong {
+    display: block;
+    font-size: 14px;
+    color: var(--accent);
+}
+
+.btn-open-planner-cta .cta-text small {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.btn-open-planner-cta .cta-arrow {
+    font-size: 16px;
+    color: var(--accent);
+    transition: transform 0.2s ease;
+}
+
+.btn-open-planner-cta:hover .cta-arrow {
+    transform: translateX(-4px);
+}
+
+/* ========================================================
+   قسم مخطط المحتوى والجدولة مثل ميتا (Meta Planner Card)
+   ======================================================== */
+.planner-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 0.3s ease;
+}
+
+.planner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.planner-title-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.planner-icon-badge {
+    font-size: 30px;
+    background: rgba(88, 166, 255, 0.12);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+}
+
+.planner-header h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.planner-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.btn-quick-schedule {
+    background: linear-gradient(135deg, var(--accent-hover), var(--accent));
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(31, 111, 235, 0.35);
+    transition: var(--transition);
+}
+
+.btn-quick-schedule:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(31, 111, 235, 0.5);
+}
+
+/* شريط التنقل الزمني والفلترة */
+.planner-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 18px 0;
+}
+
+.planner-week-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-nav-week, .btn-nav-today {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-nav-week:hover, .btn-nav-today:hover {
+    background: rgba(88, 166, 255, 0.15);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.btn-nav-today {
+    background: rgba(31, 111, 235, 0.2);
+    border-color: rgba(88, 166, 255, 0.4);
+    color: var(--accent);
+}
+
+.planner-date-display {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    background: rgba(22, 27, 34, 0.8);
+    border: 1px solid var(--card-border);
+    padding: 7px 16px;
+    border-radius: 20px;
+}
+
+.planner-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-left: 6px;
+}
+
+.filter-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.filter-btn:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.filter-btn.active {
+    background: rgba(88, 166, 255, 0.2);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.planner-interactive-hint {
+    background: rgba(88, 166, 255, 0.08);
+    border: 1px solid rgba(88, 166, 255, 0.2);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #a5d6ff;
+}
+
+/* ========================================================
+   جدول الأيام والساعات (Schedule Grid)
+   ======================================================== */
+.planner-grid-wrapper {
+    overflow-x: auto;
+    max-height: 700px;
+    overflow-y: auto;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    background: #0d1117;
+    position: relative;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* تخصيص شريط التمرير */
+.planner-grid-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.planner-grid-wrapper::-webkit-scrollbar-track {
+    background: #0d1117;
+}
+.planner-grid-wrapper::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+}
+
+.planner-grid {
+    display: grid;
+    grid-template-columns: 80px repeat(7, minmax(160px, 1fr));
+    min-width: 1200px;
+}
+
+/* صف الرأس (الأيام) */
+.grid-header-cell {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #161b22;
+    padding: 14px 10px;
+    text-align: center;
+    border-bottom: 2px solid var(--card-border);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+}
+
+.grid-header-cell.time-header {
+    border-left: 1px solid var(--card-border);
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.grid-header-cell .day-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.grid-header-cell .day-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.grid-header-cell.is-today {
+    background: linear-gradient(180deg, rgba(31, 111, 235, 0.25) 0%, #161b22 100%);
+    border-bottom: 3px solid var(--accent);
+}
+
+.grid-header-cell.is-today .day-name {
+    color: var(--accent);
+}
+
+.grid-header-cell .today-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #0d1117;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-top: 4px;
+}
+
+/* خلية التوقيت (عمود الساعات) */
+.grid-time-cell {
+    padding: 12px 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 1px solid var(--card-border);
+    background: #13171f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: sticky;
+    right: 0;
+    z-index: 5;
+}
+
+/* خانة اليوم والساعة (Cell) */
+.grid-slot-cell {
+    min-height: 85px;
+    padding: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    position: relative;
+    transition: var(--transition);
+    background: #0d1117;
+}
+
+.grid-slot-cell.is-today-col {
+    background: rgba(88, 166, 255, 0.02);
+}
+
+/* خانة متاحة للجدولة */
+.grid-slot-cell.empty-slot {
+    cursor: pointer;
+}
+
+.grid-slot-cell.empty-slot:hover {
+    background: rgba(88, 166, 255, 0.08) !important;
+    border: 1px dashed rgba(88, 166, 255, 0.5);
+    box-shadow: inset 0 0 15px rgba(31, 111, 235, 0.2);
+}
+
+.slot-hover-action {
+    display: none;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    animation: fadeIn 0.2s ease;
+}
+
+.grid-slot-cell.empty-slot:hover .slot-hover-action {
+    display: flex;
+}
+
+.slot-hover-icon {
+    font-size: 20px;
+    background: rgba(88, 166, 255, 0.2);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* خانة تحتوي على منشورات مجدولة */
+.grid-slot-cell.has-posts {
+    background: rgba(22, 27, 34, 0.6);
+}
+
+/* كارت المنشور المصغر داخل الخانة مثل ميتا (Post Chip) */
+.planner-post-chip {
+    background: linear-gradient(135deg, #1c2128, #161b22);
+    border: 1px solid rgba(88, 166, 255, 0.35);
+    border-right: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: var(--transition);
+    cursor: pointer;
+}
+
+.planner-post-chip:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 6px 16px rgba(31, 111, 235, 0.35);
+}
+
+.planner-post-chip.status-published {
+    border-right-color: var(--success);
+    border-color: rgba(35, 134, 54, 0.4);
+}
+
+.chip-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    gap: 4px;
+}
+
+.chip-platforms {
+    display: flex;
+    gap: 3px;
+    font-size: 12px;
+}
+
+.chip-time-badge {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.planner-post-chip.status-published .chip-time-badge {
+    background: rgba(35, 134, 54, 0.15);
+    color: #3fb950;
+}
+
+.chip-content {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.chip-thumbnail {
+    width: 38px;
+    height: 38px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--card-border);
+}
+
+.chip-text {
+    font-size: 11px;
+    color: var(--text-primary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.chip-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-chip-action {
+    background: transparent;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: var(--transition);
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.btn-chip-action:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-chip-action.delete:hover {
+    background: rgba(218, 54, 51, 0.2);
+    color: var(--danger);
+}
+
+/* دليل الألوان */
+.planner-legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-box {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.legend-box.available-box {
+    background: #0d1117;
+    border: 1px dashed rgba(88, 166, 255, 0.6);
+}
+
+.legend-box.scheduled-box {
+    background: #1c2128;
+    border: 1px solid var(--accent);
+    border-right: 3px solid var(--accent);
+}
+
+.legend-box.today-box {
+    background: rgba(31, 111, 235, 0.25);
+    border: 1px solid var(--accent);
+}
+
+/* ========================================================
+   نافذة معاينة المنشور المجدول (Post Preview Modal)
+   ======================================================== */
+.modal-preview-dialog {
+    max-width: 650px;
+}
+
+.preview-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--card-border);
+}
+
+.btn-delete-scheduled-danger {
+    background: rgba(218, 54, 51, 0.15);
+    border: 1px solid var(--danger);
+    color: #ff7b72;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-delete-scheduled-danger:hover {
+    background: var(--danger);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(218, 54, 51, 0.4);
+}
+
+.preview-post-card {
+    background: #0d1117;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.preview-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.preview-media-frame {
+    max-height: 360px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 14px 0;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.preview-media-frame img, .preview-media-frame video {
+    max-width: 100%;
+    max-height: 360px;
+    object-fit: contain;
+}
+
+.preview-first-comment-box {
+    background: rgba(88, 166, 255, 0.08);
+    border: 1px solid rgba(88, 166, 255, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 14px;
+}
+
+.preview-first-comment-box strong {
+    color: var(--accent);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+}

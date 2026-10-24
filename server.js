@@ -375,6 +375,9 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
 app.get('/api/scheduled', async (req, res) => {
     try {
         const all = await getScheduledPosts();
+        if (req.query.all === 'true') {
+            return res.json(all);
+        }
         const posts = all.filter(p => p.status === 'PENDING');
         res.json(posts);
     } catch {

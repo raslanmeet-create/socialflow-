@@ -57,8 +57,41 @@ const btnCopyWebhookToken = document.getElementById('btnCopyWebhookToken');
 const onboardingBanner = document.getElementById('onboardingBanner');
 const btnBannerConnect = document.getElementById('btnBannerConnect');
 
+// عناصر التبويبات والمخطط (Meta Planner & Navigation Tabs)
+const tabBtnComposer = document.getElementById('tabBtnComposer');
+const tabBtnPlanner = document.getElementById('tabBtnPlanner');
+const plannerBadgeCount = document.getElementById('plannerBadgeCount');
+const composerSection = document.getElementById('composerSection');
+const plannerSection = document.getElementById('plannerSection');
 
+// عناصر شريط حجز الموعد من الجدول
+const selectedSlotBanner = document.getElementById('selectedSlotBanner');
+const selectedSlotText = document.getElementById('selectedSlotText');
+const btnClearSlot = document.getElementById('btnClearSlot');
 
+// عناصر مخطط ميتا التفاعلي
+const btnOpenPlannerCta = document.getElementById('btnOpenPlannerCta');
+const btnPlannerQuickAdd = document.getElementById('btnPlannerQuickAdd');
+const btnPrevWeek = document.getElementById('btnPrevWeek');
+const btnToday = document.getElementById('btnToday');
+const btnNextWeek = document.getElementById('btnNextWeek');
+const plannerDateDisplay = document.getElementById('plannerDateDisplay');
+const plannerGrid = document.getElementById('plannerGrid');
+
+// عناصر نافذة معاينة المنشور المجدول
+const postPreviewModal = document.getElementById('postPreviewModal');
+const btnClosePreviewModal = document.getElementById('btnClosePreviewModal');
+const btnClosePreviewModalBtn = document.getElementById('btnClosePreviewModalBtn');
+const btnDeleteFromPreviewModal = document.getElementById('btnDeleteFromPreviewModal');
+const previewModalTitle = document.getElementById('previewModalTitle');
+const previewModalSubtitle = document.getElementById('previewModalSubtitle');
+const previewModalBody = document.getElementById('previewModalBody');
+
+// متغيرات حالة مخطط ميتا
+let plannerCurrentDate = new Date();
+let plannerPlatformFilter = 'all';
+let cachedScheduledPosts = [];
+let activePreviewPostId = null;
 // حالة إعدادات المستخدم والصفحات
 let userConfig = {
     metaToken: '',
@@ -647,66 +680,532 @@ function showAlert(message, type) {
     }, 100);
 }
 
-// 6. تحميل وإدارة المنشورات المجدولة
+// 6. تحميل وإدارة المنشورات المجدولة ومخطط ميتا (Meta Planner)
 async function loadScheduledPosts() {
     try {
-        const response = await fetch('/api/scheduled');
+        const response = await fetch('/api/scheduled?all=true');
         const posts = await response.json();
+        cachedScheduledPosts = Array.isArray(posts) ? posts : [];
 
-        scheduledCount.textContent = `${posts.length} منشورات`;
+        // تصفية المنشورات قيد الانتظار للعدادات
+        const pendingPosts = cachedScheduledPosts.filter(p => p.status === 'PENDING');
+        const countText = `${pendingPosts.length} منشورات`;
+        if (scheduledCount) scheduledCount.textContent = countText;
+        if (plannerBadgeCount) plannerBadgeCount.textContent = pendingPosts.length;
 
-        if (posts.length === 0) {
-            scheduledList.innerHTML = `
-                <div class="empty-scheduled">
-                    <p>لا توجد منشورات مجدولة حالياً. اكتب منشوراً وحدد وقتاً لجدولته!</p>
-                </div>
-            `;
-            return;
+        // 1. تحديث القائمة الجانبية السريعة
+        if (scheduledList) {
+            if (pendingPosts.length === 0) {
+                scheduledList.innerHTML = `
+                    <div class="empty-scheduled">
+                        <p>لا توجد منشورات مجدولة حالياً. اكتب منشوراً أو اضغط على جدول المخطط لجدولته في أي ساعة!</p>
+                    </div>
+                `;
+            } else {
+                scheduledList.innerHTML = '';
+                pendingPosts.forEach(post => {
+                    const item = document.createElement('div');
+                    item.className = 'scheduled-item';
+                    
+                    const dateStr = new Date(post.scheduledTime).toLocaleString('ar-EG', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+
+                    const platformsBadges = (post.platforms || []).map(p => 
+                        `<span class="platform-mini-badge">${p === 'facebook' ? '📘 فيسبوك' : (p === 'instagram' ? '📸 انستجرام' : p)}</span>`
+                    ).join(' ');
+
+                    item.innerHTML = `
+                        <div class="scheduled-info">
+                            <div class="scheduled-date">⏰ ${dateStr}</div>
+                            <div class="scheduled-snippet">${post.content || (post.mediaUrl ? '📁 وسائط بدون نص' : '')}</div>
+                            <div class="scheduled-platforms">${platformsBadges}</div>
+                        </div>
+                        <div class="scheduled-item-actions">
+                            <button type="button" class="btn-quick-preview-list" data-id="${post.id}" title="معاينة تفاصيل المنشور">👁️</button>
+                            <button type="button" class="btn-delete-scheduled" data-id="${post.id}" title="إلغاء المنشور">🗑️</button>
+                        </div>
+                    `;
+
+                    scheduledList.appendChild(item);
+                });
+
+                // ربط أزرار المعاينة بالقائمة الجانبية
+                document.querySelectorAll('.btn-quick-preview-list').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        const post = cachedScheduledPosts.find(p => p.id === id);
+                        if (post) openPostPreviewModal(post);
+                    });
+                });
+
+                // ربط أزرار الحذف بالقائمة الجانبية
+                document.querySelectorAll('.btn-delete-scheduled').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const id = e.currentTarget.dataset.id;
+                        if (confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) {
+                            await fetch(`/api/scheduled/${id}`, { method: 'DELETE' });
+                            loadScheduledPosts();
+                        }
+                    });
+                });
+            }
         }
 
-        scheduledList.innerHTML = '';
-        posts.forEach(post => {
-            const item = document.createElement('div');
-            item.className = 'scheduled-item';
-            
-            const dateStr = new Date(post.scheduledTime).toLocaleString('ar-EG', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-
-            const platformsBadges = (post.platforms || []).map(p => 
-                `<span class="platform-mini-badge">${p}</span>`
-            ).join(' ');
-
-            item.innerHTML = `
-                <div class="scheduled-info">
-                    <div class="scheduled-date">⏰ ${dateStr}</div>
-                    <div class="scheduled-snippet">${post.content || (post.media ? '📁 وسائط بدون نص' : '')}</div>
-                    <div class="scheduled-platforms">${platformsBadges}</div>
-                </div>
-                <button class="btn-delete-scheduled" data-id="${post.id}" title="إلغاء المنشور">🗑️</button>
-            `;
-
-            scheduledList.appendChild(item);
-        });
-
-        // ربط أزرار الحذف
-        document.querySelectorAll('.btn-delete-scheduled').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const id = e.currentTarget.dataset.id;
-                if (confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) {
-                    await fetch(`/api/scheduled/${id}`, { method: 'DELETE' });
-                    loadScheduledPosts();
-                }
-            });
-        });
+        // 2. تحديث جدول مخطط ميتا الأسبوعي
+        renderMetaPlanner();
 
     } catch (err) {
         console.error('فشل في جلب المنشورات المجدولة', err);
     }
 }
+
+// ========================================================
+// نظام التبويبات والمخطط الأسبوعي التفاعلي (Meta Planner)
+// ========================================================
+
+// 1. دالة التبديل بين التبويبات
+function switchTab(tabName) {
+    if (tabName === 'planner') {
+        if (tabBtnPlanner) tabBtnPlanner.classList.add('active');
+        if (tabBtnComposer) tabBtnComposer.classList.remove('active');
+        if (composerSection) composerSection.style.display = 'none';
+        if (plannerSection) {
+            plannerSection.style.display = 'block';
+            plannerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        renderMetaPlanner();
+    } else {
+        if (tabBtnComposer) tabBtnComposer.classList.add('active');
+        if (tabBtnPlanner) tabBtnPlanner.classList.remove('active');
+        if (plannerSection) plannerSection.style.display = 'none';
+        if (composerSection) {
+            composerSection.style.display = 'grid';
+            composerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+}
+
+// ربط أزرار التبويبات
+if (tabBtnComposer) tabBtnComposer.addEventListener('click', () => switchTab('composer'));
+if (tabBtnPlanner) tabBtnPlanner.addEventListener('click', () => switchTab('planner'));
+if (btnOpenPlannerCta) btnOpenPlannerCta.addEventListener('click', () => switchTab('planner'));
+
+// زر إضافة سريعة من رأس المخطط
+if (btnPlannerQuickAdd) {
+    btnPlannerQuickAdd.addEventListener('click', () => {
+        // تحديد موعد الساعة القادمة
+        const nextHour = new Date();
+        nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+        scheduleDateTime.value = formatLocalDateTime(nextHour);
+        timingSchedule.checked = true;
+        timingSchedule.dispatchEvent(new Event('change'));
+        if (selectedSlotBanner && selectedSlotText) {
+            selectedSlotText.textContent = formatArabicSlot(nextHour);
+            selectedSlotBanner.style.display = 'flex';
+        }
+        switchTab('composer');
+        postContent.focus();
+    });
+}
+
+// زر إلغاء حجز الموعد المحدد
+if (btnClearSlot) {
+    btnClearSlot.addEventListener('click', () => {
+        if (selectedSlotBanner) selectedSlotBanner.style.display = 'none';
+        timingNow.checked = true;
+        timingNow.dispatchEvent(new Event('change'));
+    });
+}
+
+// 2. دوال معالجة وتنسيق التواريخ
+function formatLocalDateTime(d) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+const ARABIC_DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const ARABIC_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+function formatArabicSlot(d) {
+    const dayName = ARABIC_DAYS[d.getDay()];
+    const dayNum = d.getDate();
+    const monthName = ARABIC_MONTHS[d.getMonth()];
+    let hours = d.getHours();
+    const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+    hours = hours % 12 || 12;
+    const formattedHours = String(hours).padStart(2, '0');
+    return `${dayName} ${dayNum} ${monthName} — الساعة ${formattedHours}:00 ${ampm}`;
+}
+
+function formatHour12(h) {
+    const ampm = h >= 12 ? 'م' : 'ص';
+    const hour12 = h % 12 || 12;
+    return `${String(hour12).padStart(2, '0')}:00 ${ampm}`;
+}
+
+function isSameDay(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+}
+
+// استخراج أيام الأسبوع السبعة بدءاً من السبت
+function getWeekDays(baseDate) {
+    const d = new Date(baseDate);
+    d.setHours(0, 0, 0, 0);
+    // السبت = 6، الأحد = 0، الإثنين = 1 ...
+    const dayOfWeek = d.getDay();
+    const diffToSaturday = (dayOfWeek + 1) % 7;
+    const saturday = new Date(d);
+    saturday.setDate(d.getDate() - diffToSaturday);
+
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+        const current = new Date(saturday);
+        current.setDate(saturday.getDate() + i);
+        week.push(current);
+    }
+    return week;
+}
+
+// 3. دالة حجز موعد والنقل لاستوديو الكتابة فور الضغط على أي خانة بالجدول
+function scheduleAtSlot(dateStr, hour) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const target = new Date(y, m - 1, d, hour, 0, 0, 0);
+
+    // 1. ضبط حقل التاريخ والوقت
+    scheduleDateTime.value = formatLocalDateTime(target);
+
+    // 2. تفعيل خيار الجدولة
+    timingSchedule.checked = true;
+    timingSchedule.dispatchEvent(new Event('change'));
+
+    // 3. إظهار بنر تأكيد حجز الموعد
+    if (selectedSlotBanner && selectedSlotText) {
+        selectedSlotText.textContent = formatArabicSlot(target);
+        selectedSlotBanner.style.display = 'flex';
+    }
+
+    // 4. الانتقال لتبويب الإنشاء
+    switchTab('composer');
+
+    // 5. التركيز والتنبيه البصري
+    setTimeout(() => {
+        postContent.focus();
+        if (scheduleInputs) {
+            scheduleInputs.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            scheduleInputs.style.boxShadow = '0 0 25px rgba(88, 166, 255, 0.8)';
+            setTimeout(() => {
+                scheduleInputs.style.boxShadow = '';
+            }, 1200);
+        }
+    }, 150);
+}
+
+// 4. التنقل في أسابيع المخطط
+if (btnPrevWeek) {
+    btnPrevWeek.addEventListener('click', () => {
+        plannerCurrentDate.setDate(plannerCurrentDate.getDate() - 7);
+        renderMetaPlanner();
+    });
+}
+
+if (btnNextWeek) {
+    btnNextWeek.addEventListener('click', () => {
+        plannerCurrentDate.setDate(plannerCurrentDate.getDate() + 7);
+        renderMetaPlanner();
+    });
+}
+
+if (btnToday) {
+    btnToday.addEventListener('click', () => {
+        plannerCurrentDate = new Date();
+        renderMetaPlanner();
+    });
+}
+
+// أزرار فلترة المنصات في المخطط
+document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        plannerPlatformFilter = e.currentTarget.dataset.filter;
+        renderMetaPlanner();
+    });
+});
+
+// 5. رسم وتوليد جدول مخطط ميتا (Render Meta Planner Grid)
+function renderMetaPlanner() {
+    if (!plannerGrid) return;
+
+    const today = new Date();
+    const weekDays = getWeekDays(plannerCurrentDate);
+
+    // تحديث نص نطاق الأسبوع في الرأس
+    if (plannerDateDisplay) {
+        const startDay = weekDays[0];
+        const endDay = weekDays[6];
+        plannerDateDisplay.textContent = `${startDay.getDate()} ${ARABIC_MONTHS[startDay.getMonth()]} — ${endDay.getDate()} ${ARABIC_MONTHS[endDay.getMonth()]} ${endDay.getFullYear()}`;
+    }
+
+    plannerGrid.innerHTML = '';
+
+    // أ) توليد صف الرأس (رأس عمود الوقت + رؤوس أيام الأسبوع السبعة)
+    const timeHeader = document.createElement('div');
+    timeHeader.className = 'grid-header-cell time-header';
+    timeHeader.textContent = '⏰ الوقت';
+    plannerGrid.appendChild(timeHeader);
+
+    weekDays.forEach(day => {
+        const isCurrentDay = isSameDay(day, today);
+        const dayHeader = document.createElement('div');
+        dayHeader.className = `grid-header-cell ${isCurrentDay ? 'is-today' : ''}`;
+        
+        const dayName = ARABIC_DAYS[day.getDay()];
+        const dayNum = day.getDate();
+        const monthName = ARABIC_MONTHS[day.getMonth()];
+
+        dayHeader.innerHTML = `
+            <div class="day-name">${dayName}</div>
+            <div class="day-date">${dayNum} ${monthName}</div>
+            ${isCurrentDay ? '<span class="today-badge">اليوم</span>' : ''}
+        `;
+        plannerGrid.appendChild(dayHeader);
+    });
+
+    // ب) توليد صفوف الساعات (24 ساعة كاملة من 00:00 إلى 23:00)
+    for (let hour = 0; hour < 24; hour++) {
+        // خلية الساعة (العمود الأيمن)
+        const timeCell = document.createElement('div');
+        timeCell.className = 'grid-time-cell';
+        timeCell.textContent = formatHour12(hour);
+        plannerGrid.appendChild(timeCell);
+
+        // خلايا الأيام السبعة لهذه الساعة
+        weekDays.forEach(day => {
+            const isCurrentDay = isSameDay(day, today);
+            const slotCell = document.createElement('div');
+            const yearStr = day.getFullYear();
+            const monthStr = String(day.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(day.getDate()).padStart(2, '0');
+            const dateKey = `${yearStr}-${monthStr}-${dayStr}`;
+
+            slotCell.className = `grid-slot-cell ${isCurrentDay ? 'is-today-col' : ''}`;
+            slotCell.dataset.date = dateKey;
+            slotCell.dataset.hour = hour;
+
+            // البحث عن منشورات تطابق هذا اليوم والساعة
+            const matchingPosts = cachedScheduledPosts.filter(post => {
+                if (!post.scheduledTime) return false;
+                const postDate = new Date(post.scheduledTime);
+                const isMatchingTime = isSameDay(postDate, day) && postDate.getHours() === hour;
+                if (!isMatchingTime) return false;
+
+                if (plannerPlatformFilter === 'all') return true;
+                return (post.platforms || []).includes(plannerPlatformFilter);
+            });
+
+            if (matchingPosts.length > 0) {
+                // الخانة تحتوي على منشورات مجدولة
+                slotCell.classList.add('has-posts');
+
+                matchingPosts.forEach(post => {
+                    const postDate = new Date(post.scheduledTime);
+                    const minutesStr = String(postDate.getMinutes()).padStart(2, '0');
+                    const timeTag = `${formatHour12(hour).replace(':00', `:${minutesStr}`)}`;
+
+                    const isFb = (post.platforms || []).includes('facebook');
+                    const isIg = (post.platforms || []).includes('instagram');
+                    const platformsHtml = `${isFb ? '📘' : ''} ${isIg ? '📸' : ''}`;
+                    const isPublished = post.status === 'PUBLISHED';
+
+                    const chip = document.createElement('div');
+                    chip.className = `planner-post-chip ${isPublished ? 'status-published' : ''}`;
+                    chip.title = 'اضغط لمعاينة المنشور';
+
+                    let thumbHtml = '';
+                    if (post.mediaUrl) {
+                        const isVideo = post.mediaType && post.mediaType.startsWith('video');
+                        if (isVideo) {
+                            thumbHtml = '<div class="chip-thumbnail" style="display:flex;align-items:center;justify-content:center;background:#000;font-size:16px;">🎬</div>';
+                        } else {
+                            thumbHtml = `<img src="${post.mediaUrl}" class="chip-thumbnail" alt="Thumb">`;
+                        }
+                    }
+
+                    const snippet = post.content ? post.content.slice(0, 45) + (post.content.length > 45 ? '...' : '') : 'وسائط بدون نص';
+
+                    chip.innerHTML = `
+                        <div class="chip-top">
+                            <span class="chip-platforms">${platformsHtml}</span>
+                            <span class="chip-time-badge">${timeTag}</span>
+                        </div>
+                        <div class="chip-content">
+                            ${thumbHtml}
+                            <p class="chip-text">${snippet}</p>
+                        </div>
+                        <div class="chip-actions">
+                            <button type="button" class="btn-chip-action btn-chip-view" title="معاينة كاملة">👁️</button>
+                            ${!isPublished ? `<button type="button" class="btn-chip-action delete btn-chip-del" title="إلغاء المنشور">🗑️</button>` : '<span style="font-size:10px;color:#3fb950;">✓ تم</span>'}
+                        </div>
+                    `;
+
+                    // عند الضغط على الكارت تفتح المعاينة
+                    chip.addEventListener('click', (e) => {
+                        if (e.target.closest('.btn-chip-del')) return;
+                        openPostPreviewModal(post);
+                    });
+
+                    // زر الحذف السريع
+                    const delBtn = chip.querySelector('.btn-chip-del');
+                    if (delBtn) {
+                        delBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            if (confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) {
+                                await fetch(`/api/scheduled/${post.id}`, { method: 'DELETE' });
+                                loadScheduledPosts();
+                            }
+                        });
+                    }
+
+                    slotCell.appendChild(chip);
+                });
+
+            } else {
+                // الخانة فارغة ومتاحة للجدولة
+                slotCell.classList.add('empty-slot');
+                slotCell.title = `اضغط لجدولة منشور في: ${ARABIC_DAYS[day.getDay()]} الساعة ${hour}:00`;
+                slotCell.innerHTML = `
+                    <div class="slot-hover-action">
+                        <span class="slot-hover-icon">+</span>
+                        <span>جدولة ${hour}:00</span>
+                    </div>
+                `;
+
+                // عند الضغط على أي خانة فارغة: فتح استوديو الكتابة وجدولة المنشور في ذلك الوقت فوراً!
+                slotCell.addEventListener('click', () => {
+                    scheduleAtSlot(dateKey, hour);
+                });
+            }
+
+            plannerGrid.appendChild(slotCell);
+        });
+    }
+}
+
+// 6. نافذة تفاصيل ومعاينة المنشور المجدول (Post Preview Modal)
+function openPostPreviewModal(post) {
+    if (!postPreviewModal || !previewModalBody) return;
+    activePreviewPostId = post.id;
+
+    const postDate = new Date(post.scheduledTime);
+    const dateFormatted = formatArabicSlot(postDate);
+    const isPublished = post.status === 'PUBLISHED';
+
+    if (previewModalTitle) {
+        previewModalTitle.textContent = isPublished ? 'معاينة منشور تم نشره' : 'معاينة منشور مجدول بالسحابة';
+    }
+    if (previewModalSubtitle) {
+        previewModalSubtitle.textContent = `موعد النشر: ${dateFormatted} (${isPublished ? '✅ تم النشر' : '⏳ قيد الانتظار'})`;
+    }
+
+    const isFb = (post.platforms || []).includes('facebook');
+    const isIg = (post.platforms || []).includes('instagram');
+    const platformsText = `${isFb ? '📘 فيسبوك' : ''} ${isIg ? '📸 انستجرام' : ''}`;
+
+    let mediaHtml = '';
+    if (post.mediaUrl) {
+        const isVideo = post.mediaType && post.mediaType.startsWith('video');
+        if (isVideo) {
+            mediaHtml = `
+                <div class="preview-media-frame">
+                    <video src="${post.mediaUrl}" controls></video>
+                </div>
+            `;
+        } else {
+            mediaHtml = `
+                <div class="preview-media-frame">
+                    <img src="${post.mediaUrl}" alt="Media Preview">
+                </div>
+            `;
+        }
+    }
+
+    let firstCommentHtml = '';
+    if (post.firstComment) {
+        firstCommentHtml = `
+            <div class="preview-first-comment-box">
+                <strong>💬 التعليق الأول التلقائي:</strong>
+                <p style="margin:0;color:var(--text-primary);font-size:13px;">${post.firstComment}</p>
+            </div>
+        `;
+    }
+
+    previewModalBody.innerHTML = `
+        <div class="preview-post-card">
+            <div class="preview-meta-row">
+                <div>
+                    <span style="font-size:13px;color:var(--text-secondary);">المنصات المستهدفة: </span>
+                    <strong style="color:var(--accent);">${platformsText}</strong>
+                </div>
+                <div>
+                    <span style="font-size:12px;background:rgba(88,166,255,0.15);color:var(--accent);padding:3px 10px;border-radius:12px;">
+                        ${isPublished ? '✅ تم النشر' : '⏳ مجدول بالسحابة'}
+                    </span>
+                </div>
+            </div>
+
+            <div style="font-size:14px;color:var(--text-primary);white-space:pre-wrap;line-height:1.6;margin:12px 0;">
+                ${post.content ? post.content : '<em style="color:var(--text-secondary);">منشور وسائط بدون نص</em>'}
+            </div>
+
+            ${mediaHtml}
+            ${firstCommentHtml}
+        </div>
+    `;
+
+    if (btnDeleteFromPreviewModal) {
+        btnDeleteFromPreviewModal.style.display = isPublished ? 'none' : 'block';
+    }
+
+    postPreviewModal.style.display = 'flex';
+}
+
+function closePostPreviewModal() {
+    if (postPreviewModal) postPreviewModal.style.display = 'none';
+    activePreviewPostId = null;
+}
+
+if (btnClosePreviewModal) btnClosePreviewModal.addEventListener('click', closePostPreviewModal);
+if (btnClosePreviewModalBtn) btnClosePreviewModalBtn.addEventListener('click', closePostPreviewModal);
+
+// إغلاق النافذة عند الضغط على الخلفية
+if (postPreviewModal) {
+    postPreviewModal.addEventListener('click', (e) => {
+        if (e.target === postPreviewModal) closePostPreviewModal();
+    });
+}
+
+// زر حذف المنشور من داخل نافذة المعاينة
+if (btnDeleteFromPreviewModal) {
+    btnDeleteFromPreviewModal.addEventListener('click', async () => {
+        if (!activePreviewPostId) return;
+        if (confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) {
+            await fetch(`/api/scheduled/${activePreviewPostId}`, { method: 'DELETE' });
+            closePostPreviewModal();
+            loadScheduledPosts();
+        }
+    });
+}
+
 
 // ========================================================
 // 7. إدارة الإعدادات وحسابات المستخدم (SaaS BYOK Workspace)

@@ -46,13 +46,38 @@
             <button type="button" class="btn-onboarding-action" id="btnBannerConnect">⚙️ ربط الحساب والصفحات الآن</button>
         </div>
 
-        <!-- المحتوى الرئيسي (شبكة عمودين) -->
-        <main class="dashboard-grid">
+        <!-- شريط التبويبات الرئيسي للتبديل بين الإنشاء ومخطط ميتا للجدولة -->
+        <nav class="main-nav-tabs">
+            <button type="button" class="nav-tab-btn active" id="tabBtnComposer" data-tab="composer">
+                <span class="tab-icon">✍️</span>
+                <span class="tab-label">إنشاء ونشر منشور جديد</span>
+            </button>
+            <button type="button" class="nav-tab-btn" id="tabBtnPlanner" data-tab="planner">
+                <span class="tab-icon">📅</span>
+                <span class="tab-label">مخطط وجدول المحتوى (Meta Planner)</span>
+                <span class="tab-badge" id="plannerBadgeCount">0</span>
+            </button>
+        </nav>
+
+        <!-- المحتوى الرئيسي (شبكة عمودين: استوديو الإنشاء والمعاينة) -->
+        <main class="dashboard-grid" id="composerSection">
             <!-- العمود الأيمن: نموذج إنشاء المنشور -->
             <section class="card creator-card">
                 <div class="card-title">
                     <h2>📝 إنشاء منشور جديد</h2>
                     <span class="badge">خطوة واحدة</span>
+                </div>
+
+                <!-- شريط تنبيه حجز الموعد من جدول المخطط -->
+                <div class="selected-slot-banner" id="selectedSlotBanner" style="display: none;">
+                    <div class="slot-banner-info">
+                        <span class="slot-banner-icon">⏰</span>
+                        <div>
+                            <strong>تم تحديد الموعد من الجدول:</strong>
+                            <span id="selectedSlotText" class="slot-banner-date">...</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-clear-slot" id="btnClearSlot" title="إلغاء الموعد المحدد">✕ إلغاء التحديد</button>
                 </div>
 
                 <form id="postForm">
@@ -322,6 +347,18 @@
                         <h2>📅 المنشورات المجدولة بالسحابة</h2>
                         <span class="badge badge-counter" id="scheduledCount">0 منشورات</span>
                     </div>
+
+                    <div class="scheduled-planner-cta">
+                        <button type="button" class="btn-open-planner-cta" id="btnOpenPlannerCta">
+                            <span class="cta-icon">📅</span>
+                            <div class="cta-text">
+                                <strong>عرض جدول ومخطط ميتا الكامل</strong>
+                                <small>تصفح المواعيد بالساعات والأيام وجدول بضغطة زر</small>
+                            </div>
+                            <span class="cta-arrow">←</span>
+                        </button>
+                    </div>
+
                     <div class="scheduled-list" id="scheduledList">
                         <!-- العناصر المجدولة تضاف هنا تلقائياً -->
                         <div class="empty-scheduled">
@@ -331,6 +368,72 @@
                 </div>
             </section>
         </main>
+
+        <!-- قسم مخطط المحتوى والجدولة الاحترافي مثل ميتا (Meta Planner Section) -->
+        <section class="card planner-card" id="plannerSection" style="display: none;">
+            <div class="planner-header">
+                <div class="planner-title-group">
+                    <div class="planner-icon-badge">📅</div>
+                    <div>
+                        <h2>مخطط المحتوى وجدول المواعيد (Meta Planner)</h2>
+                        <p class="planner-subtitle">جدول زمني أسبوعي تفاعلي بالساعات والأيام — اضغط على أي خانة فارغة لجدولة منشور فوراً في ذلك الموعد</p>
+                    </div>
+                </div>
+
+                <div class="planner-header-actions">
+                    <button type="button" class="btn-quick-schedule" id="btnPlannerQuickAdd">
+                        <span>➕ جدولة منشور جديد</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- شريط التنقل الزمني والفلترة -->
+            <div class="planner-toolbar">
+                <div class="planner-week-nav">
+                    <button type="button" class="btn-nav-week" id="btnPrevWeek" title="الأسبوع السابق">◀ الأسبوع السابق</button>
+                    <button type="button" class="btn-nav-today" id="btnToday">اليوم</button>
+                    <button type="button" class="btn-nav-week" id="btnNextWeek" title="الأسبوع القادم">الأسبوع القادم ▶</button>
+                    <div class="planner-date-display" id="plannerDateDisplay">جاري التحميل...</div>
+                </div>
+
+                <div class="planner-filters">
+                    <div class="filter-group">
+                        <span class="filter-label">عرض المنصة:</span>
+                        <button type="button" class="filter-btn active" data-filter="all">الكل</button>
+                        <button type="button" class="filter-btn" data-filter="facebook">📘 فيسبوك</button>
+                        <button type="button" class="filter-btn" data-filter="instagram">📸 انستجرام</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تلميح توجيهي للمستخدم -->
+            <div class="planner-interactive-hint">
+                <span>💡 <strong>ميزة تفاعلية:</strong> الخانات المتاحة مظللة ويمكنك الضغط على أي ساعة في أي يوم لفتح استوديو الكتابة وجدولة المنشور في ذلك الوقت بالتحديد!</span>
+            </div>
+
+            <!-- جدول الأيام والساعات التفاعلي (Meta Schedule Grid) -->
+            <div class="planner-grid-wrapper">
+                <div class="planner-grid" id="plannerGrid">
+                    <!-- يتم بناؤه وتوليده ديناميكياً بواسطة JavaScript -->
+                </div>
+            </div>
+
+            <!-- دليل ألوان الجدول (Legend) -->
+            <div class="planner-legend">
+                <div class="legend-item">
+                    <span class="legend-box available-box"></span>
+                    <span>خانة متاحة (اضغط لحجز الموعد والجدولة)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-box scheduled-box"></span>
+                    <span>منشور مجدول في هذا التوقيت</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-box today-box"></span>
+                    <span>عمود اليوم الحالي</span>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- نافذة إعدادات الربط السحابي (SaaS BYOK Settings Modal) -->
@@ -543,6 +646,31 @@
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" id="btnCancelSettings">إلغاء</button>
                 <button type="button" class="btn-primary" id="btnSaveSettings">💾 حفظ الإعدادات وتطبيق التغييرات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة معاينة المنشور المجدول بالتفصيل (Meta Post Preview Modal) -->
+    <div class="modal-overlay" id="postPreviewModal" style="display: none;">
+        <div class="modal-dialog modal-preview-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <span class="modal-icon">👁️</span>
+                    <div>
+                        <h3 id="previewModalTitle">معاينة المنشور المجدول</h3>
+                        <p class="modal-subtitle" id="previewModalSubtitle">تفاصيل المحتوى وموعد النشر المجدول بالسحابة</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close-modal" id="btnClosePreviewModal">✕</button>
+            </div>
+
+            <div class="modal-body" id="previewModalBody">
+                <!-- محتوى المعاينة المجدولة ديناميكياً -->
+            </div>
+
+            <div class="modal-footer preview-modal-footer">
+                <button type="button" class="btn-delete-scheduled-danger" id="btnDeleteFromPreviewModal">🗑️ إلغاء هذا المنشور المجدول</button>
+                <button type="button" class="btn-secondary" id="btnClosePreviewModalBtn">إغلاق</button>
             </div>
         </div>
     </div>
