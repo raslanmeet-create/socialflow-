@@ -974,11 +974,18 @@ app.post('/api/autoreply/test-simulate', async (req, res) => {
             senderName: senderName || 'أحمد علي'
         });
 
+        const actions = ['like', 'reply'];
+        if (replyResult.sendDm && replyResult.privateMessage) {
+            actions.push('dm');
+        }
+
         res.json({
             success: true,
+            intent: replyResult.intent,
             publicReply: replyResult.publicReply,
-            privateMessage: replyResult.privateMessage,
-            actions: ['like', 'reply', 'dm'],
+            privateMessage: replyResult.privateMessage || (replyResult.intent === 'compliment' ? '✨ (تم تصنيف التعليق كإطراء/تشجيع: تم توليد الرد العام المناسب بلطف، وتخطي الرسالة الخاصة لعدم إزعاج العميل)' : ''),
+            sendDm: replyResult.sendDm,
+            actions: actions,
             tokensUsed: replyResult.tokensUsed
         });
     } catch (err) {
@@ -1077,7 +1084,7 @@ ${idx + 1}. الخدمة/المنتج: ${s.name || 'خدمة'}
         customerName = 'يا فندم';
     }
 
-    const systemPrompt = `أنت موظف خدمة عملاء ومبيعات مصري محترف ودود جداً ولطيف للغاية، تتحدث بلهجة مصرية عامية طبيعية إنسانية دافئة، تعمل لدى شركة (${projectName}).
+    const systemPrompt = `أنت موظف خدمة عملاء وسوشيال ميديا مصري ذكي ومحترف وودود للغاية، تتحدث بلهجة مصرية عامية طبيعية إنسانية دافئة، تعمل لدى شركة (${projectName}).
 مجال وتخصص النشاط: ${niche}
 
 قاعدة المعرفة وتفاصيل الخدمات والمنتجات المستخرجة من تحليل الموقع:
@@ -1091,66 +1098,104 @@ ${config?.customPrompt && typeof config.customPrompt === 'string' && config.cust
 المرجعية والقواعد الذهبية الإلزامية للردود:
 1. المرجعية الأولى والأساسية للرد (Primary Context): كابشن المنشور (Post Caption)!
    - كابشن المنشور هو المحور الأول لتحديد الخدمة أو الموضوع الذي يدور حوله الحديث وسياق العميل.
-   - الربط الذكي الدائم بين كابشن البوست وتفاصيل الموقع: يجب عليك دائماً تحديد الخدمة المعروضة في كابشن المنشور، وربطها بدقة بتفاصيلها وأسعارها ومميزاتها المستخرجة من تحليل الموقع وقائمة الخدمات أعلاه. ركّز إجابتك بالكامل على هذه الخدمة المحددة دون تشتيت العميل بخدمات أخرى لم تُذكر في البوست.
+   - الربط الذكي الدائم بين كابشن البوست وتفاصيل الموقع: إذا كان العميل يستفسر، اربط استفساره بالخدمة المعروضة في كابشن المنشور وتفاصيلها المعتمدة أعلاه بدقة.
 
-2. الرد العام على التعليق في البوست (publicReply) - شروط حاسمة لا استثناء فيها:
-   - مختصر جداً (جملة واحدة خفيفة وحيوية وودودة للغاية).
-   - ممنوع منعاً باتاً ذكر أي تفاصيل أو أسعار أو أرقام أو باقات في التعليق العام نهائياً!
-   - حيوي وودود ومتجدد (ممنوع نهائياً الردود الجافة أو القوالب المعلبة الثابتة المكررة).
-   - يبدأ بتحية العميل باسمه الشخصي ("${customerName}") بأسلوب مصري لطيف وإنساني.
-   - يخبر العميل بحماس وتفاعل أنه تم إرسال كافة التفاصيل والشرح الكامل على الخاص في الـ DM 📩 مع تشجيعه على مراجعة رسائله الخاصة.
-   - أمثلة لنبرة الرد العام المطلوبة:
-     * "أهلاً يا أستاذ ${customerName}! نورتنا 🌸 كل تفاصيل الخدمة بعتناهالك في رسالة خاصة على الـ DM 📩 شيك عليها وهكون معاك!"
-     * "يا أهلاً بيك يا ${customerName} يا فندم ✨ ولا تشيل هم، بعتنالك الشرح وكل التفاصيل على الخاص دلوقتي 📩 بص على رسايلك!"
-     * "نورتنا يا فندم 🌺 رسالة خاصة فيها كل التفاصيل وصلت لحضرتك في الـ DM دلوقتي 📩"
+2. تصنيف نية التعليق بدقة فائقة (Comment Intent Detection):
+   عليك قراءة تعليق العميل وفهم نيته وتصنيفه لأحد نوعين:
 
-3. الرسالة الخاصة في الـ DM (privateMessage) - الشرح الوافي والتنسيق الفاخر:
-   - هنا المكان المخصص للشرح الكامل والتفاصيل، مع الربط المباشر بين الخدمة في كابشن البوست وتفاصيلها من تحليل الموقع.
-   - شرط أساسي: التوزيع الجمالي المريح للعين باستخدام فواصل أسطر (\\n\\n) ونقاط مستقلة (🔹)، وممنوع منعاً باتاً دمج الكلام في سطر واحد:
-     * سطر مستقل للتحية باسم العميل مع إيموجي (مثال: أهلاً بحضرتك يا أستاذ ${customerName}، نورتنا في ${projectName}! 🌸).
-     * فقرة توضيحية تشرح الخدمة المذكورة في كابشن البوست وكيف تساعده وتلبي احتياجه.
-     * فقرة النقاط المنسقة (كل نقطة في سطر مستقل):
-       🔹 المميزات وما تشمله الخدمة: ...
-       🔹 الشروط أو المتطلبات (إن وجدت، مثل السجل التجاري والبطاقة الضريبية لتوثيق ميتا): ...
-       🔹 الأسعار أو الباقات المتاحة: ...
-     * فقرة بيانات وطرق التواصل في أسطر مستقلة:
-       📲 واتساب للتواصل المباشر: ...
-       📧 البريد أو رسائل الصفحة.
-     * سطر ختامي مستقل بسؤال لطيف يشجع العميل على اتخاذ الخطوة التالية.
+   النوع الأول: إطراء / تشجيع / دعاء / شكر / تحية / إيموجي فقط (intent = "compliment"):
+   - أمثلة: (بالتوفيق، ربنا يوفقكم، الله ينور، عاش، تسلم إيدكم، تسلم، ما شاء الله، روعة، جميل، شكراً، منورين، صباح الخير، إيموجيات فقط...).
+   - هنا العميل لم يسأل عن تفاصيل أو أسعار ولم يطلب شيئاً!
+   - publicReply: رد قصير جداً ومختصر بلهجة مصرية دافئة ولطيفة يناسب كلمته مع إيموجي محبب (قلب أو ابتسامة أو وردة).
+     * ممنوع منعاً باتاً أن تقول له "بعتنالك التفاصيل على الخاص" أو تنبهه للـ DM!
+     * أمثلة:
+       - إذا قال "بالتوفيق": "حبيبي تسلم، ربنا يوفقك ويكرمك يا رب ❤️😊" أو "شكراً لحضرتك جداً نورتنا 🤍"
+       - إذا قال "الله ينور": "وعليك يا غالي تسلم، كلك ذوق والله 🌸" أو "حبيبي الله ينور عليك، نورتنا ✨"
+       - إذا قال "ما شاء الله" أو "جميل" أو "روعة": "تسلم يا فندم ويسعدنا دائماً كلامك الطيب وذوقك الراقي ❤️"
+       - إذا شكر أو سلّم: "العفو يا فندم نورتنا دايماً 🌸" أو "أهلاً بحضرتك يا فندم نورتنا ✨"
+   - sendDm: false (ممنوع إرسال رسالة خاصة في الـ DM حتى لا نزعجه بإعلانات دون أن يطلب).
+   - privateMessage: اتركها فارغة تماماً "".
 
-4. منع الأقواس والنصوص النائبة نهائياً (Strict Zero-Placeholders Policy):
-   - ممنوع منعاً باتاً كتابة أي نصوص بين أقواس مربعة مثل [أدخل رابط الحجز] أو [ضع الرابط] أو [السعر].
-   - كل الروابط والأرقام يجب أن تكون جاهزة وصريحة من بيانات التواصل المعتمدة أعلاه.
+   النوع الثاني: استفسار / طلب تفاصيل / سؤال عن سعر أو حجز (intent = "inquiry"):
+   - أمثلة: (تفاصيل، بكام، عايز، السعر، فين، خدمة، طريقة الحجز، أو إطراء متبوع بسؤال مثل "عاش ما شاء الله بكام؟").
+   - publicReply: جملة واحدة خفيفة ومختصرة وحيوية بدون أي تفاصيل أو أسعار، ترحب بالعميل وتخبره أنه تم إرسال التفاصيل في رسالة خاصة على الـ DM 📩.
+     * مثال: "أهلاً يا أستاذ ${customerName}! نورتنا 🌸 كل تفاصيل الخدمة بعتناهالك في رسالة خاصة على الـ DM 📩 شيك عليها وهكون معاك!"
+   - sendDm: true.
+   - privateMessage: الرسالة الشاملة المرتبة بالخاص، وتلزم قاعدة المسافات والأسطر الفارغة بدقة:
+     * قاعدة المسافات الصارمة: اترك سطراً فارغاً بالكامل (\\n\\n) بين كل سطر وسطر، بحيث يظهر كل سطر وكل نقطة بشكل منفصل ومريح تماماً للعين.
+     * هيكل الرسالة بالخاص:
+       أهلاً بحضرتك يا أستاذ ${customerName}! نورتنا 🌸
 
-أجب بصيغة JSON حصراً بالشكل التالي:
+       بخصوص استفسارك عن الخدمة...
+
+       🔹 المميزات: ...
+
+       🔹 الأسعار والباقات: ...
+
+       📲 للتواصل المباشر والطلب عبر واتساب:
+       ${formatWhatsAppLink(rawWhatsapp) || 'عبر رسائل الصفحة'}
+
+       📞 هاتف الاتصال المباشر:
+       ${rawCall || 'عبر رسائل الصفحة'}
+
+       سؤال ختامي لطيف يشجعه على اتخاذ الخطوة التالية.
+
+3. منع الأقواس والنصوص النائبة نهائياً:
+   - ممنوع كتابة [أدخل الرابط] أو [السعر] أو أي نص بين أقواس مربعة.
+
+يجب الرد بصيغة JSON حصراً بالشكل التالي:
 {
-  "publicReply": "الرد العام المختصر جداً والحيوي على الكومنت بالتنبيه للخاص بدون أي تفاصيل أو أسعار",
-  "privateMessage": "الرسالة التفصيلية الشاملة بالخاص المقسمة بدقة لفقرات وأسطر مستقلة ونقاط بناءً على ربط كابشن البوست بتحليل الموقع"
+  "intent": "compliment",
+  "publicReply": "شكراً لحضرتك جداً نورتنا ❤️😊",
+  "sendDm": false,
+  "privateMessage": ""
+}
+أو في حالة الاستفسار:
+{
+  "intent": "inquiry",
+  "publicReply": "أهلاً بحضرتك يا فندم! نورتنا 🌸 كل تفاصيل الخدمة بعتناهالك في رسالة خاصة على الـ DM 📩",
+  "sendDm": true,
+  "privateMessage": "نص الرسالة الخاصة مع ترك سطر فارغ بين كل سطر"
 }`;
 
     const userMessage = `كابشن المنشور: "${postCaption || 'بدون كابشن'}"\nاسم العميل: "${customerName}"\nتعليق العميل: "${commentText}"`;
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey.trim()}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: model,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage }
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0.4,
-            max_tokens: 1200
-        })
-    });
+    let data = null;
+    const candidateModels = [model, 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+    for (const candidateModel of candidateModels) {
+        try {
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey.trim()}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: candidateModel,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMessage }
+                    ],
+                    response_format: { type: 'json_object' },
+                    temperature: 0.3,
+                    max_tokens: 1200
+                })
+            });
 
-    const data = await response.json();
-    if (data.error) {
-        throw new Error(data.error.message || 'فشل في الاتصال بنموذج Groq');
+            const resJson = await response.json();
+            if (resJson.choices?.[0]?.message?.content) {
+                data = resJson;
+                break;
+            } else if (resJson.error) {
+                console.warn(`[Groq Model ${candidateModel} failed]:`, resJson.error.message);
+            }
+        } catch (mErr) {
+            console.warn(`[Groq Model ${candidateModel} exception]:`, mErr.message);
+        }
+    }
+
+    if (!data) {
+        throw new Error('فشل في الاتصال بنماذج Groq الذكية');
     }
 
     const content = data.choices?.[0]?.message?.content || '{}';
@@ -1162,24 +1207,65 @@ ${config?.customPrompt && typeof config.customPrompt === 'string' && config.cust
         if (match) parsed = JSON.parse(match[0]);
     }
 
-    // تنظيف صارم لأي نصوص نائبة أو أقواس مربعة مع الحفاظ الكامل على الأسطر الجديدة والفقرات
-    const cleanPlaceholders = (text) => {
+    // تنظيف صارم لأي نصوص نائبة مع فرض قاعدة المسافات والأسطر الفارغة \n\n بين كل الأسطر
+    const cleanPlaceholders = (text, isPrivate = false) => {
         if (!text || typeof text !== 'string') return '';
-        return text
+        let cleaned = text
             .replace(/\[(?:أدخل|ضع|اضف)?\s*رابط[^\]]*\]/gi, 'عبر رسائل الصفحة أو الواتساب مباشرة')
             .replace(/\[(?:أدخل|ضع)?\s*السعر[^\]]*\]/gi, 'حسب تفاصيل العرض')
             .replace(/\[[^\]]+\]/g, '') // إزالة أي أقواس مربعة متبقية
-            .replace(/[^\S\r\n]{2,}/g, ' ') // دمج المسافات الأفقية المتتالية فقط مع الحفاظ على فواصل الأسطر \n
-            .replace(/\n{3,}/g, '\n\n') // تنظيم فواصل الأسطر بحد أقصى سطرين فارغين بين الفقرات
+            .replace(/[^\S\r\n]{2,}/g, ' ') // دمج المسافات الأفقية المتتالية فقط
             .trim();
+
+        if (isPrivate) {
+            // التنسيق الأنيق المتباعد: ترك سطر فارغ \n\n بين كل سطر وسطر حتى لا يتداخل الكلام
+            const lines = cleaned.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            cleaned = lines.join('\n\n');
+        } else {
+            // الرد العام في سطر واحد مختصر بدون كسر أسطر
+            cleaned = cleaned.replace(/\r?\n+/g, ' ').trim();
+        }
+        return cleaned.trim();
     };
 
-    const publicReply = cleanPlaceholders(parsed.publicReply || 'أهلاً بحضرتك يا فندم! نورتنا، تم إرسال كافة التفاصيل لحضرتك في رسالة خاصة على الـ DM 📩');
-    const privateMessage = cleanPlaceholders(parsed.privateMessage || `أهلاً بحضرتك يا فندم! بخصوص استفسارك، يسعدنا خدمتك دائماً في ${projectName}. تواصل معنا لأي تفاصيل إضافية.`);
+    // فحص ذكي حاسم لطبيعة التعليق (إطراء/تشجيع vs استفسار)
+    const normalizedComment = commentText.trim().toLowerCase();
+    const isPureCompliment = /^(بالتوفيق|الله ينور|عاش|تسلم|تسلموا|ما شاء الله|ماشاء الله|روعة|جميل|شكرا|شكرًا|منور|منورين|مبروك|تحياتي|صباح الخير|مساء الخير|جمعة مباركة|❤️|🌸|✨|👏|🔥|👍)+/i.test(normalizedComment)
+        && !/(بكام|سعر|أسعار|اسعار|تكلفة|تفاصيل|عايز|اريد|احجز|حجز|شحن|طريقة|فين|ازاي|إزاي|\?|؟)/i.test(normalizedComment);
+
+    const isCompliment = isPureCompliment || parsed.intent === 'compliment' || parsed.intent === 'complaint' || parsed.sendDm === false || (!parsed.privateMessage && !/(بكام|سعر|تكلفة|تفاصيل|عايز|ازاي|إزاي|\?|؟)/i.test(normalizedComment));
+
+    let publicReply = '';
+    if (isCompliment) {
+        if (parsed.publicReply && !parsed.publicReply.includes('الخاص') && !parsed.publicReply.includes('DM') && !parsed.publicReply.includes('رسالة')) {
+            publicReply = cleanPlaceholders(parsed.publicReply, false);
+        } else if (normalizedComment.includes('ينور')) {
+            publicReply = 'وعليك يا غالي تسلم، كلك ذوق والله 🌸';
+        } else if (normalizedComment.includes('توفيق')) {
+            publicReply = 'حبيبي تسلم، ربنا يوفقك ويكرمك يا رب ❤️😊';
+        } else if (normalizedComment.includes('تسلم') || normalizedComment.includes('عاش')) {
+            publicReply = 'تسلم يا غالي ويسعدنا دائماً كلامك الطيب وذوقك الراقي ❤️';
+        } else {
+            publicReply = 'شكراً لحضرتك جداً نورتنا وكلك ذوق ❤️😊';
+        }
+    } else {
+        publicReply = cleanPlaceholders(parsed.publicReply || `أهلاً يا أستاذ ${customerName}! نورتنا 🌸 كل تفاصيل الخدمة بعتناهالك في رسالة خاصة على الـ DM 📩 شيك عليها وهكون معاك!`, false);
+    }
+
+    let privateMessage = '';
+    let shouldSendDm = false;
+
+    if (!isCompliment && (parsed.sendDm !== false || parsed.privateMessage)) {
+        const rawDm = parsed.privateMessage || `أهلاً بحضرتك يا فندم! نورتنا في ${projectName}.\nبخصوص استفسارك، يسعدنا خدمتك وتوفير كل التفاصيل لحضرتك بأعلى جودة.\n📞 هاتف الاتصال: ${config.callPhone || 'عبر رسائل الصفحة'}\n📲 محادثة واتساب: ${formatWhatsAppLink(config.whatsapp) || 'عبر رسائل الصفحة'}\nتشرفنا بحضرتك دائماً!`;
+        privateMessage = cleanPlaceholders(rawDm, true);
+        shouldSendDm = !!privateMessage;
+    }
 
     return {
+        intent: isCompliment ? 'compliment' : 'inquiry',
         publicReply,
         privateMessage,
+        sendDm: shouldSendDm,
         tokensUsed: data.usage?.total_tokens || 0
     };
 }
@@ -1381,11 +1467,30 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
     } catch (aiErr) {
         console.error('[Auto-Reply AI Warning]:', aiErr.message);
         const displayName = senderName && !senderName.includes('عميل') ? `يا ${senderName}` : 'يا فندم';
-        replyData = {
-            publicReply: `أهلاً بحضرتك ${displayName}! نورتنا، تم إرسال كافة التفاصيل لحضرتك في رسالة خاصة على الـ DM 📩`,
-            privateMessage: `أهلاً بحضرتك ${displayName}! نورتنا جداً في ${config.projectName || 'صفحتنا'}.\nبخصوص استفسارك، يسعدنا خدمتك وتوفير كل التفاصيل لحضرتك بأعلى جودة.\n\n📞 للتواصل المباشر والاستفسار السريع:\n- هاتف الاتصال: ${config.callPhone || 'عبر رسائل الصفحة'}\n- محادثة واتساب: ${config.whatsapp || 'عبر رسائل الصفحة'}\n\nتشرفنا بحضرتك ويسعدنا تواصلك معنا دائماً!`,
-            tokensUsed: 0
-        };
+        const isComplimentFallback = commentText && (
+            commentText.includes('توفيق') || commentText.includes('ينور') || 
+            commentText.includes('عاش') || commentText.includes('تسلم') || 
+            commentText.includes('جميل') || commentText.includes('روعة') ||
+            commentText.includes('شكرا') || commentText.includes('ما شاء الله')
+        ) && !commentText.includes('بكام') && !commentText.includes('تفاصيل') && !commentText.includes('سعر');
+
+        if (isComplimentFallback) {
+            replyData = {
+                intent: 'compliment',
+                publicReply: `شكراً جداً لحضرتك ${displayName}! نورتنا وكلك ذوق ❤️😊`,
+                privateMessage: '',
+                sendDm: false,
+                tokensUsed: 0
+            };
+        } else {
+            replyData = {
+                intent: 'inquiry',
+                publicReply: `أهلاً بحضرتك ${displayName}! نورتنا، تم إرسال كافة التفاصيل لحضرتك في رسالة خاصة على الـ DM 📩`,
+                privateMessage: `أهلاً بحضرتك ${displayName}! نورتنا جداً في ${config.projectName || 'صفحتنا'}.\n\nبخصوص استفسارك، يسعدنا خدمتك وتوفير كل التفاصيل لحضرتك بأعلى جودة.\n\n📞 هاتف الاتصال: ${config.callPhone || 'عبر رسائل الصفحة'}\n\n📲 محادثة واتساب: ${config.whatsapp || 'عبر رسائل الصفحة'}\n\nتشرفنا بحضرتك ويسعدنا تواصلك معنا دائماً!`,
+                sendDm: true,
+                tokensUsed: 0
+            };
+        }
     }
 
     const actionsTaken = [];
@@ -1408,8 +1513,8 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
         }
     }
 
-    // الخطوة 3: إرسال الرسالة الخاصة في الـ DM (Private Message)
-    if (config.sendDm && replyData.privateMessage) {
+    // الخطوة 3: إرسال الرسالة الخاصة في الـ DM (Private Message) فقط في حالة وجود استفسار
+    if (config.sendDm && replyData.sendDm && replyData.privateMessage) {
         const dmRes = await executePrivateDm(commentId, replyData.privateMessage, token, platform, pageIdForDm);
         if (dmRes.success) {
             actionsTaken.push('dm');
