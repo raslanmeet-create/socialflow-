@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialFlow | منصة النشر والجدولة الذكية</title>
+    <!-- خط Cairo العصري من Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="vendor/cropper.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- الرأس العلوي (Header) -->
+        <header class="main-header">
+            <div class="logo-area">
+                <div class="logo-icon">🚀</div>
+                <div>
+                    <h1>SocialFlow</h1>
+                    <p class="subtitle">منصة نشر وجدولة المنشورات السحابية</p>
+                </div>
+            </div>
+            <div class="header-right-actions">
+                <button type="button" class="btn-settings-header" id="btnOpenSettings">
+                    <span class="icon">⚙️</span>
+                    <span>إعدادات الربط والـ API</span>
+                </button>
+                <div class="header-status">
+                    <span class="pulse-dot"></span>
+                    <span id="headerStatusText">النظام جاهز ومربوط بالسحابة</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- المحتوى الرئيسي (شبكة عمودين) -->
+        <main class="dashboard-grid">
+            <!-- العمود الأيمن: نموذج إنشاء المنشور -->
+            <section class="card creator-card">
+                <div class="card-title">
+                    <h2>📝 إنشاء منشور جديد</h2>
+                    <span class="badge">خطوة واحدة</span>
+                </div>
+
+                <form id="postForm">
+                    <!-- 0. اختيار الصفحة المستهدفة من فيسبوك -->
+                    <div class="form-group">
+                        <div class="label-with-action">
+                            <label class="section-label" for="pageSelector">اختر الصفحة / الحساب المستهدف:</label>
+                            <button type="button" class="btn-manage-pages" id="btnQuickManagePages">⚙️ إدارة وربط الصفحات</button>
+                        </div>
+                        <select id="pageSelector" class="form-select">
+                            <option value="">جاري تحميل صفحاتك وحساباتك...</option>
+                        </select>
+                    </div>
+
+                    <!-- 1. اختيار المنصات -->
+                    <div class="form-group">
+                        <label class="section-label">اختر المنصات المستهدفة:</label>
+                        <div class="platforms-selector">
+                            <!-- فيسبوك -->
+                            <label class="platform-chip" for="plat-facebook">
+                                <input type="checkbox" id="plat-facebook" value="facebook" checked>
+                                <div class="chip-content facebook">
+                                    <span class="icon">📘</span>
+                                    <span class="name">Facebook</span>
+                                    <span class="check-icon">✓</span>
+                                </div>
+                            </label>
+
+                            <!-- انستجرام -->
+                            <label class="platform-chip" for="plat-instagram">
+                                <input type="checkbox" id="plat-instagram" value="instagram" checked>
+                                <div class="chip-content instagram">
+                                    <span class="icon">📸</span>
+                                    <span class="name">Instagram</span>
+                                    <span class="check-icon">✓</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. نص المنشور مع خيار التخصيص لكل منصة -->
+                    <div class="form-group">
+                        <div class="caption-header">
+                            <label class="section-label">نص المنشور والهاشتاجات:</label>
+                            <label class="toggle-custom-label">
+                                <input type="checkbox" id="toggleCustomCaptions">
+                                <span class="custom-badge">✍️ تخصيص نص لكل منصة</span>
+                            </label>
+                        </div>
+
+                        <!-- الحقل الموحد العادي -->
+                        <div id="generalCaptionBox">
+                            <div class="label-with-counter">
+                                <span class="format-hint">نص موحد ينشر في جميع المنصات المحددة</span>
+                                <span id="charCounter" class="char-counter">0 حرف</span>
+                            </div>
+                            <textarea id="postContent" rows="4" placeholder="اكتب محتوى منشورك هنا... أضف التفاصيل وروابطك والهاشتاجات"></textarea>
+                        </div>
+
+                        <!-- الحقول المخصصة لكل منصة (تظهر عند التفعيل) -->
+                        <div id="customCaptionsContainer" class="custom-captions-container" style="display: none;">
+                            <div class="custom-caption-tabs">
+                                <button type="button" class="caption-tab-btn active" data-target="cap-facebook">📘 فيسبوك</button>
+                                <button type="button" class="caption-tab-btn" data-target="cap-instagram">📸 انستجرام</button>
+                            </div>
+
+                            <div class="caption-pane active" id="pane-cap-facebook">
+                                <div class="label-with-counter">
+                                    <span class="format-hint">نص خاص بفيسبوك فقط:</span>
+                                    <span id="counterFb" class="char-counter">0 حرف</span>
+                                </div>
+                                <textarea id="customFb" rows="4" placeholder="اكتب كابشن فيسبوك..."></textarea>
+                            </div>
+
+                            <div class="caption-pane" id="pane-cap-instagram" style="display: none;">
+                                <div class="label-with-counter">
+                                    <span class="format-hint">نص خاص بإنستجرام مع هاشتاجاتك:</span>
+                                    <span id="counterIg" class="char-counter">0 حرف</span>
+                                </div>
+                                <textarea id="customIg" rows="4" placeholder="اكتب كابشن انستجرام والهاشتاجات #marketing..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. رفع الميديا وضبط أبعاد الصورة -->
+                    <div class="form-group">
+                        <label class="section-label">الوسائط (صورة أو فيديو MP4):</label>
+                        <div class="upload-dropzone" id="dropzone">
+                            <input type="file" id="mediaInput" accept="image/png, image/jpeg, image/webp, video/mp4, video/quicktime" hidden>
+                            <div class="dropzone-prompt" id="dropzonePrompt">
+                                <div class="upload-icon">📁</div>
+                                <p><strong>اضغط هنا لاختيار ملف</strong> أو اسحبه وأفلته هنا</p>
+                                <span class="format-hint">يدعم: صور (JPG, PNG) أو فيديو (MP4 حتى 50MB)</span>
+                            </div>
+                            
+                            <!-- حاوية المعاينة داخل الدروب زون -->
+                            <div class="preview-container" id="mediaPreviewContainer" style="display: none;">
+                                <div id="previewMediaWrapper"></div>
+                                <button type="button" class="btn-remove-media" id="btnRemoveMedia" title="حذف الملف">✕ إزالة الملف</button>
+                            </div>
+                        </div>
+
+                        <!-- استوديو تحريك وضبط أبعاد الصورة التفاعلي مثل ميتا تماماً -->
+                        <div class="image-studio-container" id="imageStudioGroup" style="display: none;">
+                            <div class="studio-header">
+                                <div class="studio-title-box">
+                                    <span class="studio-title">✂️ تحريك وضبط الصورة (مثل منصة ميتا):</span>
+                                    <p class="studio-hint">اسحب الصورة بالماوس لتحريكها، واستخدم المقابض لمعاينة ما سيظهر وما سيختفي بدقة</p>
+                                </div>
+                                <button type="button" class="btn-apply-crop" id="btnApplyCrop">
+                                    <span>✅ اعتماد وضبط المعاينة</span>
+                                </button>
+                            </div>
+
+                            <!-- مساحة المعاينة والتحريك التفاعلية -->
+                            <div class="cropper-viewport">
+                                <img id="cropperSourceImage" src="" alt="Cropper Canvas">
+                            </div>
+
+                            <!-- أشرطة التحكم والنسب -->
+                            <div class="studio-controls-bar">
+                                <div class="studio-ratios">
+                                    <span class="ctrl-label">النسبة:</span>
+                                    <button type="button" class="studio-ratio-btn active" data-ratio="1">🔲 مربع 1:1</button>
+                                    <button type="button" class="studio-ratio-btn" data-ratio="0.8">📱 طولي 4:5 (الأفضل للريتش)</button>
+                                    <button type="button" class="studio-ratio-btn" data-ratio="1.91">🖼️ أفقي 1.91:1</button>
+                                    <button type="button" class="studio-ratio-btn" data-ratio="free">🔓 حر / أصلي</button>
+                                </div>
+
+                                <div class="studio-tools">
+                                    <button type="button" class="tool-btn" id="btnZoomOut" title="تصغير">🔍-</button>
+                                    <button type="button" class="tool-btn" id="btnZoomIn" title="تكبير">🔍+</button>
+                                    <button type="button" class="tool-btn" id="btnRotateLeft" title="تدوير لليسار">↺</button>
+                                    <button type="button" class="tool-btn" id="btnRotateRight" title="تدوير لليمين">↻</button>
+                                    <button type="button" class="tool-btn btn-reset" id="btnResetCrop" title="إعادة الصورة لوضعها الأصلي">🔄 استرجاع الأصل</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. ميزة التعليق الأول التلقائي (First Comment) -->
+                    <div class="form-group first-comment-group">
+                        <div class="first-comment-header">
+                            <div class="fc-info">
+                                <span class="fc-icon">💬</span>
+                                <div>
+                                    <strong class="fc-title">التعليق الأول التلقائي (First Comment):</strong>
+                                    <p class="fc-desc">ينشر تعليقاً فورياً تحت المنشور (لوضع الروابط في فيسبوك، أو الهاشتاجات في انستجرام)</p>
+                                </div>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="enableFirstComment">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div id="firstCommentContainer" class="first-comment-container" style="display: none;">
+                            <div class="label-with-counter">
+                                <span class="format-hint">محتوى التعليق الأول:</span>
+                                <span id="counterFc" class="char-counter">0 حرف</span>
+                            </div>
+                            <textarea id="firstCommentContent" rows="3" placeholder="اكتب التعليق الأول هنا (مثال: رابط الموقع، روابط التواصل، أو هاشتاجات إضافية)..."></textarea>
+                            <div class="fc-badge-info">
+                                <span>💡 <strong>ميزة ذكية:</strong> سيعمل هذا التعليق تلقائياً سواء قمت بالنشر الفوري أو بالجدولة بالسحابة!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. خيارات التوقيت (نشر فوري أم جدولة) -->
+                    <div class="form-group timing-group">
+                        <label class="section-label">توقيت النشر:</label>
+                        <div class="timing-options">
+                            <label class="timing-radio">
+                                <input type="radio" name="timingType" value="now" checked id="timingNow">
+                                <div class="radio-card">
+                                    <span class="radio-icon">⚡</span>
+                                    <div>
+                                        <strong>نشر فوري الآن</strong>
+                                        <p>يرسل البوست فوراً لجميع المنصات المحددة</p>
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label class="timing-radio">
+                                <input type="radio" name="timingType" value="schedule" id="timingSchedule">
+                                <div class="radio-card">
+                                    <span class="radio-icon">⏰</span>
+                                    <div>
+                                        <strong>جدولة لوقت محدد</strong>
+                                        <p>ينشر تلقائياً بالسحابة حتى لو كان جهازك مغلقاً</p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- حقل تحديد التاريخ والوقت (يظهر عند اختيار الجدولة) -->
+                        <div class="schedule-inputs" id="scheduleInputs" style="display: none;">
+                            <label for="scheduleDateTime">اختر التاريخ ووقت النشر بالتحديد:</label>
+                            <input type="datetime-local" id="scheduleDateTime">
+                        </div>
+                    </div>
+
+                    <!-- زر الإرسال الرئيسي -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" id="btnSubmit">
+                            <span class="btn-icon">🚀</span>
+                            <span id="btnSubmitText">نشر البوست الآن</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- تنبيهات الحالة -->
+                <div id="statusAlert" class="status-alert" style="display: none;"></div>
+            </section>
+
+            <!-- العمود الأيسر: المعاينة الحية + قائمة المنشورات المجدولة -->
+            <section class="side-column">
+                <!-- المعاينة الحية على شكل السوشيال ميديا -->
+                <div class="card preview-card">
+                    <div class="card-title">
+                        <h2>👁️ معاينة حية للمنشور</h2>
+                        <!-- تابات التبديل بين المنصات -->
+                        <div class="preview-tabs">
+                            <button type="button" class="tab-btn active" data-platform="facebook">فيسبوك</button>
+                            <button type="button" class="tab-btn" data-platform="instagram">انستجرام</button>
+                        </div>
+                    </div>
+
+                    <!-- صندوق المعاينة التفاعلي -->
+                    <div class="social-mockup facebook-mode" id="socialMockup">
+                        <div class="mockup-header">
+                            <div class="mockup-avatar" id="mockupAvatar">👤</div>
+                            <div class="mockup-user-info">
+                                <span class="mockup-name" id="mockupProfileName">اسم صفحتك الرسمية</span>
+                                <span class="mockup-time" id="mockupPublishTime">الآن · 🌐</span>
+                            </div>
+                        </div>
+                        <div class="mockup-body">
+                            <p class="mockup-text" id="mockupText">هنا ستظهر معاينة حية لنص المنشور كما سيراه المتابعون في خلاصتهم...</p>
+                        </div>
+                        <div class="mockup-media" id="mockupMedia">
+                            <div class="empty-media-placeholder">
+                                <span>لم يتم اختيار صورة أو فيديو بعد</span>
+                            </div>
+                        </div>
+                        <div class="mockup-footer">
+                            <div class="mockup-reactions">
+                                <span>👍 24</span>
+                                <span>💬 5 تعليقات</span>
+                                <span>🔄 مشاركة</span>
+                            </div>
+                        </div>
+                        <!-- معاينة حية للتعليق الأول التلقائي -->
+                        <div class="mockup-first-comment" id="mockupFirstComment" style="display: none;">
+                            <div class="mockup-comment-avatar">💬</div>
+                            <div class="mockup-comment-content">
+                                <span class="mockup-comment-author">التعليق الأول التلقائي:</span>
+                                <p class="mockup-comment-bubble" id="mockupCommentText"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- قائمة المنشورات المجدولة القادمة -->
+                <div class="card scheduled-card">
+                    <div class="card-title">
+                        <h2>📅 المنشورات المجدولة بالسحابة</h2>
+                        <span class="badge badge-counter" id="scheduledCount">0 منشورات</span>
+                    </div>
+                    <div class="scheduled-list" id="scheduledList">
+                        <!-- العناصر المجدولة تضاف هنا تلقائياً -->
+                        <div class="empty-scheduled">
+                            <p>لا توجد منشورات مجدولة حالياً. اكتب منشوراً وحدد وقتاً لجدولته!</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- نافذة إعدادات الربط السحابي (SaaS BYOK Settings Modal) -->
+    <div class="modal-overlay" id="settingsModal" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <span class="modal-icon">⚙️</span>
+                    <div>
+                        <h3>إعدادات الربط والمنصات (SaaS Workspace)</h3>
+                        <p class="modal-subtitle">اربط مفتاح Meta و Cloudinary الخاص بك وحدد الصفحات التي تريد إدارتها</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close-modal" id="btnCloseSettings">✕</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- 1. قسم ربط فيسبوك وانستجرام -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h4>📘 ربط فيسبوك وانستجرام (Meta Graph API)</h4>
+                        <span class="badge-tag">إلزامي للنشر</span>
+                    </div>
+                    <p class="settings-hint">أدخل مفتاح الوصول (System User Token أو User Token) التابع لحساب مطوري Meta الخاص بك:</p>
+                    <div class="input-with-button">
+                        <input type="password" id="inputMetaToken" placeholder="EAANs... الصق رمز Meta Access Token هنا" class="settings-input">
+                        <button type="button" class="btn-action-verify" id="btnFetchPages">
+                            <span id="btnFetchPagesText">🔍 جلب وفحص الصفحات</span>
+                        </button>
+                    </div>
+                    <div id="metaStatusMsg" class="settings-status-msg" style="display: none;"></div>
+
+                    <!-- قائمة الصفحات المكتشفة مع إمكانية التحديد والفرز -->
+                    <div id="discoveredPagesContainer" class="discovered-pages-container" style="display: none;">
+                        <div class="pages-list-header">
+                            <h5>الصفحات المتاحة بحسابك (حدد الصفحات التي تريد ظهورها في لوحة التحكم):</h5>
+                            <button type="button" class="btn-toggle-all-pages" id="btnToggleAllPages">تحديد الكل</button>
+                        </div>
+                        <div id="pagesChecklist" class="pages-checklist">
+                            <!-- بطاقات الصفحات تضاف هنا ديناميكياً -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. قسم ربط التخزين السحابي Cloudinary -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h4>☁️ التخزين السحابي للوسائط (Cloudinary Storage)</h4>
+                        <span class="badge-tag optional">اختياري</span>
+                    </div>
+                    <p class="settings-hint">يمكنك استخدام حساب Cloudinary السحابي المجاني الخاص بك، أو ترك الحقول فارغة لاستخدام السيرفر الافتراضي للمنصة:</p>
+                    
+                    <div class="cloudinary-fields-grid">
+                        <div class="field-item">
+                            <label for="inputCloudName">Cloud Name:</label>
+                            <input type="text" id="inputCloudName" placeholder="مثال: mycloud2026" class="settings-input">
+                        </div>
+                        <div class="field-item">
+                            <label for="inputCloudApiKey">API Key:</label>
+                            <input type="text" id="inputCloudApiKey" placeholder="مثال: 584934171..." class="settings-input">
+                        </div>
+                        <div class="field-item">
+                            <label for="inputCloudApiSecret">API Secret:</label>
+                            <input type="password" id="inputCloudApiSecret" placeholder="رمز الحماية السري" class="settings-input">
+                        </div>
+                    </div>
+                    <div class="cloudinary-test-row">
+                        <button type="button" class="btn-test-cloud" id="btnTestCloudinary">⚡ اختبار اتصال Cloudinary</button>
+                        <span id="cloudStatusMsg" class="cloud-status-msg" style="display: none;"></span>
+                    </div>
+                </div>
+
+                <!-- 3. قسم ربط الويبهوك وتطبيق Meta (Webhooks & App Config) -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h4>📡 ربط الويبهوك وتطبيق Meta (Webhooks & App Setup)</h4>
+                        <span class="badge-tag">إشعارات وتزامن</span>
+                    </div>
+                    <p class="settings-hint">استخدم هذه الروابط في صفحة إعدادات الـ Webhooks داخل تطبيق Meta الخاص بك لاستقبال الأحداث فورياً:</p>
+                    
+                    <div class="webhook-info-grid">
+                        <div class="field-item">
+                            <label>رابط الـ Webhook (Callback URL):</label>
+                            <div class="input-with-button copy-group">
+                                <input type="text" id="webhookCallbackUrl" readonly class="settings-input code-font" value="...">
+                                <button type="button" class="btn-copy-field" id="btnCopyWebhookUrl" title="نسخ الرابط">📋 نسخ</button>
+                            </div>
+                        </div>
+                        <div class="field-item">
+                            <label>رمز التحقق (Verify Token):</label>
+                            <div class="input-with-button copy-group">
+                                <input type="text" id="webhookVerifyToken" readonly class="settings-input code-font" value="...">
+                                <button type="button" class="btn-copy-field" id="btnCopyWebhookToken" title="نسخ رمز التحقق">📋 نسخ</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- دليل خطوات إنشاء التطبيق والويبهوك -->
+                    <details class="setup-guide-details">
+                        <summary class="setup-guide-summary">
+                            <span>📖 دليل إعداد تطبيق Meta والويبهوك خطوة بخطوة (اضغط للتفاصيل)</span>
+                            <span class="guide-arrow">▼</span>
+                        </summary>
+                        <div class="setup-guide-content">
+                            <ol class="guide-steps">
+                                <li>
+                                    <strong>إنشاء التطبيق:</strong> توجه إلى <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener">Meta for Developers</a>، اضغط <em>Create App</em> واختر نوع التطبيق <strong>Business</strong> (أو Other &gt; Business).
+                                </li>
+                                <li>
+                                    <strong>إضافة منتج Webhooks:</strong> من القائمة الجانبية للتطبيق، اضغط على <em>Add Product</em> واختر <strong>Webhooks</strong>.
+                                </li>
+                                <li>
+                                    <strong>الاشتراك في كائن Page و Instagram:</strong> في قائمة Webhooks اختر <em>Page</em> ثم اضغط <em>Subscribe to this object</em>، والصق <strong>Callback URL</strong> و <strong>Verify Token</strong> المعروضين بالأعلى واضغط <em>Verify and Save</em>.
+                                </li>
+                                <li>
+                                    <strong>تفعيل الحقول:</strong> فعّل اشتراك الحقول التالية: <code>feed</code>, <code>messages</code>, <code>comments</code>.
+                                </li>
+                                <li>
+                                    <strong>توليد Access Token:</strong> من أدوات المطورين <em>Graph API Explorer</em> أو <em>System Users</em>، أنشئ رمزاً بصلاحيات:
+                                    <div class="perms-pills">
+                                        <code>pages_manage_posts</code>
+                                        <code>pages_read_engagement</code>
+                                        <code>instagram_basic</code>
+                                        <code>instagram_content_publish</code>
+                                    </div>
+                                    ثم الصق الرمز في حقل (قسم 1) بالأعلى واضغط <strong>جلب وفحص الصفحات</strong>.
+                                </li>
+                            </ol>
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnCancelSettings">إلغاء</button>
+                <button type="button" class="btn-primary" id="btnSaveSettings">💾 حفظ الإعدادات وتطبيق التغييرات</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="vendor/cropper.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

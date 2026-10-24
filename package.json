@@ -1,0 +1,20 @@
+{
+  "name": "social-media-publisher",
+  "version": "1.0.0",
+  "description": "منصة جدولة ونشر المنشورات على فيسبوك، انستجرام، لينكيد إن، وتويتر",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cloudinary": "^2.11.0",
+    "cors": "^2.8.5",
+    "cropperjs": "^2.3.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "twitter-api-v2": "^1.29.1"
+  }
+}

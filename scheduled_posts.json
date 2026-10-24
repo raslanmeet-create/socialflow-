@@ -1,0 +1,18 @@
+[
+  {
+    "id": "post_1792812630348",
+    "content": "123",
+    "mediaPath": "D:\\تجربة مشروع رفع البوستات للسوشيال ميديا\\uploads\\1792812629095-871413108.jpeg",
+    "mediaUrl": "https://res.cloudinary.com/tzxho0fw/image/upload/v1792812630/socialflow_uploads/vgcsyowvuaog66kikkmr.jpg",
+    "mediaType": "image/jpeg",
+    "platforms": [
+      "facebook",
+      "instagram"
+    ],
+    "pageId": "1036372629556993",
+    "createdAt": "2026-10-24T03:30:30.348Z",
+    "scheduledTime": "2026-10-24T06:34",
+    "status": "PUBLISHED",
+    "publishedAt": "2026-10-24T03:34:04.547Z"
+  }
+]
