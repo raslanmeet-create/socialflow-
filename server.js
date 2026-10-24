@@ -124,7 +124,7 @@ const DEFAULT_AUTOREPLY_CONFIG = {
     customPrompt: '',
     targetAllPosts: true, // true: جميع المنشورات، false: منشورات محددة فقط
     targetPostIds: [],   // مصفوفة بمعرفات المنشورات المشمولة بالخدمة
-    groqApiKey: '',
+    groqApiKey: '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',
     groqModel: 'openai/gpt-oss-120b',
     likeComment: true,
     replyComment: true,
@@ -133,27 +133,62 @@ const DEFAULT_AUTOREPLY_CONFIG = {
 };
 
 function readAutoReplyStore() {
-    if (!fs.existsSync(AUTOREPLY_CONFIG_FILE)) {
-        return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG } };
+    // 1. أولاً: فحص الملف في /tmp (الذي يتم تحديثه ديناميكياً عند حفظ أي إعدادات جديدة)
+    if (fs.existsSync(AUTOREPLY_CONFIG_FILE)) {
+        try {
+            const raw = JSON.parse(fs.readFileSync(AUTOREPLY_CONFIG_FILE, 'utf8'));
+            if (raw.pages || raw.global) {
+                return {
+                    pages: raw.pages || {},
+                    global: { ...DEFAULT_AUTOREPLY_CONFIG, ...(raw.global || {}) }
+                };
+            }
+            return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG, ...raw } };
+        } catch (e) {
+            console.error('Error reading AUTOREPLY_CONFIG_FILE:', e);
+        }
     }
-    try {
-        const raw = JSON.parse(fs.readFileSync(AUTOREPLY_CONFIG_FILE, 'utf8'));
-        if (raw.pages || raw.global) {
+
+    // 2. ثانياً: إذا لم يوجد في /tmp بعد (بداية تشغيل الحاوية السحابية على Vercel)، نقرأ الملف الأساسي المرفوع في المشروع
+    const bundledFile = path.join(__dirname, 'auto_reply_config.json');
+    if (fs.existsSync(bundledFile)) {
+        try {
+            const raw = JSON.parse(fs.readFileSync(bundledFile, 'utf8'));
+            if (process.env.VERCEL) {
+                try {
+                    fs.writeFileSync(AUTOREPLY_CONFIG_FILE, JSON.stringify(raw, null, 2), 'utf8');
+                } catch {}
+            }
             return {
                 pages: raw.pages || {},
                 global: { ...DEFAULT_AUTOREPLY_CONFIG, ...(raw.global || {}) }
             };
+        } catch (e) {
+            console.error('Error reading bundled auto_reply_config.json:', e);
         }
-        return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG, ...raw } };
-    } catch {
-        return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG } };
     }
+
+    return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG } };
 }
 
-async function getAutoReplyConfig(pageId) {
+async function getAutoReplyConfig(pageOrIgId) {
     const store = readAutoReplyStore();
-    if (pageId && store.pages && store.pages[pageId]) {
-        return { ...DEFAULT_AUTOREPLY_CONFIG, ...store.pages[pageId] };
+    if (pageOrIgId) {
+        // مطابقة مباشرة بالمعرف
+        if (store.pages && store.pages[pageOrIgId]) {
+            return { ...DEFAULT_AUTOREPLY_CONFIG, ...store.pages[pageOrIgId] };
+        }
+        // إذا كان المعرف لحساب انستجرام، البحث بالصفحة المرتبطة في الكاش
+        const cached = pageTokensCache.get(pageOrIgId);
+        if (cached?.pageId && store.pages && store.pages[cached.pageId]) {
+            return { ...DEFAULT_AUTOREPLY_CONFIG, ...store.pages[cached.pageId] };
+        }
+        // البحث في الصفحات عن الصفحة المطابقة
+        for (const [pId, pConf] of Object.entries(store.pages || {})) {
+            if (pConf.instagramId === pageOrIgId || pConf.pageId === pageOrIgId) {
+                return { ...DEFAULT_AUTOREPLY_CONFIG, ...pConf };
+            }
+        }
     }
     return { ...DEFAULT_AUTOREPLY_CONFIG, ...(store.global || {}) };
 }
@@ -964,10 +999,7 @@ app.get('/api/autoreply/logs', async (req, res) => {
 // 🧠 محرك الذكاء الاصطناعي لتوليد الردود (Groq gpt-oss-120b)
 // ========================================================
 async function generateAutoReplyWithGroq({ postCaption, commentText, config, senderName }) {
-    const apiKey = config?.groqApiKey || process.env.GROQ_API_KEY;
-    if (!apiKey || !apiKey.trim()) {
-        throw new Error('يرجى إضافة مفتاح Groq API Key الخاص بك في إعدادات الصفحة/المشروع لتفعيل الذكاء الاصطناعي.');
-    }
+    const apiKey = config?.groqApiKey || process.env.GROQ_API_KEY || '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';
     const model = 'openai/gpt-oss-120b';
 
     const projectName = (typeof config?.projectName === 'string' ? config.projectName.trim() : '') || 'مشروعنا';
@@ -1277,11 +1309,16 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
     }
 
     // 2. الحصول على توكن الصفحة (حل ديناميكي لضمان صلاحية الرد كصفحة وليس كمستخدم)
-    const cached = pageTokensCache.get(pageOrIgId) || {};
-    let token = cached.token || config.pageToken;
+    let token = config.pageToken;
+    if (!token) {
+        const cachedPre = pageTokensCache.get(pageOrIgId);
+        token = cachedPre?.token;
+    }
     if (!token) {
         token = await resolvePageToken(pageOrIgId);
     }
+    const cached = pageTokensCache.get(pageOrIgId) || {};
+    token = cached.token || token;
     const igUserId = cached.igUserId || (platform === 'instagram' ? pageOrIgId : null);
     const pageIdForDm = cached.pageId || (platform === 'facebook' ? pageOrIgId : null);
 
@@ -1329,13 +1366,24 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
         }
     }
 
-    // 4. توليد الردود بذكاء اصطناعي Groq (باللهجة المصرية الإنسانية)
-    const replyData = await generateAutoReplyWithGroq({
-        postCaption,
-        commentText,
-        config,
-        senderName
-    });
+    // 4. توليد الردود بذكاء اصطناعي Groq مع آلية احتياطية ذكية تضمن عدم توقف الردود نهائياً
+    let replyData;
+    try {
+        replyData = await generateAutoReplyWithGroq({
+            postCaption,
+            commentText,
+            config,
+            senderName
+        });
+    } catch (aiErr) {
+        console.error('[Auto-Reply AI Warning]:', aiErr.message);
+        const displayName = senderName && !senderName.includes('عميل') ? `يا ${senderName}` : 'يا فندم';
+        replyData = {
+            publicReply: `أهلاً بحضرتك ${displayName}! نورتنا، تم إرسال كافة التفاصيل لحضرتك في رسالة خاصة على الـ DM 📩`,
+            privateMessage: `أهلاً بحضرتك ${displayName}! نورتنا جداً في ${config.projectName || 'صفحتنا'}.\nبخصوص استفسارك، يسعدنا خدمتك وتوفير كل التفاصيل لحضرتك بأعلى جودة.\n\n📞 للتواصل المباشر والاستفسار السريع:\n- هاتف الاتصال: ${config.callPhone || 'عبر رسائل الصفحة'}\n- محادثة واتساب: ${config.whatsapp || 'عبر رسائل الصفحة'}\n\nتشرفنا بحضرتك ويسعدنا تواصلك معنا دائماً!`,
+            tokensUsed: 0
+        };
+    }
 
     const actionsTaken = [];
 
