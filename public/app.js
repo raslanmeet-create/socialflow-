@@ -1775,8 +1775,44 @@ function collectPhonesData() {
 }
 
 // ----------------------------------------------------
+// ----------------------------------------------------
 // 3. مكرر روابط منصات السوشيال ميديا (Social Links Repeater)
 // ----------------------------------------------------
+function cleanSocialUrl(url = '') {
+    if (!url) return '';
+    let cleaned = String(url).trim();
+    // إزالة أي سلاشات زائدة في البداية مثل /https://...
+    cleaned = cleaned.replace(/^\/+/, '');
+    return cleaned;
+}
+
+function detectPlatformFromUrl(url = '') {
+    const u = String(url).toLowerCase();
+    if (u.includes('facebook.com') || u.includes('fb.com') || u.includes('fb.watch')) return 'فيسبوك';
+    if (u.includes('instagram.com') || u.includes('instagr.am')) return 'انستجرام';
+    if (u.includes('linkedin.com')) return 'لينكد إن';
+    if (u.includes('x.com') || u.includes('twitter.com')) return 'منصة إكس';
+    if (u.includes('tiktok.com')) return 'تيك توك';
+    if (u.includes('youtube.com') || u.includes('youtu.be')) return 'يوتيوب';
+    if (u.includes('wa.me') || u.includes('whatsapp.com')) return 'واتساب';
+    return null;
+}
+
+function normalizePlatform(platform = '', url = '') {
+    const fromUrl = detectPlatformFromUrl(url);
+    if (fromUrl) return fromUrl;
+    const p = String(platform).trim().toLowerCase();
+    if (p.includes('facebook') || p.includes('فيسبوك') || p.includes('fb')) return 'فيسبوك';
+    if (p.includes('instagram') || p.includes('انستجرام') || p.includes('انستا')) return 'انستجرام';
+    if (p.includes('linkedin') || p.includes('لينكد')) return 'لينكد إن';
+    if (p.includes('twitter') || p.includes('تويتر') || p.includes('إكس') || p === 'x') return 'منصة إكس';
+    if (p.includes('tiktok') || p.includes('تيك')) return 'تيك توك';
+    if (p.includes('youtube') || p.includes('يوتيوب')) return 'يوتيوب';
+    if (p.includes('whatsapp') || p.includes('واتساب') || p.includes('واتس')) return 'واتساب';
+    if (p.includes('site') || p.includes('موقع') || p.includes('web')) return 'موقع إلكتروني';
+    return 'فيسبوك';
+}
+
 function renderSocialLinks(links = []) {
     if (!socialLinksContainer) return;
     socialLinksContainer.innerHTML = '';
@@ -1792,23 +1828,41 @@ function renderSocialLinks(links = []) {
 function addSocialRow(item = { platform: 'فيسبوك', url: '' }) {
     if (!socialLinksContainer) return;
 
+    const cleanedUrl = cleanSocialUrl(item.url || '');
+    const activePlatform = normalizePlatform(item.platform, cleanedUrl);
+
     const row = document.createElement('div');
     row.className = 'social-repeater-row';
     row.innerHTML = `
         <select class="settings-select social-select">
-            <option value="فيسبوك" ${item.platform === 'فيسبوك' ? 'selected' : ''}>📘 فيسبوك</option>
-            <option value="انستجرام" ${item.platform === 'انستجرام' ? 'selected' : ''}>📸 انستجرام</option>
-            <option value="واتساب" ${item.platform === 'واتساب' ? 'selected' : ''}>💬 واتساب</option>
-            <option value="تيك توك" ${item.platform === 'تيك توك' ? 'selected' : ''}>🎵 تيك توك</option>
-            <option value="يوتيوب" ${item.platform === 'يوتيوب' ? 'selected' : ''}>▶️ يوتيوب</option>
-            <option value="لينكد إن" ${item.platform === 'لينكد إن' ? 'selected' : ''}>💼 لينكد إن</option>
-            <option value="منصة إكس" ${item.platform === 'منصة إكس' ? 'selected' : ''}>✖️ منصة X</option>
-            <option value="موقع إلكتروني" ${item.platform === 'موقع إلكتروني' ? 'selected' : ''}>🌐 موقع إلكتروني</option>
-            <option value="أخرى" ${item.platform === 'أخرى' ? 'selected' : ''}>🔗 أخرى</option>
+            <option value="فيسبوك" ${activePlatform === 'فيسبوك' ? 'selected' : ''}>📘 فيسبوك</option>
+            <option value="انستجرام" ${activePlatform === 'انستجرام' ? 'selected' : ''}>📸 انستجرام</option>
+            <option value="واتساب" ${activePlatform === 'واتساب' ? 'selected' : ''}>💬 واتساب</option>
+            <option value="تيك توك" ${activePlatform === 'تيك توك' ? 'selected' : ''}>🎵 تيك توك</option>
+            <option value="يوتيوب" ${activePlatform === 'يوتيوب' ? 'selected' : ''}>▶️ يوتيوب</option>
+            <option value="لينكد إن" ${activePlatform === 'لينكد إن' ? 'selected' : ''}>💼 لينكد إن</option>
+            <option value="منصة إكس" ${activePlatform === 'منصة إكس' ? 'selected' : ''}>✖️ منصة X</option>
+            <option value="موقع إلكتروني" ${activePlatform === 'موقع إلكتروني' ? 'selected' : ''}>🌐 موقع إلكتروني</option>
+            <option value="أخرى" ${activePlatform === 'أخرى' ? 'selected' : ''}>🔗 أخرى</option>
         </select>
-        <input type="url" class="settings-input social-url-input" placeholder="https://..." value="${escapeHtml(item.url || '')}">
+        <input type="url" class="settings-input social-url-input" placeholder="https://..." value="${escapeHtml(cleanedUrl)}">
         <button type="button" class="btn-del-repeater" title="حذف الرابط">✕</button>
     `;
+
+    const selectEl = row.querySelector('.social-select');
+    const inputEl = row.querySelector('.social-url-input');
+
+    // كشف تلقائي فوري للمنصة عند كتابة أو لصق الرابط + إزالة أي سلاش زائد في البداية
+    inputEl.addEventListener('input', () => {
+        const cleaned = cleanSocialUrl(inputEl.value);
+        if (cleaned !== inputEl.value) {
+            inputEl.value = cleaned;
+        }
+        const detected = detectPlatformFromUrl(cleaned);
+        if (detected && selectEl) {
+            selectEl.value = detected;
+        }
+    });
 
     const btnDel = row.querySelector('.btn-del-repeater');
     btnDel.addEventListener('click', () => {
@@ -1829,7 +1883,7 @@ function collectSocialData() {
     const result = [];
     rows.forEach(r => {
         const platform = r.querySelector('.social-select')?.value || 'رابط';
-        const url = r.querySelector('.social-url-input')?.value.trim() || '';
+        const url = cleanSocialUrl(r.querySelector('.social-url-input')?.value || '');
         if (url) {
             result.push({ platform, url });
         }
@@ -2093,11 +2147,13 @@ function applyCrawledDataToUI(pageType, data) {
 
     // دمج روابط السوشيال ميديا المكتشفة بالفوتر
     if (Array.isArray(data.socialLinks) && data.socialLinks.length > 0) {
-        const existingUrls = new Set(collectSocialData().map(s => s.url));
+        const existingUrls = new Set(collectSocialData().map(s => cleanSocialUrl(s.url)));
         data.socialLinks.forEach(item => {
-            if (item && item.url && !existingUrls.has(item.url)) {
-                addSocialRow(item);
-                existingUrls.add(item.url);
+            const rawUrl = item?.url || (typeof item === 'string' ? item : '');
+            const cleaned = cleanSocialUrl(rawUrl);
+            if (cleaned && !existingUrls.has(cleaned)) {
+                addSocialRow({ platform: item.platform || 'فيسبوك', url: cleaned });
+                existingUrls.add(cleaned);
             }
         });
         cleanEmptyInitialSocialRow();

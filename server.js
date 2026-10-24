@@ -565,7 +565,10 @@ ${servicesFormatted || 'خدمات متنوعة'}
 2. قاعدة المعرفة التفصيلية: تضمين كافة الخدمات والمنتجات وأسعارها ومميزاتها بدقة كما ذُكرت في البيانات أعلاه.
 3. التفاعل مع اسم العميل: تحية العميل باسمه الشخصي دائماً في بداية الرد العام والرسالة الخاصة.
 4. الرد العام على التعليق في البوست (publicReply): مختصر جداً (جملة أو جملتين)، يجيب تحديداً على سؤال العميل بذكاء، وينبهه أنه تم إرسال رسالة خاصة على الـ DM 📩.
-5. الرسالة الخاصة في الـ DM (privateMessage): تفصيلية وشاملة، تشرح سؤاله بدقة بناءً على كابشن البوست، تذكر الأسعار وتفاصيل الخدمة وأرقام الواتساب ورابط الحجز، وتختم بسؤال تحفيزي.
+5. الرسالة الخاصة في الـ DM (privateMessage): تفصيلية وشاملة، تشرح سؤاله بدقة بناءً على كابشن البوست، تذكر الأسعار وتفاصيل الخدمة وأرقام الواتساب وروابط التواصل المتاحة، وتختم بسؤال تحفيزي.
+قواعد حاسمة وممنوعات قطعية:
+- ممنوع منعاً باتاً وضع أي نصوص نائبة أو أقواس مربعة مثل [أدخل رابط الحجز] أو [ضع الرابط] أو [السعر] أو [أي نص بين أقواس].
+- إذا لم يتوفر رابط حجز مخصص، اطلب من العميل التواصل عبر الواتساب أو رسائل الصفحة لتحديد الميعاد والاتفاق فوراً دون وضع أي نصوص نائبة إطلاقاً.
 
 اكتب نص البرومبت النهائي مباشرة باللغة العربية ليكون جاهزاً للاستخدام فوراً كنص برومبت أساسي.`;
 
@@ -674,15 +677,19 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
         ])).filter(e => !e.endsWith('.png') && !e.endsWith('.jpg') && !e.endsWith('.webp') && !e.includes('example.com') && !e.includes('sentry') && !e.includes('wixpress') && !e.includes('cloudflare'));
 
         const discoveredSocials = Array.from(new Set([
-            ...Array.from(html.matchAll(/href=["'](https?:\/\/(?:www\.)?(facebook|instagram|tiktok|youtube|linkedin|x|twitter)\.com\/[a-zA-Z0-9._\-\/]+)["']/gi)).map(m => ({
-                platform: m[2].toLowerCase() === 'facebook' ? 'فيسبوك' 
-                        : m[2].toLowerCase() === 'instagram' ? 'انستجرام'
-                        : m[2].toLowerCase() === 'tiktok' ? 'تيك توك'
-                        : m[2].toLowerCase() === 'youtube' ? 'يوتيوب'
-                        : m[2].toLowerCase() === 'linkedin' ? 'لينكد إن'
-                        : 'منصة إكس',
-                url: m[1].trim()
-            }))
+            ...Array.from(html.matchAll(/(?:href=["']|\b)\/?(https?:\/\/(?:www\.)?(facebook|instagram|tiktok|youtube|linkedin|x|twitter)\.com\/[a-zA-Z0-9._\-\/]+)["']?/gi)).map(m => {
+                const rawUrl = m[1].replace(/^\/+/, '').trim();
+                const p = m[2].toLowerCase();
+                return {
+                    platform: p === 'facebook' ? 'فيسبوك' 
+                            : p === 'instagram' ? 'انستجرام'
+                            : p === 'tiktok' ? 'تيك توك'
+                            : p === 'youtube' ? 'يوتيوب'
+                            : p === 'linkedin' ? 'لينكد إن'
+                            : 'منصة إكس',
+                    url: rawUrl
+                };
+            })
         ]));
 
         // 2. تنظيف المحتوى النصي مع الحفاظ التام على نصوص الفوتر (Footer) والترويسة (Header)
@@ -781,10 +788,26 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
         if (!parsed.socialLinks || !Array.isArray(parsed.socialLinks) || parsed.socialLinks.length === 0) {
             parsed.socialLinks = discoveredSocials;
         } else if (discoveredSocials.length > 0) {
-            const existingUrls = new Set(parsed.socialLinks.map(s => s.url));
+            const existingUrls = new Set(parsed.socialLinks.map(s => String(s.url || '').replace(/^\/+/, '').trim()));
             discoveredSocials.forEach(ds => {
                 if (!existingUrls.has(ds.url)) parsed.socialLinks.push(ds);
             });
+        }
+
+        if (Array.isArray(parsed.socialLinks)) {
+            parsed.socialLinks = parsed.socialLinks.map(s => {
+                const u = String(s.url || '').replace(/^\/+/, '').trim();
+                let plat = s.platform || 'فيسبوك';
+                const lower = (u + ' ' + (s.platform || '')).toLowerCase();
+                if (lower.includes('facebook') || lower.includes('fb.com')) plat = 'فيسبوك';
+                else if (lower.includes('instagram') || lower.includes('instagr.am')) plat = 'انستجرام';
+                else if (lower.includes('linkedin')) plat = 'لينكد إن';
+                else if (lower.includes('x.com') || lower.includes('twitter')) plat = 'منصة إكس';
+                else if (lower.includes('tiktok')) plat = 'تيك توك';
+                else if (lower.includes('youtube') || lower.includes('youtu.be')) plat = 'يوتيوب';
+                else if (lower.includes('wa.me') || lower.includes('whatsapp')) plat = 'واتساب';
+                return { platform: plat, url: u };
+            }).filter(s => s.url);
         }
 
         res.json({
@@ -906,6 +929,10 @@ ${contactsFormatted}
    - تذكر الأسعار أو طريقة حسابها وبيانات التواصل والواتساب للتسهيل عليه.
    - تختم بسؤال لطيف لتشجيع العميل على إتمام الحجز أو الشراء.
 
+4. منع الأقواس والنصوص النائبة نهائياً (Strict Zero-Placeholders Policy):
+   - ممنوع نهائياً كتابة أي نصوص بين أقواس مربعة مثل [أدخل رابط الحجز] أو [ضع الرابط هنا] أو [السعر].
+   - إذا لم يوجد رابط حجز مخصص بالبيانات، ادعُ العميل بلطف للتواصل على الواتساب أو عبر رسائل الصفحة لحجز ميعاده ومكالمته. كل كلمة يجب أن تكون جاهزة وموجهة للعميل مباشرة دون قوالب فارغة.
+
 أجب بصيغة JSON حصراً بالشكل التالي:
 {
   "publicReply": "الرد العام المختصر على الكومنت متضمناً اسم العميل وإجابة سؤاله والتنبيه للخاص",
@@ -938,11 +965,31 @@ ${contactsFormatted}
     }
 
     const content = data.choices?.[0]?.message?.content || '{}';
-    const parsed = JSON.parse(content);
+    let parsed = {};
+    try {
+        parsed = JSON.parse(content);
+    } catch (e) {
+        const match = content.match(/\{[\s\S]*\}/);
+        if (match) parsed = JSON.parse(match[0]);
+    }
+
+    // تنظيف صارم لأي نصوص نائبة أو أقواس مربعة قد يولدها الذكاء الاصطناعي بالخطأ (مثل [أدخل رابط الحجز])
+    const cleanPlaceholders = (text) => {
+        if (!text || typeof text !== 'string') return '';
+        return text
+            .replace(/\[(?:أدخل|ضع|اضف)?\s*رابط[^\]]*\]/gi, 'عبر رسائل الصفحة أو الواتساب مباشرة')
+            .replace(/\[(?:أدخل|ضع)?\s*السعر[^\]]*\]/gi, 'حسب تفاصيل العرض')
+            .replace(/\[[^\]]+\]/g, '') // إزالة أي أقواس مربعة متبقية
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    };
+
+    const publicReply = cleanPlaceholders(parsed.publicReply || 'أهلاً بحضرتك يا فندم! نورتنا، تم إرسال كافة التفاصيل لحضرتك في رسالة خاصة على الـ DM 📩');
+    const privateMessage = cleanPlaceholders(parsed.privateMessage || `أهلاً بحضرتك يا فندم! بخصوص استفسارك، يسعدنا خدمتك دائماً في ${projectName}. تواصل معنا لأي تفاصيل إضافية.`);
 
     return {
-        publicReply: parsed.publicReply || 'أهلاً بحضرتك يا فندم! نورتنا، تم إرسال كافة التفاصيل لحضرتك في رسالة خاصة على الـ DM 📩',
-        privateMessage: parsed.privateMessage || `أهلاً بحضرتك يا فندم! بخصوص استفسارك، يسعدنا خدمتك دائماً في ${projectName}. تواصل معنا لأي تفاصيل إضافية.`,
+        publicReply,
+        privateMessage,
         tokensUsed: data.usage?.total_tokens || 0
     };
 }
