@@ -359,12 +359,11 @@ app.get('/api/webhook', (req, res) => {
 
 // 2. مسار استقبال ومعالجة أحداث الويبهوك التلقائية (POST /api/webhook)
 app.post('/api/webhook', async (req, res) => {
-    // الاستجابة الفورية لـ Meta بنجاح لتجنب انقطاع الاتصال أو إعادة الإرسال
-    res.status(200).send('EVENT_RECEIVED');
-
     try {
         const body = req.body;
-        if (!body || !body.entry || !Array.isArray(body.entry)) return;
+        if (!body || !body.entry || !Array.isArray(body.entry)) {
+            return res.status(200).send('EVENT_RECEIVED');
+        }
 
         console.log('\n🔔 [Meta Webhook] استلام حدث جديد من Meta:');
 
@@ -414,21 +413,27 @@ app.post('/api/webhook', async (req, res) => {
 
                 console.log(`[Auto-Reply] تعليق جديد مستلم على ${platform}: "${commentText}" من: ${senderName} (Post: ${postId})`);
 
-                // تنفيذ دورة الرد التلقائي الكاملة في الخلفية
-                handleIncomingComment({
-                    platform,
-                    pageOrIgId,
-                    commentId,
-                    commentText,
-                    postId,
-                    senderId,
-                    senderName
-                }).catch(err => console.error('[Auto-Reply Background Error]:', err));
+                // تنفيذ دورة الرد التلقائي وانتظار اكتمالها بالكامل (Like -> Public Reply -> DM) لضمان عدم تجميد السيرفر في Vercel
+                try {
+                    await handleIncomingComment({
+                        platform,
+                        pageOrIgId,
+                        commentId,
+                        commentText,
+                        postId,
+                        senderId,
+                        senderName
+                    });
+                } catch (err) {
+                    console.error('[Auto-Reply Processing Error]:', err);
+                }
             }
         }
     } catch (err) {
         console.error('Error handling webhook event:', err);
     }
+
+    res.status(200).send('EVENT_RECEIVED');
 });
 
 // 3. مسار جلب معلومات الويبهوك لمساعدة المستخدمين في الربط
