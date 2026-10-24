@@ -2794,21 +2794,24 @@ textarea:focus {
     border: 1px solid rgba(59, 130, 246, 0.25);
     border-radius: 12px 12px 12px 3px;
     padding: 12px 14px;
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: 13.5px;
+    line-height: 1.6;
     color: #e0f2fe;
     position: relative;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 .dm-bubble {
     background: linear-gradient(145deg, rgba(147, 51, 234, 0.12), rgba(79, 70, 229, 0.08));
     border: 1px solid rgba(147, 51, 234, 0.3);
     border-radius: 12px 12px 3px 12px;
-    padding: 14px 16px;
-    font-size: 13px;
-    line-height: 1.6;
+    padding: 16px 18px;
+    font-size: 13.5px;
+    line-height: 1.75;
     color: #f3e8ff;
-    white-space: pre-line;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
 /* سجل النشاط (Activity Log) */
