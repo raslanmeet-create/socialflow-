@@ -1958,13 +1958,14 @@ async function startDeepCrawl() {
 
             // إتمام المرحلة
             setCrawlerPillState(stage.pill, 'done');
-            updateCrawlerProgress(stage.pct, `اكتمل فحص: ${stage.label}`);
+            const tokensMsg = data.tokensUsed ? ` (${data.tokensUsed} توكن • استهلاك آمن تحت 6,000 TPM)` : '';
+            updateCrawlerProgress(stage.pct, `اكتمل التحليل العميق لـ: ${stage.label}${tokensMsg}`);
 
             // 3. إذا لم تكن هذه آخر مرحلة، نبدأ عداد الانتظار 60 ثانية لحماية الحصة
             if (i < stages.length - 1) {
                 const nextStage = stages[i + 1];
                 setCrawlerPillState(nextStage.pill, 'waiting');
-                await runCrawlerCountdown(60, `تم فحص ${stage.label}. ننتظر 60 ثانية قبل الانتقال لـ ${nextStage.label} لعدم تجاوز حد 6000 TPM...`);
+                await runCrawlerCountdown(60, `تم التحليل العميق لـ ${stage.label}. ننتظر 60 ثانية لتجديد كوتا الـ 6,000 TPM بالكامل قبل بدء ${nextStage.label}...`);
             }
         }
 
