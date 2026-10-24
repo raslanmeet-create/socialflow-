@@ -105,13 +105,20 @@ const postCaptionsCache = new Map();
 const DEFAULT_AUTOREPLY_CONFIG = {
     enabled: true,
     pageId: '',
-    projectName: '',
-    niche: '',
-    services: [], // [ { name: '', price: '', details: '' } ]
-    phones: [],   // [ '010...' ]
-    email: '',
-    socialLinks: [], // [ { platform: '', url: '' } ]
-    customPrompt: '', // البرومبت المخصص المولد بالذكاء الاصطناعي
+    projectName: 'رسلان للتسويق - Raslans Marketing',
+    niche: 'تسويق رقمي، إدارة صفحات سوشيال ميديا، تصميم مواقع، وإعلانات ممولة',
+    services: [
+        { name: 'باقة إدارة السوشيال ميديا الشاملة', price: '2000 جنيه شهرياً (قبل الخصم 2500)', details: 'إدارة كاملة، 15 بوست احترافي، كتابة إعلانية، وتصاميم إبداعية' },
+        { name: 'تصميم وبرمجة المواقع والمتاجر', price: 'حسب المواصفات والطلب مع خصم خاص', details: 'مواقع سريعة ومتجاوبة مع محركات البحث وتجربة مستخدم عصرية' },
+        { name: 'الحملات الإعلانية الممولة (Facebook & Instagram Ads)', price: 'حسب الميزانية والجمهور المستهدف', details: 'استهداف دقيق للمبيعات وزيادة العائد على الاستثمار' }
+    ],
+    phones: ['+201020942335'],
+    email: 'Raslan.dp@gmail.com',
+    socialLinks: [
+        { platform: 'فيسبوك', url: 'https://www.facebook.com/RaslansMarketing' },
+        { platform: 'انستجرام', url: 'https://www.instagram.com/raslan_marketing' }
+    ],
+    customPrompt: '',
     targetAllPosts: true, // true: جميع المنشورات، false: منشورات محددة فقط
     targetPostIds: [],   // مصفوفة بمعرفات المنشورات المشمولة بالخدمة
     groqApiKey: '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',
@@ -1132,6 +1139,48 @@ async function executePrivateDm(commentId, text, token, platform, igUserId) {
     }
 }
 
+// دالة حل واستخراج Page Access Token تلقائياً من خوادم Meta عند الحاجة لضمان صلاحية الرد
+async function resolvePageToken(pageOrIgId) {
+    if (!pageOrIgId) return null;
+    const cached = pageTokensCache.get(pageOrIgId);
+    if (cached && cached.token) return cached.token;
+
+    const userToken = META_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
+    if (!userToken) return null;
+
+    try {
+        // 1. محاولة مباشرة لجلب توكن الصفحة
+        const pageRes = await fetch(`https://graph.facebook.com/v21.0/${pageOrIgId}?fields=access_token,name&access_token=${userToken.trim()}`);
+        const pageData = await pageRes.json();
+        if (pageData.access_token) {
+            pageTokensCache.set(pageOrIgId, { token: pageData.access_token, name: pageData.name });
+            return pageData.access_token;
+        }
+
+        // 2. إذا كان المعرف لحساب انستجرام، البحث في صفحات المستخدم
+        const accRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${userToken.trim()}`);
+        const accData = await accRes.json();
+        for (const acc of accData.data || []) {
+            if (acc.id) {
+                pageTokensCache.set(acc.id, { token: acc.access_token, name: acc.name });
+            }
+            if (acc.instagram_business_account?.id) {
+                pageTokensCache.set(acc.instagram_business_account.id, { token: acc.access_token, name: acc.name, pageId: acc.id });
+                if (acc.instagram_business_account.id === pageOrIgId) {
+                    return acc.access_token;
+                }
+            }
+            if (acc.id === pageOrIgId) {
+                return acc.access_token;
+            }
+        }
+    } catch (err) {
+        console.error('Error in resolvePageToken:', err.message);
+    }
+
+    return null;
+}
+
 // المعالج الشامل لدورة الرد التلقائي عند استلام تعليق
 async function handleIncomingComment({ platform, pageOrIgId, commentId, commentText, postId, senderId, senderName }) {
     // 1. جلب إعدادات وقاعدة معرفة العميل للصفحة المحددة
@@ -1141,9 +1190,12 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
         return;
     }
 
-    // 2. الحصول على توكن الصفحة
+    // 2. الحصول على توكن الصفحة (حل ديناميكي لضمان صلاحية الرد كصفحة وليس كمستخدم)
     const cached = pageTokensCache.get(pageOrIgId) || {};
-    const token = cached.token || config.pageToken || META_ACCESS_TOKEN;
+    let token = cached.token || config.pageToken;
+    if (!token) {
+        token = await resolvePageToken(pageOrIgId);
+    }
     const igUserId = cached.igUserId || (platform === 'instagram' ? pageOrIgId : null);
 
     if (!token) {
