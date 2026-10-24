@@ -2898,3 +2898,537 @@ textarea:focus {
     margin-top: 2px;
 }
 
+/* ========================================================
+   🏢 شريط ربط المشروع بالصفحة (Project Page Binding Bar)
+   ======================================================== */
+.project-page-binding-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.08), rgba(99, 102, 241, 0.06));
+    border: 1px solid rgba(88, 166, 255, 0.25);
+    border-radius: var(--radius-md);
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.binding-label-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.binding-icon {
+    font-size: 20px;
+}
+
+.binding-select {
+    min-width: 280px;
+    background: rgba(13, 17, 23, 0.85);
+    border: 1px solid rgba(88, 166, 255, 0.4);
+    color: #f0f6fc;
+    font-weight: 600;
+}
+
+/* ========================================================
+   🌐 فحص الـ 4 صفحات والعداد التنازلي (Deep Crawler UI)
+   ======================================================== */
+.deep-crawl-tracker {
+    margin-top: 14px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    animation: fadeIn 0.3s ease;
+}
+
+.crawler-steps-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+@media (max-width: 600px) {
+    .crawler-steps-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.crawler-step-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: var(--transition);
+}
+
+.crawler-step-pill.active {
+    background: rgba(88, 166, 255, 0.15);
+    border-color: rgba(88, 166, 255, 0.5);
+    color: #58a6ff;
+    font-weight: 700;
+    box-shadow: 0 0 10px rgba(88, 166, 255, 0.2);
+}
+
+.crawler-step-pill.waiting {
+    background: rgba(234, 179, 8, 0.15);
+    border-color: rgba(234, 179, 8, 0.5);
+    color: #facc15;
+    font-weight: 700;
+}
+
+.crawler-step-pill.done {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    font-weight: 700;
+}
+
+.step-num {
+    background: rgba(255, 255, 255, 0.1);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+}
+
+.crawler-progress-track {
+    width: 100%;
+    height: 7px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.crawler-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #10b981);
+    border-radius: 10px;
+    transition: width 0.4s ease;
+}
+
+.crawler-progress-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.crawler-countdown-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(234, 179, 8, 0.1);
+    border: 1px solid rgba(234, 179, 8, 0.35);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    animation: pulseSlow 2s infinite;
+}
+
+.countdown-pulse-icon {
+    font-size: 22px;
+    animation: spinSlow 4s linear infinite;
+}
+
+.countdown-content strong {
+    display: block;
+    font-size: 12px;
+    color: #fef08a;
+}
+
+.countdown-content p {
+    margin: 2px 0 0 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.seconds-highlight {
+    color: #facc15;
+    font-weight: 800;
+    font-size: 13px;
+}
+
+/* ========================================================
+   🛠️ مربعات تكرار الخدمات وبيانات التواصل (Dynamic Repeaters)
+   ======================================================== */
+.form-section-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    margin-top: 14px;
+}
+
+.section-box-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.box-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 2px 0;
+}
+
+.box-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.repeaters-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.repeaters-container.mini-gap {
+    gap: 6px;
+}
+
+.btn-add-repeater {
+    background: rgba(88, 166, 255, 0.12);
+    border: 1px dashed rgba(88, 166, 255, 0.4);
+    color: var(--accent);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition);
+}
+
+.btn-add-repeater:hover {
+    background: rgba(88, 166, 255, 0.22);
+    border-style: solid;
+}
+
+.btn-add-repeater-mini {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-add-repeater-mini:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* كارت الخدمة الفردي (3 حقول + زر حذف) */
+.service-repeater-card {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: var(--transition);
+    position: relative;
+}
+
+.service-repeater-card:hover {
+    border-color: rgba(88, 166, 255, 0.25);
+}
+
+.repeater-row-top {
+    display: grid;
+    grid-template-columns: 1fr 140px 36px;
+    gap: 8px;
+    align-items: center;
+}
+
+@media (max-width: 600px) {
+    .repeater-row-top {
+        grid-template-columns: 1fr 1fr 36px;
+    }
+}
+
+.btn-del-repeater {
+    width: 34px;
+    height: 34px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #f87171;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: var(--transition);
+}
+
+.btn-del-repeater:hover {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+}
+
+/* سطر أرقام الهواتف وروابط السوشيال */
+.sub-repeater-group {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.sub-repeater-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.phone-repeater-row,
+.social-repeater-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.social-select {
+    width: 140px;
+    flex-shrink: 0;
+}
+
+/* ========================================================
+   🎯 نطاق تحديد المنشورات (Target Posts Scope)
+   ======================================================== */
+.target-scope-radios {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+@media (max-width: 600px) {
+    .target-scope-radios {
+        grid-template-columns: 1fr;
+    }
+}
+
+.scope-radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.scope-radio-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.scope-radio-card input[type="radio"] {
+    margin-top: 3px;
+    accent-color: #10b981;
+}
+
+.scope-radio-card:has(input[type="radio"]:checked) {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.radio-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.radio-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.radio-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+}
+
+.target-posts-wrapper {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 12px;
+    animation: fadeIn 0.3s ease;
+}
+
+.posts-selection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.btn-refresh-posts {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-refresh-posts:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.posts-checklist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.post-checklist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.post-checklist-item:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.post-checklist-item.selected {
+    background: rgba(88, 166, 255, 0.1);
+    border-color: rgba(88, 166, 255, 0.4);
+}
+
+.post-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: #111;
+    flex-shrink: 0;
+}
+
+.post-info-box {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.post-caption-snippet {
+    font-size: 11px;
+    color: var(--text-primary);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.post-date-tag {
+    font-size: 9px;
+    color: var(--text-secondary);
+}
+
+/* ========================================================
+   ✨ مولد البرومبت المخصص (AI Prompt Builder)
+   ======================================================== */
+.prompt-builder-card {
+    background: linear-gradient(135deg, rgba(147, 51, 234, 0.08), rgba(59, 130, 246, 0.05));
+    border: 1px solid rgba(147, 51, 234, 0.25);
+}
+
+.prompt-builder-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.prompt-icon-sparkle {
+    font-size: 24px;
+}
+
+.btn-generate-custom-prompt {
+    width: 100%;
+    background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+    transition: var(--transition);
+}
+
+.btn-generate-custom-prompt:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(139, 92, 246, 0.5);
+}
+
+.custom-prompt-textarea {
+    font-family: inherit;
+    font-size: 12px !important;
+    line-height: 1.6;
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #f3e8ff !important;
+    border-color: rgba(147, 51, 234, 0.25) !important;
+}
+
+.btn-save-knowledge {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    padding: 12px 24px !important;
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3) !important;
+}
+
+.form-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+}
+

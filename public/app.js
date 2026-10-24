@@ -79,17 +79,49 @@ const plannerSection = document.getElementById('plannerSection');
 const autoReplySection = document.getElementById('autoReplySection');
 
 // عناصر الرد التلقائي الذكي (AI Auto-Reply Bot)
-const autoReplyMasterToggle = document.getElementById('autoReplyMasterToggle');
-const toggleMasterText = document.getElementById('toggleMasterText');
-const arWebsiteUrl = document.getElementById('arWebsiteUrl');
-const btnScrapeWebsite = document.getElementById('btnScrapeWebsite');
+const autoReplyMasterToggle = document.getElementById('toggleAutoReplyMaster') || document.getElementById('autoReplyMasterToggle');
+const toggleMasterText = document.getElementById('autoReplyToggleLabel') || document.getElementById('toggleMasterText');
+const arTargetPageSelector = document.getElementById('arTargetPageSelector');
+
+// أدوات الفحص العميق (4 مراحل مع فاصل 60 ثانية)
+const arWebsiteUrl = document.getElementById('inputWebsiteUrl') || document.getElementById('arWebsiteUrl');
+const btnStartDeepCrawl = document.getElementById('btnStartDeepCrawl') || document.getElementById('btnScrapeWebsite');
+const btnCrawlText = document.getElementById('btnCrawlText') || document.getElementById('btnScrapeText');
+const deepCrawlProgressWrapper = document.getElementById('deepCrawlProgressWrapper');
+const stepPillHome = document.getElementById('stepPillHome');
+const stepPillServices = document.getElementById('stepPillServices');
+const stepPillAbout = document.getElementById('stepPillAbout');
+const stepPillContact = document.getElementById('stepPillContact');
+const crawlerProgressBar = document.getElementById('crawlerProgressBar');
+const crawlerStatusText = document.getElementById('crawlerStatusText');
+const crawlerProgressPercent = document.getElementById('crawlerProgressPercent');
+const crawlerCountdownCard = document.getElementById('crawlerCountdownCard');
+const crawlerSecondsLeft = document.getElementById('crawlerSecondsLeft');
 const scrapeStatus = document.getElementById('scrapeStatus');
 
+// عناصر الإدخال اليدوي وقاعدة المعرفة
 const arProjectName = document.getElementById('arProjectName');
 const arNiche = document.getElementById('arNiche');
-const arServices = document.getElementById('arServices');
-const arPricing = document.getElementById('arPricing');
-const arContactInfo = document.getElementById('arContactInfo');
+const servicesListContainer = document.getElementById('servicesListContainer');
+const btnAddServiceRow = document.getElementById('btnAddServiceRow');
+const phonesListContainer = document.getElementById('phonesListContainer');
+const btnAddPhoneRow = document.getElementById('btnAddPhoneRow');
+const arEmailInput = document.getElementById('arEmailInput');
+const socialLinksContainer = document.getElementById('socialLinksContainer');
+const btnAddSocialRow = document.getElementById('btnAddSocialRow');
+
+// نطاق المنشورات المستهدفة
+const radioTargetAll = document.getElementById('radioTargetAll');
+const radioTargetSpecific = document.getElementById('radioTargetSpecific');
+const targetPostsWrapper = document.getElementById('targetPostsWrapper');
+const btnRefreshPagePosts = document.getElementById('btnRefreshPagePosts');
+const postsChecklistContainer = document.getElementById('postsChecklistContainer');
+
+// توليد برومبت النظام بالذكاء الاصطناعي
+const btnGenerateCustomPrompt = document.getElementById('btnGenerateCustomPrompt');
+const btnGeneratePromptText = document.getElementById('btnGeneratePromptText');
+const arCustomSystemPrompt = document.getElementById('arCustomSystemPrompt');
+
 const btnSaveAutoReplyConfig = document.getElementById('btnSaveAutoReplyConfig');
 const saveConfigStatus = document.getElementById('saveConfigStatus');
 
@@ -1527,6 +1559,19 @@ function populateActiveAccounts() {
         if (onboardingBanner) onboardingBanner.style.display = 'none';
         currentAccounts = activePages;
         pageSelector.innerHTML = '';
+        if (arTargetPageSelector) {
+            const currentSelected = arTargetPageSelector.value;
+            arTargetPageSelector.innerHTML = '<option value="">⚙️ الإعدادات العامة الافتراضية (Global Default)</option>';
+            currentAccounts.forEach(acc => {
+                const opt = document.createElement('option');
+                opt.value = acc.id;
+                const hasIg = acc.instagram ? ' 📸 (مربوط بانستجرام)' : '';
+                opt.textContent = `🏢 صفحة: ${acc.name}${hasIg}`;
+                arTargetPageSelector.appendChild(opt);
+            });
+            if (currentSelected) arTargetPageSelector.value = currentSelected;
+        }
+
         currentAccounts.forEach(acc => {
             const opt = document.createElement('option');
             opt.value = acc.id;
@@ -1541,6 +1586,9 @@ function populateActiveAccounts() {
         currentAccounts = [];
         if (onboardingBanner) onboardingBanner.style.display = 'flex';
         pageSelector.innerHTML = '<option value="">⚠️ لم تقم بربط صفحاتك بعد — اضغط هنا لربط الحساب</option>';
+        if (arTargetPageSelector) {
+            arTargetPageSelector.innerHTML = '<option value="">⚙️ الإعدادات العامة الافتراضية (Global Default)</option>';
+        }
         headerStatusText.textContent = '⚪ غير متصل (بانتظار ربط الحساب)';
         mockupProfileName.textContent = 'اسم صفحتك هنا';
         mockupAvatar.innerHTML = '👤';
@@ -1600,6 +1648,8 @@ pageSelector.addEventListener('change', updateMockupHeader);
 // ========================================================
 
 const STORAGE_AUTOREPLY_KEY = 'socialflow_autoreply_client_config';
+let currentSelectedTargetPostIds = new Set();
+let isDeepCrawlingActive = false;
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -1611,39 +1661,497 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-// 1. تحميل إعدادات وقاعدة معرفة العميل من الذاكرة المحلية أو الخادم
-async function loadAutoReplyConfigUI() {
-    let config = null;
+// ----------------------------------------------------
+// 1. مكرر قائمة الخدمات والمنتجات وعروض الأسعار (Services Repeater)
+// ----------------------------------------------------
+function renderServicesList(services = []) {
+    if (!servicesListContainer) return;
+    servicesListContainer.innerHTML = '';
 
-    // محاولة القراءة أولاً من localStorage (لكل عميل خصوصيته ومساحة عمله الخاصة)
-    try {
-        const local = localStorage.getItem(STORAGE_AUTOREPLY_KEY);
-        if (local) config = JSON.parse(local);
-    } catch (e) {
-        console.error('Error loading config from localStorage:', e);
+    if (!Array.isArray(services) || services.length === 0) {
+        addServiceRow({ name: '', price: '', details: '' });
+        return;
     }
 
-    // إذا لم تكن موجودة محلياً، نجلبها من الخادم
-    if (!config) {
-        try {
-            const res = await fetch('/api/autoreply/config');
-            const data = await res.json();
-            if (data.success && data.config) {
-                config = data.config;
-            }
-        } catch (e) {
-            console.error('Error loading config from server:', e);
+    services.forEach(item => {
+        addServiceRow(item);
+    });
+}
+
+function addServiceRow(data = { name: '', price: '', details: '' }) {
+    if (!servicesListContainer) return;
+
+    const row = document.createElement('div');
+    row.className = 'service-repeater-card';
+    row.innerHTML = `
+        <div class="repeater-row-top">
+            <input type="text" class="settings-input service-name" placeholder="اسم الخدمة أو المنتج (مثال: تنظيف وتبييض الأسنان)" value="${escapeHtml(data.name || '')}">
+            <input type="text" class="settings-input service-price" placeholder="السعر (اختياري: 1500 ج)" value="${escapeHtml(data.price || '')}">
+            <button type="button" class="btn-del-repeater" title="حذف الخدمة">🗑️</button>
+        </div>
+        <div>
+            <textarea rows="2" class="settings-input text-area service-details" placeholder="تفاصيل ومميزات الخدمة وشروط الاستفادة منها...">${escapeHtml(data.details || '')}</textarea>
+        </div>
+    `;
+
+    const btnDel = row.querySelector('.btn-del-repeater');
+    btnDel.addEventListener('click', () => {
+        const totalRows = servicesListContainer.querySelectorAll('.service-repeater-card').length;
+        if (totalRows <= 1) {
+            // تفريغ الحقول فقط إذا كان السطر الوحيد
+            row.querySelector('.service-name').value = '';
+            row.querySelector('.service-price').value = '';
+            row.querySelector('.service-details').value = '';
+        } else {
+            row.remove();
         }
+    });
+
+    servicesListContainer.appendChild(row);
+}
+
+function collectServicesData() {
+    if (!servicesListContainer) return [];
+    const rows = servicesListContainer.querySelectorAll('.service-repeater-card');
+    const list = [];
+    rows.forEach(r => {
+        const name = r.querySelector('.service-name')?.value.trim() || '';
+        const price = r.querySelector('.service-price')?.value.trim() || '';
+        const details = r.querySelector('.service-details')?.value.trim() || '';
+        if (name || price || details) {
+            list.push({ name, price, details });
+        }
+    });
+    return list;
+}
+
+// ----------------------------------------------------
+// 2. مكرر أرقام الهواتف والواتساب (Phones Repeater)
+// ----------------------------------------------------
+function renderPhonesList(phones = []) {
+    if (!phonesListContainer) return;
+    phonesListContainer.innerHTML = '';
+
+    if (!Array.isArray(phones) || phones.length === 0) {
+        addPhoneRow('');
+        return;
+    }
+
+    phones.forEach(p => addPhoneRow(p));
+}
+
+function addPhoneRow(phone = '') {
+    if (!phonesListContainer) return;
+
+    const row = document.createElement('div');
+    row.className = 'phone-repeater-row';
+    row.innerHTML = `
+        <input type="text" class="settings-input phone-number-input" placeholder="رقم الهاتف أو الواتساب (مثال: 01012345678)" value="${escapeHtml(phone || '')}">
+        <button type="button" class="btn-del-repeater" title="حذف الرقم">✕</button>
+    `;
+
+    const btnDel = row.querySelector('.btn-del-repeater');
+    btnDel.addEventListener('click', () => {
+        const count = phonesListContainer.querySelectorAll('.phone-repeater-row').length;
+        if (count <= 1) {
+            row.querySelector('.phone-number-input').value = '';
+        } else {
+            row.remove();
+        }
+    });
+
+    phonesListContainer.appendChild(row);
+}
+
+function collectPhonesData() {
+    if (!phonesListContainer) return [];
+    const inputs = phonesListContainer.querySelectorAll('.phone-number-input');
+    const result = [];
+    inputs.forEach(inp => {
+        const val = inp.value.trim();
+        if (val) result.push(val);
+    });
+    return result;
+}
+
+// ----------------------------------------------------
+// 3. مكرر روابط منصات السوشيال ميديا (Social Links Repeater)
+// ----------------------------------------------------
+function renderSocialLinks(links = []) {
+    if (!socialLinksContainer) return;
+    socialLinksContainer.innerHTML = '';
+
+    if (!Array.isArray(links) || links.length === 0) {
+        addSocialRow({ platform: 'فيسبوك', url: '' });
+        return;
+    }
+
+    links.forEach(l => addSocialRow(l));
+}
+
+function addSocialRow(item = { platform: 'فيسبوك', url: '' }) {
+    if (!socialLinksContainer) return;
+
+    const row = document.createElement('div');
+    row.className = 'social-repeater-row';
+    row.innerHTML = `
+        <select class="settings-select social-select">
+            <option value="فيسبوك" ${item.platform === 'فيسبوك' ? 'selected' : ''}>📘 فيسبوك</option>
+            <option value="انستجرام" ${item.platform === 'انستجرام' ? 'selected' : ''}>📸 انستجرام</option>
+            <option value="واتساب" ${item.platform === 'واتساب' ? 'selected' : ''}>💬 واتساب</option>
+            <option value="تيك توك" ${item.platform === 'تيك توك' ? 'selected' : ''}>🎵 تيك توك</option>
+            <option value="يوتيوب" ${item.platform === 'يوتيوب' ? 'selected' : ''}>▶️ يوتيوب</option>
+            <option value="لينكد إن" ${item.platform === 'لينكد إن' ? 'selected' : ''}>💼 لينكد إن</option>
+            <option value="منصة إكس" ${item.platform === 'منصة إكس' ? 'selected' : ''}>✖️ منصة X</option>
+            <option value="موقع إلكتروني" ${item.platform === 'موقع إلكتروني' ? 'selected' : ''}>🌐 موقع إلكتروني</option>
+            <option value="أخرى" ${item.platform === 'أخرى' ? 'selected' : ''}>🔗 أخرى</option>
+        </select>
+        <input type="url" class="settings-input social-url-input" placeholder="https://..." value="${escapeHtml(item.url || '')}">
+        <button type="button" class="btn-del-repeater" title="حذف الرابط">✕</button>
+    `;
+
+    const btnDel = row.querySelector('.btn-del-repeater');
+    btnDel.addEventListener('click', () => {
+        const count = socialLinksContainer.querySelectorAll('.social-repeater-row').length;
+        if (count <= 1) {
+            row.querySelector('.social-url-input').value = '';
+        } else {
+            row.remove();
+        }
+    });
+
+    socialLinksContainer.appendChild(row);
+}
+
+function collectSocialData() {
+    if (!socialLinksContainer) return [];
+    const rows = socialLinksContainer.querySelectorAll('.social-repeater-row');
+    const result = [];
+    rows.forEach(r => {
+        const platform = r.querySelector('.social-select')?.value || 'رابط';
+        const url = r.querySelector('.social-url-input')?.value.trim() || '';
+        if (url) {
+            result.push({ platform, url });
+        }
+    });
+    return result;
+}
+
+// ----------------------------------------------------
+// 4. جلب وعرض منشورات الصفحة لتحديد نطاق الخدمة (Target Posts Scope)
+// ----------------------------------------------------
+async function loadPagePostsUI(pageId) {
+    if (!postsChecklistContainer) return;
+    const targetId = pageId || (arTargetPageSelector ? arTargetPageSelector.value : '') || (pageSelector ? pageSelector.value : '');
+
+    if (!targetId) {
+        postsChecklistContainer.innerHTML = '<div class="loading-posts-hint">⚠️ يرجى تحديد صفحة أولاً لجلب منشوراتها.</div>';
+        return;
+    }
+
+    postsChecklistContainer.innerHTML = '<div class="loading-posts-hint">⏳ جاري جلب منشورات الصفحة...</div>';
+
+    try {
+        const res = await fetch(`/api/page-posts?pageId=${encodeURIComponent(targetId)}`);
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.posts) && data.posts.length > 0) {
+            renderPostsChecklist(data.posts);
+        } else {
+            postsChecklistContainer.innerHTML = '<div class="loading-posts-hint">لا توجد منشورات منشورة لهذه الصفحة بعد. عند عدم تحديد أي منشور، سيتم تطبيق الخدمة على كافة المنشورات تلقائياً.</div>';
+        }
+    } catch (err) {
+        console.error('Error in loadPagePostsUI:', err);
+        postsChecklistContainer.innerHTML = `<div class="loading-posts-hint">تعذر جلب المنشورات (${escapeHtml(err.message)}). ستعمل الخدمة على كافة المنشورات بشكل افتراضي.</div>`;
+    }
+}
+
+function renderPostsChecklist(posts) {
+    if (!postsChecklistContainer) return;
+    postsChecklistContainer.innerHTML = '';
+
+    posts.forEach(p => {
+        const isChecked = currentSelectedTargetPostIds.has(p.id);
+        const item = document.createElement('label');
+        item.className = `post-checklist-item ${isChecked ? 'selected' : ''}`;
+        
+        const dateStr = p.createdTime ? new Date(p.createdTime).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' }) : '';
+        const thumbHtml = p.picture ? `<img src="${p.picture}" class="post-thumb" alt="Post">` : `<div class="post-thumb" style="display:flex;align-items:center;justify-content:center;color:#666;font-size:16px;">📝</div>`;
+
+        item.innerHTML = `
+            <input type="checkbox" value="${p.id}" ${isChecked ? 'checked' : ''} style="margin-top: 4px; accent-color: #3b82f6;">
+            ${thumbHtml}
+            <div class="post-info-box">
+                <span class="post-caption-snippet" title="${escapeHtml(p.caption)}">${escapeHtml(p.caption)}</span>
+                <span class="post-date-tag">📅 ${dateStr}</span>
+            </div>
+        `;
+
+        const chk = item.querySelector('input[type="checkbox"]');
+        chk.addEventListener('change', () => {
+            if (chk.checked) {
+                currentSelectedTargetPostIds.add(p.id);
+                item.classList.add('selected');
+            } else {
+                currentSelectedTargetPostIds.delete(p.id);
+                item.classList.remove('selected');
+            }
+        });
+
+        postsChecklistContainer.appendChild(item);
+    });
+}
+
+// ----------------------------------------------------
+// 5. فحص الـ 4 صفحات بفاصل 60 ثانية (4-Stage Deep Website Crawler)
+// ----------------------------------------------------
+async function startDeepCrawl() {
+    if (isDeepCrawlingActive) return;
+
+    const rawUrl = arWebsiteUrl ? arWebsiteUrl.value.trim() : '';
+    if (!rawUrl) {
+        showScrapeStatus('يرجى إدخال رابط الموقع أولاً (مثال: https://mywebsite.com)', 'error');
+        if (arWebsiteUrl) arWebsiteUrl.focus();
+        return;
+    }
+
+    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+        showScrapeStatus('يجب أن يبدأ رابط الموقع بـ https:// أو http://', 'error');
+        return;
+    }
+
+    isDeepCrawlingActive = true;
+    if (btnStartDeepCrawl) btnStartDeepCrawl.disabled = true;
+    if (deepCrawlProgressWrapper) deepCrawlProgressWrapper.style.display = 'block';
+
+    // إعادة تعيين المؤشرات
+    resetCrawlerPills();
+    updateCrawlerProgress(0, 'جاري تهيئة الفحص الذكي للـ 4 صفحات...');
+
+    const stages = [
+        { type: 'home', pill: stepPillHome, label: 'الصفحة الرئيسية', pct: 25 },
+        { type: 'services', pill: stepPillServices, label: 'صفحة الخدمات والمنتجات', pct: 50 },
+        { type: 'about', pill: stepPillAbout, label: 'صفحة من نحن والخبرات', pct: 75 },
+        { type: 'contact', pill: stepPillContact, label: 'صفحة تواصل معنا وبيانات الاتصال', pct: 100 }
+    ];
+
+    try {
+        for (let i = 0; i < stages.length; i++) {
+            const stage = stages[i];
+
+            // 1. تنشيط مؤشر المرحلة
+            setCrawlerPillState(stage.pill, 'active');
+            updateCrawlerProgress(stage.pct - 15, `جاري فحص وتحليل: ${stage.label}...`);
+
+            // 2. طلب الفحص من السيرفر
+            const apiKey = arGroqApiKey ? arGroqApiKey.value.trim() : '';
+            const res = await fetch('/api/autoreply/scrape-page', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ baseUrl: rawUrl, pageType: stage.type, groqApiKey: apiKey })
+            });
+
+            const data = await res.json();
+            if (data.success && data.data) {
+                applyCrawledDataToUI(stage.type, data.data);
+            }
+
+            // إتمام المرحلة
+            setCrawlerPillState(stage.pill, 'done');
+            updateCrawlerProgress(stage.pct, `اكتمل فحص: ${stage.label}`);
+
+            // 3. إذا لم تكن هذه آخر مرحلة، نبدأ عداد الانتظار 60 ثانية لحماية الحصة
+            if (i < stages.length - 1) {
+                const nextStage = stages[i + 1];
+                setCrawlerPillState(nextStage.pill, 'waiting');
+                await runCrawlerCountdown(60, `تم فحص ${stage.label}. ننتظر 60 ثانية قبل الانتقال لـ ${nextStage.label} لعدم تجاوز حد 6000 TPM...`);
+            }
+        }
+
+        // نجاح الفحص بالكامل
+        updateCrawlerProgress(100, '🎉 اكتمل فحص الصفحات الـ 4 بنجاح! تم استخراج كافة الخدمات وبيانات التواصل.');
+        showScrapeStatus('🎉 تم فحص الصفحات الـ 4 واستخراج الخدمات وبيانات التواصل بنجاح! جاري توليد برومبت النظام المخصص...', 'success');
+
+        // صياغة برومبت النظام تلقائياً بعد اكتمال الفحص
+        await generateCustomPromptUI();
+
+    } catch (err) {
+        console.error('Error in startDeepCrawl:', err);
+        showScrapeStatus('حدث خطأ أثناء فحص الصفحات: ' + err.message, 'error');
+    } finally {
+        isDeepCrawlingActive = false;
+        if (btnStartDeepCrawl) {
+            btnStartDeepCrawl.disabled = false;
+            btnStartDeepCrawl.innerHTML = '<span class="btn-icon">🚀</span><span>بدء الفحص والتحليل الذكي (4 صفحات)</span>';
+        }
+    }
+}
+
+function resetCrawlerPills() {
+    [stepPillHome, stepPillServices, stepPillAbout, stepPillContact].forEach(p => {
+        if (!p) return;
+        p.className = 'crawler-step-pill';
+        const icon = p.querySelector('.step-status-icon');
+        if (icon) icon.textContent = '⚪';
+    });
+}
+
+function setCrawlerPillState(pill, state) {
+    if (!pill) return;
+    pill.className = `crawler-step-pill ${state}`;
+    const icon = pill.querySelector('.step-status-icon');
+    if (icon) {
+        if (state === 'active') icon.textContent = '⏳';
+        else if (state === 'waiting') icon.textContent = '⏱️';
+        else if (state === 'done') icon.textContent = '✅';
+        else icon.textContent = '⚪';
+    }
+}
+
+function updateCrawlerProgress(pct, statusText) {
+    if (crawlerProgressBar) crawlerProgressBar.style.width = `${pct}%`;
+    if (crawlerProgressPercent) crawlerProgressPercent.textContent = `${pct}%`;
+    if (crawlerStatusText) crawlerStatusText.textContent = statusText;
+}
+
+function runCrawlerCountdown(seconds, message) {
+    return new Promise(resolve => {
+        if (crawlerCountdownCard) crawlerCountdownCard.style.display = 'flex';
+        let remaining = seconds;
+        if (crawlerSecondsLeft) crawlerSecondsLeft.textContent = remaining;
+        if (crawlerStatusText) crawlerStatusText.textContent = message;
+
+        const interval = setInterval(() => {
+            remaining--;
+            if (crawlerSecondsLeft) crawlerSecondsLeft.textContent = remaining;
+
+            if (remaining <= 0) {
+                clearInterval(interval);
+                if (crawlerCountdownCard) crawlerCountdownCard.style.display = 'none';
+                resolve();
+            }
+        }, 1000);
+    });
+}
+
+function applyCrawledDataToUI(pageType, data) {
+    if (!data) return;
+
+    if (pageType === 'home') {
+        if (arProjectName && data.projectName && !arProjectName.value) {
+            arProjectName.value = data.projectName;
+        }
+        if (arNiche && data.niche && !arNiche.value) {
+            arNiche.value = data.niche;
+        }
+    } else if (pageType === 'services') {
+        if (Array.isArray(data.services) && data.services.length > 0) {
+            renderServicesList(data.services);
+        }
+    } else if (pageType === 'contact') {
+        if (Array.isArray(data.phones) && data.phones.length > 0) {
+            renderPhonesList(data.phones);
+        }
+        if (arEmailInput && data.email) {
+            arEmailInput.value = data.email;
+        }
+        if (Array.isArray(data.socialLinks) && data.socialLinks.length > 0) {
+            renderSocialLinks(data.socialLinks);
+        }
+    }
+}
+
+function showScrapeStatus(msg, type) {
+    if (!scrapeStatus) return;
+    scrapeStatus.textContent = msg;
+    scrapeStatus.style.display = 'block';
+    scrapeStatus.className = `scrape-status-box ${type}`;
+}
+
+// ----------------------------------------------------
+// 6. توليد برومبت النظام المخصص بالذكاء الاصطناعي (Custom System Prompt Builder)
+// ----------------------------------------------------
+async function generateCustomPromptUI() {
+    const projectName = arProjectName ? arProjectName.value.trim() : '';
+    const niche = arNiche ? arNiche.value.trim() : '';
+    const services = collectServicesData();
+    const phones = collectPhonesData();
+    const email = arEmailInput ? arEmailInput.value.trim() : '';
+    const socialLinks = collectSocialData();
+    const groqApiKey = arGroqApiKey ? arGroqApiKey.value.trim() : '';
+
+    if (btnGenerateCustomPrompt) {
+        btnGenerateCustomPrompt.disabled = true;
+        if (btnGeneratePromptText) btnGeneratePromptText.textContent = '⏳ جاري تحليل البيانات وصياغة برومبت النظام المخصص...';
+    }
+
+    try {
+        const res = await fetch('/api/autoreply/generate-prompt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                projectName,
+                niche,
+                services,
+                phones,
+                email,
+                socialLinks,
+                groqApiKey
+            })
+        });
+
+        const data = await res.json();
+        if (data.success && data.customPrompt) {
+            if (arCustomSystemPrompt) {
+                arCustomSystemPrompt.value = data.customPrompt;
+                arCustomSystemPrompt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showAlert('✨ تم توليد برومبت النظام المخصص بنجاح! راجعه ثم اضغط حفظ.', 'success');
+        } else {
+            showAlert('❌ تعذر توليد البرومبت: ' + (data.message || 'خطأ غير معروف'), 'error');
+        }
+    } catch (err) {
+        console.error('Error in generateCustomPromptUI:', err);
+        showAlert('تعذر الاتصال بالخادم لتوليد البرومبت: ' + err.message, 'error');
+    } finally {
+        if (btnGenerateCustomPrompt) {
+            btnGenerateCustomPrompt.disabled = false;
+            if (btnGeneratePromptText) btnGeneratePromptText.textContent = 'إرسال إلى الذكاء الاصطناعي لتحليل البيانات وتوليد البرومبت';
+        }
+    }
+}
+
+// ----------------------------------------------------
+// 7. تحميل وحفظ إعدادات وقاعدة معرفة المشروع (Per-Page Config)
+// ----------------------------------------------------
+async function loadAutoReplyConfigUI(pageId) {
+    const targetPageId = pageId || (arTargetPageSelector ? arTargetPageSelector.value : '');
+
+    let config = null;
+    try {
+        const url = targetPageId ? `/api/autoreply/config?pageId=${encodeURIComponent(targetPageId)}` : '/api/autoreply/config';
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success && data.config) {
+            config = data.config;
+        }
+    } catch (e) {
+        console.error('Error loading config from server:', e);
     }
 
     if (!config) {
         config = {
             enabled: true,
+            pageId: targetPageId || '',
             projectName: '',
             niche: '',
-            services: '',
-            pricing: '',
-            contactInfo: '',
+            services: [],
+            phones: [],
+            email: '',
+            socialLinks: [],
+            customPrompt: '',
+            targetAllPosts: true,
+            targetPostIds: [],
             groqApiKey: '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',
             likeComment: true,
             replyComment: true,
@@ -1651,17 +2159,33 @@ async function loadAutoReplyConfigUI() {
         };
     }
 
-    // ملء عناصر واجهة المستخدم
+    // تعبئة الحقول الأساسية
     if (autoReplyMasterToggle) autoReplyMasterToggle.checked = config.enabled !== false;
     updateMasterToggleLabel();
 
     if (arProjectName) arProjectName.value = config.projectName || '';
     if (arNiche) arNiche.value = config.niche || '';
-    if (arServices) arServices.value = config.services || '';
-    if (arPricing) arPricing.value = config.pricing || '';
-    if (arContactInfo) arContactInfo.value = config.contactInfo || '';
+    if (arEmailInput) arEmailInput.value = config.email || '';
+    if (arCustomSystemPrompt) arCustomSystemPrompt.value = config.customPrompt || '';
     if (arGroqApiKey) arGroqApiKey.value = config.groqApiKey || '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';
 
+    // تعبئة المكررات
+    renderServicesList(config.services || []);
+    renderPhonesList(config.phones || []);
+    renderSocialLinks(config.socialLinks || []);
+
+    // نطاق المنشورات
+    currentSelectedTargetPostIds = new Set(Array.isArray(config.targetPostIds) ? config.targetPostIds : []);
+    const isAll = config.targetAllPosts !== false;
+    if (radioTargetAll) radioTargetAll.checked = isAll;
+    if (radioTargetSpecific) radioTargetSpecific.checked = !isAll;
+    if (targetPostsWrapper) targetPostsWrapper.style.display = isAll ? 'none' : 'block';
+
+    if (!isAll) {
+        loadPagePostsUI(targetPageId);
+    }
+
+    // خيارات التفاعل
     if (checkLikeComment) checkLikeComment.checked = config.likeComment !== false;
     if (checkReplyComment) checkReplyComment.checked = config.replyComment !== false;
     if (checkSendDm) checkSendDm.checked = config.sendDm !== false;
@@ -1670,35 +2194,34 @@ async function loadAutoReplyConfigUI() {
 function updateMasterToggleLabel() {
     if (!toggleMasterText || !autoReplyMasterToggle) return;
     if (autoReplyMasterToggle.checked) {
-        toggleMasterText.innerHTML = 'الرد التلقائي: <span style="color: #10b981;">مفعّل وجاهز 🟢</span>';
+        toggleMasterText.innerHTML = 'الحالة: <strong style="color: #10b981;">مفعّل وجاهز 🟢</strong>';
     } else {
-        toggleMasterText.innerHTML = 'الرد التلقائي: <span style="color: #94a3b8;">متوقف مؤقتاً ⚪</span>';
+        toggleMasterText.innerHTML = 'الحالة: <strong style="color: #94a3b8;">متوقف مؤقتاً ⚪</strong>';
     }
 }
 
-// 2. حفظ إعدادات وقاعدة معرفة العميل
 async function saveAutoReplyConfigUI() {
+    const targetPageId = arTargetPageSelector ? arTargetPageSelector.value : '';
+    const isTargetAll = radioTargetAll ? radioTargetAll.checked : true;
+
     const config = {
         enabled: autoReplyMasterToggle ? autoReplyMasterToggle.checked : true,
+        pageId: targetPageId,
         projectName: arProjectName ? arProjectName.value.trim() : '',
         niche: arNiche ? arNiche.value.trim() : '',
-        services: arServices ? arServices.value.trim() : '',
-        pricing: arPricing ? arPricing.value.trim() : '',
-        contactInfo: arContactInfo ? arContactInfo.value.trim() : '',
+        services: collectServicesData(),
+        phones: collectPhonesData(),
+        email: arEmailInput ? arEmailInput.value.trim() : '',
+        socialLinks: collectSocialData(),
+        customPrompt: arCustomSystemPrompt ? arCustomSystemPrompt.value.trim() : '',
+        targetAllPosts: isTargetAll,
+        targetPostIds: Array.from(currentSelectedTargetPostIds),
         groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : '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',
         likeComment: checkLikeComment ? checkLikeComment.checked : true,
         replyComment: checkReplyComment ? checkReplyComment.checked : true,
         sendDm: checkSendDm ? checkSendDm.checked : true
     };
 
-    // حفظ في localStorage لكل عميل
-    try {
-        localStorage.setItem(STORAGE_AUTOREPLY_KEY, JSON.stringify(config));
-    } catch (e) {
-        console.error('Error saving to localStorage:', e);
-    }
-
-    // مزامنة مع الخادم
     if (btnSaveAutoReplyConfig) {
         btnSaveAutoReplyConfig.disabled = true;
         btnSaveAutoReplyConfig.innerHTML = '<span>⏳ جاري الحفظ...</span>';
@@ -1712,17 +2235,17 @@ async function saveAutoReplyConfigUI() {
         });
         const data = await res.json();
         if (data.success) {
-            showSaveConfigStatus('✓ تم حفظ قاعدة المعرفة والإعدادات بنجاح!', 'success');
+            showSaveConfigStatus('✓ تم حفظ قاعدة المعرفة والإعدادات والبرومبت بنجاح للمشروع!', 'success');
         } else {
-            showSaveConfigStatus('❌ تعذر الحفظ على السيرفر: ' + (data.message || ''), 'error');
+            showSaveConfigStatus('❌ تعذر الحفظ: ' + (data.message || ''), 'error');
         }
     } catch (err) {
-        console.error('Error saving config to server:', err);
-        showSaveConfigStatus('✓ تم الحفظ محلياً على جهازك بنجاح!', 'success');
+        console.error('Error saving config:', err);
+        showSaveConfigStatus('❌ تعذر الاتصال بالخادم لحفظ الإعدادات', 'error');
     } finally {
         if (btnSaveAutoReplyConfig) {
             btnSaveAutoReplyConfig.disabled = false;
-            btnSaveAutoReplyConfig.innerHTML = '<span>💾 حفظ قاعدة المعرفة والإعدادات</span>';
+            btnSaveAutoReplyConfig.innerHTML = '<span>💾 حفظ قاعدة المعرفة والبرومبت لهذا المشروع</span>';
         }
     }
 }
@@ -1734,71 +2257,12 @@ function showSaveConfigStatus(msg, type) {
     saveConfigStatus.style.color = type === 'success' ? '#10b981' : '#ef4444';
     setTimeout(() => {
         saveConfigStatus.style.display = 'none';
-    }, 4000);
+    }, 4500);
 }
 
-// 3. فحص واستكشاف موقع العميل بالذكاء الاصطناعي (AI Web Scraper)
-async function scrapeClientWebsite() {
-    const url = arWebsiteUrl ? arWebsiteUrl.value.trim() : '';
-    if (!url) {
-        showScrapeStatus('يرجى إدخال رابط الموقع أولاً (مثال: https://mywebsite.com)', 'error');
-        return;
-    }
-
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        showScrapeStatus('يجب أن يبدأ الرابط بـ https:// أو http://', 'error');
-        return;
-    }
-
-    showScrapeStatus('⏳ جاري فحص الموقع واستخراج الخدمات وبيانات التواصل بذكاء اصطناعي Groq (gpt-oss-120b)...', 'loading');
-
-    if (btnScrapeWebsite) {
-        btnScrapeWebsite.disabled = true;
-        btnScrapeWebsite.innerHTML = '<span class="spinner-small"></span> <span>جاري الاستكشاف...</span>';
-    }
-
-    try {
-        const res = await fetch('/api/autoreply/scrape-website', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                url,
-                groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : ''
-            })
-        });
-
-        const data = await res.json();
-        if (data.success && data.extracted) {
-            const ext = data.extracted;
-            if (arProjectName && ext.projectName) arProjectName.value = ext.projectName;
-            if (arNiche && ext.niche) arNiche.value = ext.niche;
-            if (arServices && ext.services) arServices.value = ext.services;
-            if (arPricing && ext.pricing) arPricing.value = ext.pricing;
-            if (arContactInfo && ext.contactInfo) arContactInfo.value = ext.contactInfo;
-
-            showScrapeStatus(`🎉 تم استخراج بيانات الموقع بنجاح (${data.tokensUsed || 0} توكنز فقط - أقل بكثير من حد 6000 TPM). راجع البيانات واضغط "حفظ" لحفظها!`, 'success');
-        } else {
-            showScrapeStatus('❌ فشل الاستخراج: ' + (data.message || 'تعذر تحليل الموقع.'), 'error');
-        }
-    } catch (err) {
-        console.error('Error in scrapeClientWebsite:', err);
-        showScrapeStatus('❌ تعذر الاتصال بالسيرفر لفحص الموقع: ' + err.message, 'error');
-    } finally {
-        if (btnScrapeWebsite) {
-            btnScrapeWebsite.disabled = false;
-            btnScrapeWebsite.innerHTML = '<span class="btn-icon">🔍</span><span>فحص واستخراج البيانات</span>';
-        }
-    }
-}
-
-function showScrapeStatus(msg, type) {
-    if (!scrapeStatus) return;
-    scrapeStatus.textContent = msg;
-    scrapeStatus.style.display = 'block';
-    scrapeStatus.className = `scrape-status-box ${type}`;
-}
-
-// 4. استوديو تجربة ومحاكاة الرد الفوري (Live Simulator)
+// ----------------------------------------------------
+// 8. استوديو تجربة ومحاكاة الرد الفوري (Live Simulator)
+// ----------------------------------------------------
 async function runAutoReplySimulation() {
     const postCaption = simPostCaption ? simPostCaption.value.trim() : '';
     const comment = simComment ? simComment.value.trim() : '';
@@ -1809,13 +2273,14 @@ async function runAutoReplySimulation() {
         return;
     }
 
-    // تجميع إعدادات العميل الحالية من الحقول
     const currentConfig = {
         projectName: arProjectName ? arProjectName.value.trim() : '',
         niche: arNiche ? arNiche.value.trim() : '',
-        services: arServices ? arServices.value.trim() : '',
-        pricing: arPricing ? arPricing.value.trim() : '',
-        contactInfo: arContactInfo ? arContactInfo.value.trim() : '',
+        services: collectServicesData(),
+        phones: collectPhonesData(),
+        email: arEmailInput ? arEmailInput.value.trim() : '',
+        socialLinks: collectSocialData(),
+        customPrompt: arCustomSystemPrompt ? arCustomSystemPrompt.value.trim() : '',
         groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : '',
         likeComment: checkLikeComment ? checkLikeComment.checked : true,
         replyComment: checkReplyComment ? checkReplyComment.checked : true,
@@ -1870,12 +2335,14 @@ async function runAutoReplySimulation() {
     } finally {
         if (btnRunSimulation) {
             btnRunSimulation.disabled = false;
-            btnRunSimulation.innerHTML = '<span class="btn-icon">⚡</span><span>تجربة الرد</span>';
+            btnRunSimulation.innerHTML = '<span class="btn-icon">⚡</span><span>تجربة الرد الذكي باسم وسؤال العميل</span>';
         }
     }
 }
 
-// 5. جلب وعرض سجل النشاط والردود الحية (Live Logs)
+// ----------------------------------------------------
+// 9. جلب وعرض سجل النشاط والردود الحية (Live Logs)
+// ----------------------------------------------------
 async function loadAutoReplyLogsUI() {
     if (!activityLogsList) return;
 
@@ -1928,7 +2395,9 @@ async function loadAutoReplyLogsUI() {
     }
 }
 
-// 6. ربط أحداث واجهة الرد التلقائي
+// ----------------------------------------------------
+// 10. ربط أحداث واجهة الرد التلقائي
+// ----------------------------------------------------
 if (autoReplyMasterToggle) {
     autoReplyMasterToggle.addEventListener('change', () => {
         updateMasterToggleLabel();
@@ -1936,12 +2405,55 @@ if (autoReplyMasterToggle) {
     });
 }
 
-if (btnSaveAutoReplyConfig) {
-    btnSaveAutoReplyConfig.addEventListener('click', saveAutoReplyConfigUI);
+if (arTargetPageSelector) {
+    arTargetPageSelector.addEventListener('change', () => {
+        loadAutoReplyConfigUI(arTargetPageSelector.value);
+    });
 }
 
-if (btnScrapeWebsite) {
-    btnScrapeWebsite.addEventListener('click', scrapeClientWebsite);
+if (btnAddServiceRow) {
+    btnAddServiceRow.addEventListener('click', () => addServiceRow());
+}
+
+if (btnAddPhoneRow) {
+    btnAddPhoneRow.addEventListener('click', () => addPhoneRow());
+}
+
+if (btnAddSocialRow) {
+    btnAddSocialRow.addEventListener('click', () => addSocialRow());
+}
+
+if (radioTargetAll) {
+    radioTargetAll.addEventListener('change', () => {
+        if (targetPostsWrapper) targetPostsWrapper.style.display = 'none';
+    });
+}
+
+if (radioTargetSpecific) {
+    radioTargetSpecific.addEventListener('change', () => {
+        if (targetPostsWrapper) {
+            targetPostsWrapper.style.display = 'block';
+            loadPagePostsUI(arTargetPageSelector ? arTargetPageSelector.value : '');
+        }
+    });
+}
+
+if (btnRefreshPagePosts) {
+    btnRefreshPagePosts.addEventListener('click', () => {
+        loadPagePostsUI(arTargetPageSelector ? arTargetPageSelector.value : '');
+    });
+}
+
+if (btnStartDeepCrawl) {
+    btnStartDeepCrawl.addEventListener('click', startDeepCrawl);
+}
+
+if (btnGenerateCustomPrompt) {
+    btnGenerateCustomPrompt.addEventListener('click', generateCustomPromptUI);
+}
+
+if (btnSaveAutoReplyConfig) {
+    btnSaveAutoReplyConfig.addEventListener('click', saveAutoReplyConfigUI);
 }
 
 if (btnRunSimulation) {

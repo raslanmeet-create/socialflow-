@@ -104,11 +104,16 @@ const postCaptionsCache = new Map();
 
 const DEFAULT_AUTOREPLY_CONFIG = {
     enabled: true,
+    pageId: '',
     projectName: '',
     niche: '',
-    services: '',
-    pricing: '',
-    contactInfo: '',
+    services: [], // [ { name: '', price: '', details: '' } ]
+    phones: [],   // [ '010...' ]
+    email: '',
+    socialLinks: [], // [ { platform: '', url: '' } ]
+    customPrompt: '', // البرومبت المخصص المولد بالذكاء الاصطناعي
+    targetAllPosts: true, // true: جميع المنشورات، false: منشورات محددة فقط
+    targetPostIds: [],   // مصفوفة بمعرفات المنشورات المشمولة بالخدمة
     groqApiKey: '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',
     groqModel: 'openai/gpt-oss-120b',
     likeComment: true,
@@ -117,49 +122,45 @@ const DEFAULT_AUTOREPLY_CONFIG = {
     lastScrapedUrl: ''
 };
 
-async function getAutoReplyConfig() {
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-        try {
-            const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/socialflow_autoreply_config`, {
-                headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
-            });
-            const data = await res.json();
-            if (data.result) {
-                const parsed = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
-                return { ...DEFAULT_AUTOREPLY_CONFIG, ...parsed };
-            }
-        } catch (e) {
-            console.error('Error reading autoreply config from Upstash:', e);
-        }
+function readAutoReplyStore() {
+    if (!fs.existsSync(AUTOREPLY_CONFIG_FILE)) {
+        return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG } };
     }
-
-    if (!fs.existsSync(AUTOREPLY_CONFIG_FILE)) return { ...DEFAULT_AUTOREPLY_CONFIG };
     try {
-        const fileData = JSON.parse(fs.readFileSync(AUTOREPLY_CONFIG_FILE, 'utf8'));
-        return { ...DEFAULT_AUTOREPLY_CONFIG, ...fileData };
+        const raw = JSON.parse(fs.readFileSync(AUTOREPLY_CONFIG_FILE, 'utf8'));
+        if (raw.pages || raw.global) {
+            return {
+                pages: raw.pages || {},
+                global: { ...DEFAULT_AUTOREPLY_CONFIG, ...(raw.global || {}) }
+            };
+        }
+        return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG, ...raw } };
     } catch {
-        return { ...DEFAULT_AUTOREPLY_CONFIG };
+        return { pages: {}, global: { ...DEFAULT_AUTOREPLY_CONFIG } };
     }
 }
 
-async function saveAutoReplyConfig(config) {
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-        try {
-            await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/socialflow_autoreply_config`, {
-                method: 'POST',
-                headers: { 
-                    Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(config)
-            });
-        } catch (e) {
-            console.error('Error saving autoreply config to Upstash:', e);
-        }
+async function getAutoReplyConfig(pageId) {
+    const store = readAutoReplyStore();
+    if (pageId && store.pages && store.pages[pageId]) {
+        return { ...DEFAULT_AUTOREPLY_CONFIG, ...store.pages[pageId] };
+    }
+    return { ...DEFAULT_AUTOREPLY_CONFIG, ...(store.global || {}) };
+}
+
+async function saveAutoReplyConfig(config, pageId) {
+    const store = readAutoReplyStore();
+    const targetPageId = pageId || config.pageId;
+
+    if (targetPageId) {
+        if (!store.pages) store.pages = {};
+        store.pages[targetPageId] = { ...(store.pages[targetPageId] || DEFAULT_AUTOREPLY_CONFIG), ...config, pageId: targetPageId };
+    } else {
+        store.global = { ...(store.global || DEFAULT_AUTOREPLY_CONFIG), ...config };
     }
 
     try {
-        fs.writeFileSync(AUTOREPLY_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+        fs.writeFileSync(AUTOREPLY_CONFIG_FILE, JSON.stringify(store, null, 2), 'utf8');
     } catch (e) {
         console.error('Error saving AUTOREPLY_CONFIG_FILE:', e);
     }
@@ -442,10 +443,15 @@ app.get('/api/webhook-info', (req, res) => {
 // 🤖 مسارات واجهة برمجة تطبيقات الرد التلقائي الذكي (Auto-Reply API)
 // ========================================================
 
-// 1. جلب إعدادات وقاعدة معرفة الرد التلقائي
+// ========================================================
+// 🤖 مسارات واجهة برمجة تطبيقات الرد التلقائي الذكي (Auto-Reply API)
+// ========================================================
+
+// 1. جلب إعدادات وقاعدة معرفة الرد التلقائي (يدعم تخصيص الصفحة)
 app.get('/api/autoreply/config', async (req, res) => {
     try {
-        const config = await getAutoReplyConfig();
+        const pageId = req.query.pageId;
+        const config = await getAutoReplyConfig(pageId);
         res.json({ success: true, config });
     } catch (err) {
         console.error('Error in GET /api/autoreply/config:', err);
@@ -453,72 +459,117 @@ app.get('/api/autoreply/config', async (req, res) => {
     }
 });
 
-// 2. حفظ إعدادات وقاعدة معرفة الرد التلقائي
+// 2. حفظ إعدادات وقاعدة معرفة الرد التلقائي (تخصيص الصفحة المحددة)
 app.post('/api/autoreply/config', async (req, res) => {
     try {
-        const currentConfig = await getAutoReplyConfig();
+        const pageId = req.body.pageId || req.query.pageId;
+        const currentConfig = await getAutoReplyConfig(pageId);
         const updatedConfig = { ...currentConfig, ...req.body };
-        await saveAutoReplyConfig(updatedConfig);
-        res.json({ success: true, config: updatedConfig, message: 'تم حفظ قاعدة المعرفة والإعدادات بنجاح!' });
+        await saveAutoReplyConfig(updatedConfig, pageId);
+        res.json({ success: true, config: updatedConfig, message: 'تم حفظ قاعدة المعرفة والإعدادات بنجاح للمشروع المحدد!' });
     } catch (err) {
         console.error('Error in POST /api/autoreply/config:', err);
         res.status(500).json({ success: false, message: 'تعذر حفظ الإعدادات' });
     }
 });
 
-// 3. فحص واستكشاف موقع العميل واستخراج بيانات المشروع بذكاء اصطناعي Groq
-app.post('/api/autoreply/scrape-website', async (req, res) => {
+// 3. مسار جلب منشورات الصفحة لتحديد المنشورات المستهدفة بالخدمة
+app.get('/api/page-posts', async (req, res) => {
     try {
-        const { url, groqApiKey } = req.body;
-        if (!url || !url.trim().startsWith('http')) {
-            return res.status(400).json({ success: false, message: 'يرجى إدخال رابط موقع صالح يبدأ بـ http:// أو https://' });
+        const { pageId, metaToken } = req.query;
+        if (!pageId) {
+            return res.status(400).json({ success: false, message: 'يرجى تحديد الصفحة أولاً.' });
         }
 
-        console.log(`[AI Scraper] جاري فحص واستكشاف الموقع: ${url}`);
-        const response = await fetch(url.trim(), {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-            },
-            signal: AbortSignal.timeout(15000)
-        });
+        const cached = pageTokensCache.get(pageId) || {};
+        const token = cached.token || metaToken || META_ACCESS_TOKEN;
 
-        if (!response.ok) {
-            return res.status(400).json({ success: false, message: `تعذر الاتصال بالموقع (رمز الخطأ: ${response.status})` });
+        let posts = [];
+
+        // أ) جلب أحدث المنشورات من Graph API
+        if (token) {
+            try {
+                const url = `https://graph.facebook.com/v21.0/${pageId}/published_posts?fields=id,message,created_time,full_picture,attachments{media}&limit=20&access_token=${token.trim()}`;
+                const apiRes = await fetch(url);
+                const apiData = await apiRes.json();
+                if (apiData.data && Array.isArray(apiData.data)) {
+                    posts = apiData.data.map(p => ({
+                        id: p.id,
+                        caption: p.message || 'منشور بدون كابشن',
+                        picture: p.full_picture || p.attachments?.data?.[0]?.media?.image?.src || null,
+                        createdTime: p.created_time
+                    }));
+                }
+            } catch (e) {
+                console.error('Error fetching published posts from Graph API:', e);
+            }
         }
 
-        const html = await response.text();
-
-        // تنظيف محتوى الـ HTML من الأكواد والوسوم الزائدة لتقليل التوكنز والحفاظ على الليميت
-        let cleanText = html
-            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-            .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
-            .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
-            .replace(/<header[\s\S]*?<\/header>/gi, ' ')
-            .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
-            .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
-            .replace(/<iframe[\s\S]*?<\/iframe>/gi, ' ')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        // قصر المحتوى على أول 8000 حرف لتوفير التوكنز وضمان البقاء تحت 6000 TPM
-        if (cleanText.length > 8000) {
-            cleanText = cleanText.substring(0, 8000);
+        // ب) دمج المنشورات المحلية الخاصة بالصفحة
+        const localPosts = await getScheduledPosts();
+        for (const lp of localPosts) {
+            if (lp.pageId === pageId && !posts.some(p => p.id === lp.id)) {
+                posts.unshift({
+                    id: lp.id,
+                    caption: lp.content || 'منشور مجدول',
+                    picture: lp.mediaUrl || null,
+                    createdTime: lp.publishedAt || lp.scheduledTime || lp.createdAt
+                });
+            }
         }
 
-        if (cleanText.length < 50) {
-            return res.status(400).json({ success: false, message: 'الموقع محمي أو لم يتم العثور على نصوص كافية لتحليلها.' });
+        res.json({ success: true, count: posts.length, posts });
+    } catch (err) {
+        console.error('Error in /api/page-posts:', err);
+        res.status(500).json({ success: false, message: 'تعذر جلب المنشورات' });
+    }
+});
+
+// 4. توليد برومبت النظام المخصص بالذكاء الاصطناعي (AI Custom System Prompt Builder)
+app.post('/api/autoreply/generate-prompt', async (req, res) => {
+    try {
+        const { projectName, niche, services, phones, email, socialLinks, groqApiKey } = req.body;
+
+        let servicesFormatted = '';
+        if (Array.isArray(services) && services.length > 0) {
+            servicesFormatted = services.map((s, idx) => `
+${idx + 1}. الخدمة/المنتج: ${s.name || 'بدون اسم'}
+   - السعر: ${s.price ? s.price : 'حسب المواصفات والطلب'}
+   - التفاصيل والمميزات: ${s.details || 'خدمة متميزة واحترافية'}
+`).join('\n');
+        } else if (typeof services === 'string') {
+            servicesFormatted = services;
         }
 
-        // استخراج بيانات النشاط عبر نموذج Groq openai/gpt-oss-120b
+        const phonesFormatted = Array.isArray(phones) ? phones.filter(p => p && p.trim()).join('، ') : (phones || 'عبر رسائل الصفحة أو الواتساب');
+        const socialsFormatted = Array.isArray(socialLinks) 
+            ? socialLinks.map(s => `${s.platform || 'رابط'}: ${s.url}`).join(' | ') 
+            : '';
+
+        console.log(`[AI Prompt Builder] جاري صياغة برومبت النظام المخصص لـ: ${projectName || 'مشروع جديد'}`);
+
+        const architectPrompt = `أنت كبير مهندسي برومبتات الذكاء الاصطناعي (Lead AI Prompt Engineer) واستراتيجي مبيعات رقمية لخدمة العملاء.
+مهمتك: صياغة برومبت نظام احترافي مخصص وشامل (Custom System Prompt) لنموذج ذكاء اصطناعي يعمل لدى شركة/مشروع (${projectName || 'مشروعنا'}).
+
+بيانات ومعلومات النشاط:
+- اسم المشروع: ${projectName || 'مشروعنا'}
+- مجال وتخصص النشاط: ${niche || 'خدمات متميزة'}
+- قائمة الخدمات والمنتجات مع أسعارها وتفاصيلها:
+${servicesFormatted || 'خدمات متنوعة'}
+- أرقام الهاتف والواتساب: ${phonesFormatted}
+- البريد الإلكتروني: ${email || 'غير محدد'}
+- روابط السوشيال ميديا والتواصل: ${socialsFormatted || 'عبر الصفحة'}
+
+المطلوب صياغة البرومبت النهائي الكامل الذي سيوضع في الـ System Role للذكاء الاصطناعي، ويجب أن يشمل بدقة:
+1. الشخصية والنبرة: موظف خدمة عملاء ومبيعات مصري محترف ولطيف جداً وودود، يتحدث بلهجة مصرية عامية طبيعية إنسانية.
+2. قاعدة المعرفة التفصيلية: تضمين كافة الخدمات والمنتجات وأسعارها ومميزاتها بدقة كما ذُكرت في البيانات أعلاه.
+3. التفاعل مع اسم العميل: تحية العميل باسمه الشخصي دائماً في بداية الرد العام والرسالة الخاصة.
+4. الرد العام على التعليق في البوست (publicReply): مختصر جداً (جملة أو جملتين)، يجيب تحديداً على سؤال العميل بذكاء، وينبهه أنه تم إرسال رسالة خاصة على الـ DM 📩.
+5. الرسالة الخاصة في الـ DM (privateMessage): تفصيلية وشاملة، تشرح سؤاله بدقة بناءً على كابشن البوست، تذكر الأسعار وتفاصيل الخدمة وأرقام الواتساب ورابط الحجز، وتختم بسؤال تحفيزي.
+
+اكتب نص البرومبت النهائي مباشرة باللغة العربية ليكون جاهزاً للاستخدام فوراً كنص برومبت أساسي.`;
+
         const apiKey = groqApiKey || process.env.GROQ_API_KEY || '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';
-        console.log(`[AI Scraper] جاري استخراج البيانات بالذكاء الاصطناعي من نصوص الموقع (${cleanText.length} حرف)...`);
 
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
@@ -529,52 +580,164 @@ app.post('/api/autoreply/scrape-website', async (req, res) => {
             body: JSON.stringify({
                 model: 'openai/gpt-oss-120b',
                 messages: [
-                    {
-                        role: 'system',
-                        content: `أنت خبير فحص واستخراج بيانات الأعمال. قم بتحليل نص الموقع واستخرج المعلومات المطلوبة بدقة بصيغة JSON حصراً، وباللغة العربية الطبيعية:
-- projectName: اسم الشركة أو المشروع أو البراند
-- niche: مجال وتخصص النشاط بدقة (مثل: تسويق إلكتروني، عيادة أسنان، ملابس حريمي، مطاعم...)
-- services: تفاصيل وشرح وافٍ لقائمة الخدمات أو المنتجات المعروضة ومميزاتها
-- pricing: الأسعار أو باقات الأسعار المذكورة (أو "الأسعار تحدد حسب الطلب والمواصفات" إذا لم تذكر أسعار مباشرة)
-- contactInfo: بيانات التواصل كأرقام الهواتف أو الواتساب أو العنوان أو البريد الإلكتروني المذكور`
-                    },
-                    {
-                        role: 'user',
-                        content: `إليك محتوى نص موقع العميل:\n\n${cleanText}`
-                    }
+                    { role: 'system', content: 'You are an elite AI Prompt Engineer. Output the finalized comprehensive Arabic system prompt directly without introductory filler.' },
+                    { role: 'user', content: architectPrompt }
                 ],
-                response_format: { type: 'json_object' },
-                temperature: 0.3,
-                max_tokens: 1200
+                temperature: 0.4,
+                max_tokens: 1500
             })
         });
 
         const groqData = await groqRes.json();
-        if (groqData.error) {
-            throw new Error(groqData.error.message || 'فشل الاتصال بـ Groq API');
-        }
+        if (groqData.error) throw new Error(groqData.error.message || 'Groq prompt builder error');
 
-        const parsedResult = JSON.parse(groqData.choices?.[0]?.message?.content || '{}');
-        console.log('[AI Scraper] ✅ تم استخراج بيانات الموقع بنجاح:', parsedResult.projectName);
+        const customPrompt = groqData.choices?.[0]?.message?.content || '';
 
         res.json({
             success: true,
-            extracted: {
-                projectName: parsedResult.projectName || '',
-                niche: parsedResult.niche || '',
-                services: parsedResult.services || '',
-                pricing: parsedResult.pricing || '',
-                contactInfo: parsedResult.contactInfo || ''
-            },
+            customPrompt,
             tokensUsed: groqData.usage?.total_tokens || 0
         });
     } catch (err) {
-        console.error('Error in /api/autoreply/scrape-website:', err);
-        res.status(500).json({ success: false, message: err.message || 'حدث خطأ أثناء فحص الموقع.' });
+        console.error('Error in /api/autoreply/generate-prompt:', err);
+        res.status(500).json({ success: false, message: err.message || 'تعذر توليد البرومبت المخصص.' });
     }
 });
 
-// 4. استوديو تجربة ومحاكاة الرد الفوري (Live Simulator)
+// 5. فحص صفحة معينة من موقع العميل (ضمن خطة الـ 4 صفحات المتتابعة)
+app.post('/api/autoreply/scrape-page', async (req, res) => {
+    try {
+        const { baseUrl, pageType, customUrl, groqApiKey } = req.body;
+        if (!baseUrl && !customUrl) {
+            return res.status(400).json({ success: false, message: 'يرجى إدخال رابط الموقع.' });
+        }
+
+        let targetUrl = customUrl || baseUrl.trim();
+        if (targetUrl.endsWith('/')) targetUrl = targetUrl.slice(0, -1);
+
+        if (!customUrl) {
+            if (pageType === 'services') targetUrl = `${targetUrl}/services`;
+            else if (pageType === 'about') targetUrl = `${targetUrl}/about`;
+            else if (pageType === 'contact') targetUrl = `${targetUrl}/contact`;
+        }
+
+        console.log(`[AI Scraper Page] جاري فحص صفحة (${pageType}): ${targetUrl}`);
+
+        let html = '';
+        try {
+            const resp = await fetch(targetUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                },
+                signal: AbortSignal.timeout(12000)
+            });
+            if (resp.ok) {
+                html = await resp.text();
+            } else if (pageType !== 'home') {
+                const altUrl = pageType === 'services' ? `${baseUrl}/products` 
+                             : pageType === 'about' ? `${baseUrl}/about-us`
+                             : `${baseUrl}/contact-us`;
+                const altResp = await fetch(altUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0' },
+                    signal: AbortSignal.timeout(10000)
+                });
+                if (altResp.ok) html = await altResp.text();
+            }
+        } catch (e) {
+            console.warn(`[AI Scraper Page] Fetch failed for ${targetUrl}:`, e.message);
+        }
+
+        if (!html && baseUrl) {
+            try {
+                const baseResp = await fetch(baseUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0' },
+                    signal: AbortSignal.timeout(10000)
+                });
+                if (baseResp.ok) html = await baseResp.text();
+            } catch {}
+        }
+
+        if (!html) {
+            return res.status(400).json({ success: false, message: `تعذر الاتصال بصفحة (${pageType}).` });
+        }
+
+        // تنظيف المحتوى
+        let cleanText = html
+            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+            .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+            .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+            .replace(/<header[\s\S]*?<\/header>/gi, ' ')
+            .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (cleanText.length > 6000) cleanText = cleanText.substring(0, 6000);
+
+        const apiKey = groqApiKey || process.env.GROQ_API_KEY || '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';
+
+        let promptForPage = '';
+        if (pageType === 'home') {
+            promptForPage = `حلل نص الصفحة واستخرج بدقة بصيغة JSON:
+- projectName: اسم الشركة أو المشروع
+- niche: مجال وتخصص العمل
+- overview: نبذة تعريفية عن المشروع`;
+        } else if (pageType === 'services') {
+            promptForPage = `حلل نص الصفحة واستخرج قائمة الخدمات والمنتجات بصيغة JSON:
+- services: مصفوفة كائنات من الخدمات/المنتجات، كل عنصر يحتوي على:
+  * name: اسم الخدمة أو المنتج
+  * price: السعر المذكور أو باقة السعر (أو "حسب الطلب والمواصفات")
+  * details: تفاصيل ومميزات الخدمة وكيفية الاستفادة منها`;
+        } else if (pageType === 'about') {
+            promptForPage = `حلل نص صفحة من نحن واستخرج بصيغة JSON:
+- companyStory: نبذة عن خبرات ورؤية الشركة
+- strengths: أبرز نقاط القوة`;
+        } else if (pageType === 'contact') {
+            promptForPage = `حلل نص صفحة التواصل واستخرج بصيغة JSON:
+- phones: مصفوفة من أرقام الهواتف أو أرقام الواتساب المتاحة
+- email: البريد الإلكتروني المذكور
+- socialLinks: مصفوفة كائنات { platform: اسم المنصة (مثل فيسبوك أو انستجرام), url: الرابط }
+- address: العنوان أو المقر إن وجد`;
+        }
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey.trim()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'openai/gpt-oss-120b',
+                messages: [
+                    { role: 'system', content: `أنت خبير استخراج بيانات أعمال. استخرج البيانات المطلوبة بدقة وبصيغة JSON حصراً باللغة العربية.\n${promptForPage}` },
+                    { role: 'user', content: `إليك نص الصفحة:\n\n${cleanText}` }
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.2,
+                max_tokens: 1000
+            })
+        });
+
+        const groqData = await groqRes.json();
+        if (groqData.error) throw new Error(groqData.error.message || 'Groq API error');
+
+        const parsed = JSON.parse(groqData.choices?.[0]?.message?.content || '{}');
+
+        res.json({
+            success: true,
+            pageType,
+            data: parsed,
+            tokensUsed: groqData.usage?.total_tokens || 0
+        });
+    } catch (err) {
+        console.error('Error in /api/autoreply/scrape-page:', err);
+        res.status(500).json({ success: false, message: err.message || 'تعذر فحص الصفحة.' });
+    }
+});
+
+// 6. استوديو تجربة ومحاكاة الرد الفوري (Live Simulator)
 app.post('/api/autoreply/test-simulate', async (req, res) => {
     try {
         const { postCaption, commentText, config, senderName } = req.body;
@@ -582,7 +745,7 @@ app.post('/api/autoreply/test-simulate', async (req, res) => {
             return res.status(400).json({ success: false, message: 'يرجى كتابة تعليق تجريبي لتجربة الرد عليه.' });
         }
 
-        const effectiveConfig = config || await getAutoReplyConfig();
+        const effectiveConfig = config || await getAutoReplyConfig(config?.pageId);
         const replyResult = await generateAutoReplyWithGroq({
             postCaption: postCaption || '',
             commentText: commentText.trim(),

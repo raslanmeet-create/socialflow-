@@ -463,71 +463,240 @@
                 </div>
             </div>
 
+            <!-- شريط ربط المشروع بصفحة معينة (Page Project Binding) -->
+            <div class="project-page-binding-bar">
+                <div class="binding-label-group">
+                    <span class="binding-icon">📌</span>
+                    <div>
+                        <strong>المشروع والصفحة المستهدفة:</strong>
+                        <span class="sub-hint">اختر الصفحة لحفظ قاعدة معرفتها وبرومبت الرد المخصص لها بشكل مستقل</span>
+                    </div>
+                </div>
+                <div class="binding-controls">
+                    <select id="arTargetPageSelector" class="settings-select binding-select">
+                        <option value="">⚙️ الإعدادات العامة الافتراضية (Global Default)</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- شبكة القسم الرئيسية: عمودان -->
             <div class="autoreply-grid">
                 <!-- العمود الأيمن: قاعدة معرفة المشروع (الموقع أو الإدخال اليدوي) -->
                 <div class="autoreply-column">
-                    <!-- كارت 1: استكشاف الموقع الإلكتروني بالذكاء الاصطناعي -->
-                    <div class="sub-card">
+                    <!-- كارت 1: استكشاف الموقع الإلكتروني بالذكاء الاصطناعي (4 مراحل مع فاصل 60 ثانية) -->
+                    <div class="sub-card deep-crawl-box">
                         <div class="sub-card-title">
                             <span class="sub-icon">🌐</span>
                             <div>
-                                <h3>استكشاف الموقع الإلكتروني تلقائياً (Website AI Scraper)</h3>
-                                <p class="sub-desc">ضع رابط موقعك وسيقوم الذكاء الاصطناعي باستخراج خدماتك وتفاصيل نشاطك تلقائياً ليفهم كيف يرد</p>
+                                <h3>الخيار الأول: استكشاف الموقع الإلكتروني تلقائياً (4 Pages Crawler)</h3>
+                                <p class="sub-desc">يحلل 4 صفحات (الرئيسية، الخدمات، من نحن، تواصل معنا) بفاصل 60 ثانية لحماية الحصة واستخراج البيانات بدقة</p>
                             </div>
                         </div>
 
                         <div class="scrape-input-group">
-                            <input type="url" id="inputWebsiteUrl" class="settings-input" placeholder="https://yourwebsite.com (أدخل رابط موقعك هنا)">
-                            <button type="button" class="btn-scrape-site" id="btnScrapeWebsite">
-                                <span class="btn-icon">🔍</span>
-                                <span id="btnScrapeText">فحص واستخراج البيانات</span>
+                            <input type="url" id="inputWebsiteUrl" class="settings-input" placeholder="https://yourwebsite.com (أدخل رابط موقعك الرئيسي هنا)">
+                            <button type="button" class="btn-scrape-site" id="btnStartDeepCrawl">
+                                <span class="btn-icon">🚀</span>
+                                <span id="btnCrawlText">بدء الفحص والتحليل الذكي (4 صفحات)</span>
                             </button>
                         </div>
+
+                        <!-- شريط المراحل الأربعة ومؤشر التقدم -->
+                        <div id="deepCrawlProgressWrapper" class="deep-crawl-tracker" style="display: none;">
+                            <div class="crawler-steps-list">
+                                <div class="crawler-step-pill" id="stepPillHome" data-step="1">
+                                    <span class="step-num">1</span>
+                                    <span class="step-label">🏠 الرئيسية</span>
+                                    <span class="step-status-icon">⚪</span>
+                                </div>
+                                <div class="crawler-step-pill" id="stepPillServices" data-step="2">
+                                    <span class="step-num">2</span>
+                                    <span class="step-label">🛠️ الخدمات</span>
+                                    <span class="step-status-icon">⚪</span>
+                                </div>
+                                <div class="crawler-step-pill" id="stepPillAbout" data-step="3">
+                                    <span class="step-num">3</span>
+                                    <span class="step-label">🏢 من نحن</span>
+                                    <span class="step-status-icon">⚪</span>
+                                </div>
+                                <div class="crawler-step-pill" id="stepPillContact" data-step="4">
+                                    <span class="step-num">4</span>
+                                    <span class="step-label">📞 تواصل معنا</span>
+                                    <span class="step-status-icon">⚪</span>
+                                </div>
+                            </div>
+
+                            <!-- شريط التقدم الفعلي -->
+                            <div class="crawler-progress-track">
+                                <div class="crawler-progress-fill" id="crawlerProgressBar" style="width: 0%;"></div>
+                            </div>
+                            <div class="crawler-progress-meta">
+                                <span id="crawlerStatusText">بانتظار البدء...</span>
+                                <span id="crawlerProgressPercent">0%</span>
+                            </div>
+
+                            <!-- صندوق العداد التنازلي للفاصل الزمني (60 ثانية) -->
+                            <div id="crawlerCountdownCard" class="crawler-countdown-card" style="display: none;">
+                                <div class="countdown-pulse-icon">⏳</div>
+                                <div class="countdown-content">
+                                    <strong>فاصل زمني لضمان الأمان ودقة الذكاء الاصطناعي:</strong>
+                                    <p>ننتظر <span id="crawlerSecondsLeft" class="seconds-highlight">60</span> ثانية قبل تحليل الصفحة التالية لعدم تجاوز حد 6000 TPM...</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <div id="scrapeStatus" class="scrape-status" style="display: none;"></div>
                     </div>
 
-                    <!-- كارت 2: بيانات وتفاصيل المشروع والخدمات -->
+                    <!-- كارت 2: الإدخال اليدوي لقاعدة المعرفة والخدمات والأسعار -->
                     <div class="sub-card">
                         <div class="sub-card-title">
-                            <span class="sub-icon">🏢</span>
+                            <span class="sub-icon">📝</span>
                             <div>
-                                <h3>بيانات وتفاصيل المشروع والخدمات (Knowledge Base)</h3>
-                                <p class="sub-desc">يستخدمها الذكاء الاصطناعي كمرجع أساسي ودقيق عند تجهيز الردود للعملاء</p>
+                                <h3>الخيار الثاني: الإدخال والتعديل اليدوي (قاعدة المعرفة التفصيلية)</h3>
+                                <p class="sub-desc">حقول مرنة لكتابة اسم المشروع، التخصص، تفاصيل وأسعار الخدمات، وبيانات التواصل</p>
                             </div>
                         </div>
 
                         <form id="autoReplyConfigForm">
+                            <!-- اسم المشروع وتخصصه -->
                             <div class="form-row">
                                 <div class="form-group flex-1">
                                     <label class="section-label">اسم المشروع / الشركة:</label>
-                                    <input type="text" id="arProjectName" class="settings-input" placeholder="مثال: رسلان للتسويق الرقمي">
+                                    <input type="text" id="arProjectName" class="settings-input" placeholder="مثال: دكتور أحمد لطب الأسنان، أو مطعم البرنس">
                                 </div>
                                 <div class="form-group flex-1">
                                     <label class="section-label">مجال وتخصص المشروع:</label>
-                                    <input type="text" id="arNiche" class="settings-input" placeholder="مثال: تسويق إلكتروني، تصميم مواقع، مطاعم، عيادات...">
+                                    <input type="text" id="arNiche" class="settings-input" placeholder="مثال: عيادة أسنان، عقارات، ملابس، تسويق...">
                                 </div>
                             </div>
 
-                            <div class="form-group">
-                                <label class="section-label">الخدمات والمنتجات وتفاصيلها:</label>
-                                <textarea id="arServices" rows="4" class="settings-input text-area" placeholder="اكتب قائمة الخدمات أو المنتجات ومميزاتها بالتفصيل حتى يتمكن الذكاء الاصطناعي من شرحها للعميل..."></textarea>
+                            <!-- تفاصيل الخدمات وعروض الأسعار (Repeater) -->
+                            <div class="form-section-box">
+                                <div class="section-box-header">
+                                    <div>
+                                        <h4 class="box-title">🛠️ قائمة الخدمات والمنتجات وعروض الأسعار</h4>
+                                        <span class="box-sub">أضف الخدمات مع أسعارها وتفاصيلها ليرد الذكاء الاصطناعي بدقة على أي استفسار</span>
+                                    </div>
+                                    <button type="button" class="btn-add-repeater" id="btnAddServiceRow">
+                                        <span>➕ إضافة خدمة أو منتج آخر</span>
+                                    </button>
+                                </div>
+
+                                <div id="servicesListContainer" class="repeaters-container">
+                                    <!-- يتم توليد أسطر الخدمات ديناميكياً هنا -->
+                                </div>
                             </div>
 
-                            <div class="form-row">
-                                <div class="form-group flex-1">
-                                    <label class="section-label">الأسعار وعروض الأسعار (اختياري):</label>
-                                    <input type="text" id="arPricing" class="settings-input" placeholder="مثال: تبدأ من 2000 ج، أو حسب الباقة والطلب...">
+                            <!-- بيانات التواصل وروابط السوشيال ميديا -->
+                            <div class="form-section-box">
+                                <div class="section-box-header">
+                                    <div>
+                                        <h4 class="box-title">📞 بيانات التواصل وطرق الحجز والمنصات</h4>
+                                        <span class="box-sub">أرقام الهواتف، البريد الإلكتروني، وروابط المنصات للمتابعة والطلب</span>
+                                    </div>
                                 </div>
-                                <div class="form-group flex-1">
-                                    <label class="section-label">بيانات التواصل وطرق الحجز:</label>
-                                    <input type="text" id="arContactInfo" class="settings-input" placeholder="مثال: واتساب 01012345678، العنوان، الموقع...">
+
+                                <!-- أرقام الهاتف والواتساب -->
+                                <div class="sub-repeater-group">
+                                    <div class="sub-repeater-top">
+                                        <label class="section-label">📱 أرقام الهواتف والواتساب:</label>
+                                        <button type="button" class="btn-add-repeater-mini" id="btnAddPhoneRow">
+                                            <span>➕ إضافة رقم آخر</span>
+                                        </button>
+                                    </div>
+                                    <div id="phonesListContainer" class="repeaters-container mini-gap">
+                                        <!-- توليد أرقام الهواتف -->
+                                    </div>
+                                </div>
+
+                                <!-- البريد الإلكتروني -->
+                                <div class="form-group" style="margin-top: 12px;">
+                                    <label class="section-label">✉️ البريد الإلكتروني (اختياري):</label>
+                                    <input type="email" id="arEmailInput" class="settings-input" placeholder="info@example.com">
+                                </div>
+
+                                <!-- روابط منصات السوشيال ميديا -->
+                                <div class="sub-repeater-group" style="margin-top: 14px;">
+                                    <div class="sub-repeater-top">
+                                        <label class="section-label">🔗 روابط السوشيال ميديا والمنصات:</label>
+                                        <button type="button" class="btn-add-repeater-mini" id="btnAddSocialRow">
+                                            <span>➕ إضافة رابط منصة</span>
+                                        </button>
+                                    </div>
+                                    <div id="socialLinksContainer" class="repeaters-container mini-gap">
+                                        <!-- توليد روابط السوشيال -->
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="form-actions-right">
-                                <button type="button" class="btn-primary" id="btnSaveAutoReplyConfig">
-                                    <span>💾 حفظ قاعدة المعرفة والإعدادات</span>
+                            <!-- تحديد نطاق المنشورات المشمولة بالخدمة (Target Posts) -->
+                            <div class="form-section-box posts-target-box">
+                                <div class="section-box-header">
+                                    <div>
+                                        <h4 class="box-title">🎯 المنشورات المشمولة بالرد التلقائي</h4>
+                                        <span class="box-sub">اختر منشورات محددة أو طبق الخدمة تلقائياً على كافة المنشورات</span>
+                                    </div>
+                                </div>
+
+                                <div class="target-scope-radios">
+                                    <label class="scope-radio-card">
+                                        <input type="radio" name="targetPostScope" id="radioTargetAll" value="all" checked>
+                                        <div class="radio-card-content">
+                                            <span class="radio-title">🟢 جميع المنشورات (افتراضي - ينصح به)</span>
+                                            <span class="radio-desc">الرد والرسائل الخاصة ستعمل تلقائياً على أي منشور حالي أو مستقبلي بالصفحة.</span>
+                                        </div>
+                                    </label>
+
+                                    <label class="scope-radio-card">
+                                        <input type="radio" name="targetPostScope" id="radioTargetSpecific" value="specific">
+                                        <div class="radio-card-content">
+                                            <span class="radio-title">🎯 تحديد منشورات معينة فقط</span>
+                                            <span class="radio-desc">تخصيص الخدمة لحملات أو إعلانات معينة (إذا لم تختر أي منشور، ستعمل الخدمة على الكل تلقائياً).</span>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div id="targetPostsWrapper" class="target-posts-wrapper" style="display: none;">
+                                    <div class="posts-selection-header">
+                                        <span>اختر المنشورات التي تريد تفعيل الخدمة عليها:</span>
+                                        <button type="button" class="btn-refresh-posts" id="btnRefreshPagePosts">
+                                            <span>🔄 تحديث منشورات الصفحة</span>
+                                        </button>
+                                    </div>
+                                    <div id="postsChecklistContainer" class="posts-checklist-grid">
+                                        <div class="loading-posts-hint">يرجى الضغط على زر التحديث لجلب منشورات الصفحة...</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- تحليل البيانات وتوليد برومبت النظام بالذكاء الاصطناعي -->
+                            <div class="form-section-box prompt-builder-card">
+                                <div class="prompt-builder-header">
+                                    <div class="prompt-icon-sparkle">✨</div>
+                                    <div>
+                                        <h4 class="box-title">صياغة برومبت النظام المخصص (AI Prompt Builder)</h4>
+                                        <span class="box-sub">يحلل الذكاء الاصطناعي بياناتك أعلاه ويضع برومبت نظام احترافي ومخصص للردود التلقائية</span>
+                                    </div>
+                                </div>
+
+                                <div style="margin: 14px 0 10px 0;">
+                                    <button type="button" class="btn-generate-custom-prompt" id="btnGenerateCustomPrompt">
+                                        <span class="sparkle-anim">⚡</span>
+                                        <span id="btnGeneratePromptText">إرسال إلى الذكاء الاصطناعي لتحليل البيانات وتوليد البرومبت</span>
+                                    </button>
+                                </div>
+
+                                <div class="form-group" style="margin-top: 10px;">
+                                    <label class="section-label">برومبت النظام المولد (قابلاً للمراجعة والتعديل اليدوي):</label>
+                                    <textarea id="arCustomSystemPrompt" rows="6" class="settings-input text-area custom-prompt-textarea" placeholder="سيظهر هنا برومبت النظام المخصص بعد الضغط على الزر أعلاه، ويمكنك تعديله كما تشاء..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- أزرار الحفظ النهائي للمشروع المحدد -->
+                            <div class="form-actions-bar">
+                                <button type="button" class="btn-primary btn-save-knowledge" id="btnSaveAutoReplyConfig">
+                                    <span>💾 حفظ قاعدة المعرفة والبرومبت لهذا المشروع</span>
                                 </button>
                                 <span id="saveConfigStatus" class="save-status-msg" style="display: none;"></span>
                             </div>
