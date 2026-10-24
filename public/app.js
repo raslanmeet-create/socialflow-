@@ -104,6 +104,9 @@ const arProjectName = document.getElementById('arProjectName');
 const arNiche = document.getElementById('arNiche');
 const servicesListContainer = document.getElementById('servicesListContainer');
 const btnAddServiceRow = document.getElementById('btnAddServiceRow');
+const arCallPhoneInput = document.getElementById('arCallPhoneInput');
+const arWhatsappPhoneInput = document.getElementById('arWhatsappPhoneInput');
+const waAutoConvertHint = document.getElementById('waAutoConvertHint');
 const phonesListContainer = document.getElementById('phonesListContainer');
 const btnAddPhoneRow = document.getElementById('btnAddPhoneRow');
 const arEmailInput = document.getElementById('arEmailInput');
@@ -1726,18 +1729,35 @@ function collectServicesData() {
 }
 
 // ----------------------------------------------------
-// 2. مكرر أرقام الهواتف والواتساب (Phones Repeater)
+// 2. مكرر أرقام الهواتف والواتساب (Phones Repeater) ودالة تحويل روابط الواتساب التلقائية
 // ----------------------------------------------------
+function formatWhatsAppLink(input) {
+    if (!input || typeof input !== 'string') return '';
+    let clean = input.trim();
+    if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+    if (clean.includes('wa.me/')) return 'https://' + clean.replace(/^https?:\/\//, '');
+    let digits = clean.replace(/[^0-9]/g, '');
+    if (!digits) return clean;
+    if (digits.startsWith('01') && digits.length === 11) {
+        digits = '20' + digits.substring(1);
+    }
+    return `https://wa.me/${digits}`;
+}
+
 function renderPhonesList(phones = []) {
     if (!phonesListContainer) return;
     phonesListContainer.innerHTML = '';
 
-    if (!Array.isArray(phones) || phones.length === 0) {
-        addPhoneRow('');
-        return;
-    }
+    const currentCall = arCallPhoneInput ? arCallPhoneInput.value.trim() : '';
+    const currentWa = arWhatsappPhoneInput ? arWhatsappPhoneInput.value.trim() : '';
+    const currentWaLink = formatWhatsAppLink(currentWa);
 
-    phones.forEach(p => addPhoneRow(p));
+    const extraPhones = (Array.isArray(phones) ? phones : []).filter(p => {
+        const str = String(p).trim();
+        return str && str !== currentCall && str !== currentWa && str !== currentWaLink;
+    });
+
+    extraPhones.forEach(p => addPhoneRow(p));
 }
 
 function addPhoneRow(phone = '') {
@@ -1746,31 +1766,34 @@ function addPhoneRow(phone = '') {
     const row = document.createElement('div');
     row.className = 'phone-repeater-row';
     row.innerHTML = `
-        <input type="text" class="settings-input phone-number-input" placeholder="رقم الهاتف أو الواتساب (مثال: 01012345678)" value="${escapeHtml(phone || '')}">
+        <input type="text" class="settings-input phone-number-input" placeholder="رقم هاتف إضافي (مثال: 01012345678)" value="${escapeHtml(phone || '')}">
         <button type="button" class="btn-del-repeater" title="حذف الرقم">✕</button>
     `;
 
     const btnDel = row.querySelector('.btn-del-repeater');
     btnDel.addEventListener('click', () => {
-        const count = phonesListContainer.querySelectorAll('.phone-repeater-row').length;
-        if (count <= 1) {
-            row.querySelector('.phone-number-input').value = '';
-        } else {
-            row.remove();
-        }
+        row.remove();
     });
 
     phonesListContainer.appendChild(row);
 }
 
 function collectPhonesData() {
-    if (!phonesListContainer) return [];
-    const inputs = phonesListContainer.querySelectorAll('.phone-number-input');
     const result = [];
-    inputs.forEach(inp => {
-        const val = inp.value.trim();
-        if (val) result.push(val);
-    });
+    const callVal = arCallPhoneInput ? arCallPhoneInput.value.trim() : '';
+    const waVal = arWhatsappPhoneInput ? arWhatsappPhoneInput.value.trim() : '';
+    const waLink = formatWhatsAppLink(waVal);
+
+    if (callVal) result.push(callVal);
+    if (waLink && !result.includes(waLink)) result.push(waLink);
+
+    if (phonesListContainer) {
+        const inputs = phonesListContainer.querySelectorAll('.phone-number-input');
+        inputs.forEach(inp => {
+            const val = inp.value.trim();
+            if (val && !result.includes(val)) result.push(val);
+        });
+    }
     return result;
 }
 
@@ -2268,6 +2291,32 @@ async function loadAutoReplyConfigUI(pageId) {
     if (arCustomSystemPrompt) arCustomSystemPrompt.value = config.customPrompt || '';
     if (arGroqApiKey) arGroqApiKey.value = config.groqApiKey || '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';
 
+    // تعبئة خانتي الاتصال والواتساب المخصصتين
+    if (arCallPhoneInput) {
+        arCallPhoneInput.value = config.callPhone || '';
+        if (!arCallPhoneInput.value && Array.isArray(config.phones)) {
+            const foundCall = config.phones.find(p => !String(p).includes('wa.me') && !String(p).toLowerCase().includes('whatsapp'));
+            if (foundCall) arCallPhoneInput.value = foundCall;
+        }
+    }
+
+    if (arWhatsappPhoneInput) {
+        arWhatsappPhoneInput.value = config.whatsapp || config.whatsappPhone || '';
+        if (!arWhatsappPhoneInput.value && Array.isArray(config.phones)) {
+            const foundWa = config.phones.find(p => String(p).includes('wa.me') || String(p).toLowerCase().includes('whatsapp'));
+            if (foundWa) arWhatsappPhoneInput.value = foundWa;
+        }
+        if (waAutoConvertHint) {
+            const val = arWhatsappPhoneInput.value.trim();
+            if (val) {
+                const converted = formatWhatsAppLink(val);
+                waAutoConvertHint.innerHTML = `✨ سيُرسل للعميل كرابط مباشر: <strong style="color: #38bdf8; direction: ltr; display: inline-block;">${escapeHtml(converted)}</strong>`;
+            } else {
+                waAutoConvertHint.innerHTML = '⚡ اكتب الرقم عادي وسيتحول تلقائياً لرابط مباشر (https://wa.me/20...) يفتح محادثة بنقرة واحدة';
+            }
+        }
+    }
+
     // تعبئة المكررات
     renderServicesList(config.services || []);
     renderPhonesList(config.phones || []);
@@ -2303,12 +2352,18 @@ async function saveAutoReplyConfigUI() {
     const targetPageId = arTargetPageSelector ? arTargetPageSelector.value : '';
     const isTargetAll = radioTargetAll ? radioTargetAll.checked : true;
 
+    const callPhone = arCallPhoneInput ? arCallPhoneInput.value.trim() : '';
+    const rawWa = arWhatsappPhoneInput ? arWhatsappPhoneInput.value.trim() : '';
+    const whatsapp = formatWhatsAppLink(rawWa);
+
     const config = {
         enabled: autoReplyMasterToggle ? autoReplyMasterToggle.checked : true,
         pageId: targetPageId,
         projectName: arProjectName ? arProjectName.value.trim() : '',
         niche: arNiche ? arNiche.value.trim() : '',
         services: collectServicesData(),
+        callPhone: callPhone,
+        whatsapp: whatsapp,
         phones: collectPhonesData(),
         email: arEmailInput ? arEmailInput.value.trim() : '',
         socialLinks: collectSocialData(),
@@ -2520,6 +2575,18 @@ if (btnAddPhoneRow) {
 
 if (btnAddSocialRow) {
     btnAddSocialRow.addEventListener('click', () => addSocialRow());
+}
+
+if (arWhatsappPhoneInput && waAutoConvertHint) {
+    arWhatsappPhoneInput.addEventListener('input', () => {
+        const val = arWhatsappPhoneInput.value.trim();
+        if (!val) {
+            waAutoConvertHint.innerHTML = '⚡ اكتب الرقم عادي وسيتحول تلقائياً لرابط مباشر (https://wa.me/20...) يفتح محادثة بنقرة واحدة';
+        } else {
+            const converted = formatWhatsAppLink(val);
+            waAutoConvertHint.innerHTML = `✨ سيُرسل للعميل كرابط مباشر: <strong style="color: #38bdf8; direction: ltr; display: inline-block;">${escapeHtml(converted)}</strong>`;
+        }
+    });
 }
 
 if (radioTargetAll) {

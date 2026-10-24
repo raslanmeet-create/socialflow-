@@ -597,16 +597,30 @@
                                     </div>
                                 </div>
 
-                                <!-- أرقام الهاتف والواتساب -->
-                                <div class="sub-repeater-group">
+                                <!-- خانات أرقام الاتصال والواتساب المخصصة -->
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 10px;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="section-label">📞 رقم هاتف الاتصال والمكالمات (اختياري):</label>
+                                        <input type="text" id="arCallPhoneInput" class="settings-input" placeholder="مثال: 01020942335">
+                                        <span style="display:block; font-size:11px; color:#94a3b8; margin-top:4px;">للاتصال الهاتفي الصوتي المباشر بالنشاط</span>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="section-label">💬 رقم الواتساب للمحادثة الفورية (اختياري):</label>
+                                        <input type="text" id="arWhatsappPhoneInput" class="settings-input" placeholder="مثال: 01020942335">
+                                        <span id="waAutoConvertHint" style="display:block; font-size:11px; color:#10b981; margin-top:4px;">⚡ اكتب الرقم عادي وسيتحول تلقائياً لرابط مباشر (https://wa.me/20...) يفتح محادثة بنقرة واحدة</span>
+                                    </div>
+                                </div>
+
+                                <!-- أرقام هواتف إضافية إن وجدت -->
+                                <div class="sub-repeater-group" style="margin-top: 14px;">
                                     <div class="sub-repeater-top">
-                                        <label class="section-label">📱 أرقام الهواتف والواتساب:</label>
+                                        <label class="section-label" style="font-size: 13px; color: #94a3b8;">📱 أرقام هواتف إضافية (اختياري):</label>
                                         <button type="button" class="btn-add-repeater-mini" id="btnAddPhoneRow">
-                                            <span>➕ إضافة رقم آخر</span>
+                                            <span>➕ إضافة رقم إضافي</span>
                                         </button>
                                     </div>
                                     <div id="phonesListContainer" class="repeaters-container mini-gap">
-                                        <!-- توليد أرقام الهواتف -->
+                                        <!-- توليد أرقام الهواتف الإضافية -->
                                     </div>
                                 </div>
 

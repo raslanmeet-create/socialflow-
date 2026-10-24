@@ -113,7 +113,9 @@ const DEFAULT_AUTOREPLY_CONFIG = {
         { name: 'الحملات الإعلانية الممولة (Facebook & Instagram Ads)', price: 'حسب الميزانية والجمهور المستهدف', details: 'استهداف دقيق للمبيعات وزيادة العائد على الاستثمار' },
         { name: 'تصميم وبرمجة المواقع والمتاجر', price: 'حسب المواصفات والطلب مع خصم خاص', details: 'مواقع سريعة ومتجاوبة مع محركات البحث وتجربة مستخدم عصرية' }
     ],
-    phones: ['+201020942335'],
+    callPhone: '01020942335',
+    whatsapp: 'https://wa.me/201020942335',
+    phones: ['01020942335', 'https://wa.me/201020942335'],
     email: 'Raslan.dp@gmail.com',
     socialLinks: [
         { platform: 'فيسبوك', url: 'https://www.facebook.com/RaslansMarketing' },
@@ -937,15 +939,56 @@ ${idx + 1}. الخدمة/المنتج: ${s.name || 'خدمة'}
         servicesFormatted = config.services.trim();
     }
 
+    function formatWhatsAppLink(input) {
+        if (!input || typeof input !== 'string') return '';
+        let clean = input.trim();
+        if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+        if (clean.includes('wa.me/')) return 'https://' + clean.replace(/^https?:\/\//, '');
+        let digits = clean.replace(/[^0-9]/g, '');
+        if (!digits) return clean;
+        if (digits.startsWith('01') && digits.length === 11) {
+            digits = '20' + digits.substring(1);
+        }
+        return `https://wa.me/${digits}`;
+    }
+
     let contactsFormatted = 'عبر رسائل الصفحة أو الواتساب';
+    const contactLines = [];
+
+    // 1. رابط محادثة الواتساب التلقائي الذكي (يحول الرقم لرابط wa.me فوري)
+    const rawWhatsapp = config?.whatsapp || config?.whatsappPhone || '';
+    if (rawWhatsapp) {
+        const waLink = formatWhatsAppLink(rawWhatsapp);
+        contactLines.push(`📲 رابط محادثة واتساب مباشر (يفتح الشات بنقرة واحدة): ${waLink}`);
+    }
+
+    // 2. رقم هاتف الاتصال والمكالمات الصوتية المباشرة
+    const rawCall = config?.callPhone || config?.phone || '';
+    if (rawCall) {
+        contactLines.push(`📞 هاتف للاتصال والمكالمات: ${rawCall.trim()}`);
+    }
+
+    // 3. أي أرقام هواتف إضافية إن وجدت
     const phonesList = Array.isArray(config?.phones) ? config.phones.filter(Boolean) : [];
-    if (phonesList.length > 0) {
-        contactsFormatted = `أرقام الهاتف والواتساب: ${phonesList.join('، ')}`;
+    phonesList.forEach(p => {
+        const pStr = String(p).trim();
+        if (!pStr) return;
+        if (pStr === rawCall || pStr === rawWhatsapp || pStr === formatWhatsAppLink(rawWhatsapp)) return;
+        if (pStr.includes('wa.me') || pStr.toLowerCase().includes('whatsapp')) {
+            contactLines.push(`📲 واتساب إضافي: ${formatWhatsAppLink(pStr)}`);
+        } else {
+            contactLines.push(`📞 هاتف إضافي: ${pStr}`);
+        }
+    });
+
+    if (config?.email && typeof config.email === 'string' && config.email.trim()) {
+        contactLines.push(`📧 البريد الإلكتروني: ${config.email.trim()}`);
+    }
+
+    if (contactLines.length > 0) {
+        contactsFormatted = contactLines.join('\n');
     } else if (typeof config?.contactInfo === 'string' && config.contactInfo.trim()) {
         contactsFormatted = config.contactInfo.trim();
-    }
-    if (config?.email && typeof config.email === 'string' && config.email.trim()) {
-        contactsFormatted += ` | البريد الإلكتروني: ${config.email.trim()}`;
     }
 
     // تنظيف اسم العميل واستخراجه لمناداته به في التحية
