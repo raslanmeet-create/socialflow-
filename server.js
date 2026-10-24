@@ -662,44 +662,80 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
             return res.status(400).json({ success: false, message: `تعذر الاتصال بصفحة (${pageType}).` });
         }
 
-        // تنظيف المحتوى
+        // 1. استخراج مباشر ودقيق للبيانات من كود الـ HTML والفوتر (Direct Regex Scraper for Footer & Attributes)
+        const discoveredTels = Array.from(new Set([
+            ...Array.from(html.matchAll(/href=["']tel:([^"'>\s]+)["']/gi)).map(m => m[1].replace(/[\s-]/g, '')),
+            ...Array.from(html.matchAll(/(?:wa\.me\/|phone=)([0-9+]{8,16})/gi)).map(m => m[1].replace(/[\s-]/g, ''))
+        ])).filter(t => t.length >= 7);
+
+        const discoveredEmails = Array.from(new Set([
+            ...Array.from(html.matchAll(/href=["']mailto:([^"'>?\s]+)["']/gi)).map(m => m[1].trim()),
+            ...Array.from(html.matchAll(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi)).map(m => m[0].trim())
+        ])).filter(e => !e.endsWith('.png') && !e.endsWith('.jpg') && !e.endsWith('.webp') && !e.includes('example.com') && !e.includes('sentry') && !e.includes('wixpress') && !e.includes('cloudflare'));
+
+        const discoveredSocials = Array.from(new Set([
+            ...Array.from(html.matchAll(/href=["'](https?:\/\/(?:www\.)?(facebook|instagram|tiktok|youtube|linkedin|x|twitter)\.com\/[a-zA-Z0-9._\-\/]+)["']/gi)).map(m => ({
+                platform: m[2].toLowerCase() === 'facebook' ? 'فيسبوك' 
+                        : m[2].toLowerCase() === 'instagram' ? 'انستجرام'
+                        : m[2].toLowerCase() === 'tiktok' ? 'تيك توك'
+                        : m[2].toLowerCase() === 'youtube' ? 'يوتيوب'
+                        : m[2].toLowerCase() === 'linkedin' ? 'لينكد إن'
+                        : 'منصة إكس',
+                url: m[1].trim()
+            }))
+        ]));
+
+        // 2. تنظيف المحتوى النصي مع الحفاظ التام على نصوص الفوتر (Footer) والترويسة (Header)
         let cleanText = html
             .replace(/<script[\s\S]*?<\/script>/gi, ' ')
             .replace(/<style[\s\S]*?<\/style>/gi, ' ')
             .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
-            .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
-            .replace(/<header[\s\S]*?<\/header>/gi, ' ')
-            .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+            .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+            .replace(/<iframe[\s\S]*?<\/iframe>/gi, ' ')
             .replace(/<[^>]+>/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
 
-        if (cleanText.length > 6000) cleanText = cleanText.substring(0, 6000);
+        if (cleanText.length > 7000) cleanText = cleanText.substring(0, 7000);
+
+        // إرفاق بيانات الفوتر والروابط المكتشفة نصياً للنموذج
+        let footerContext = '\n\n[بيانات وروابط مكتشفة من الفوتر وكود الصفحة]:\n';
+        if (discoveredTels.length) footerContext += `- أرقام الاتصال والواتساب: ${discoveredTels.join('، ')}\n`;
+        if (discoveredEmails.length) footerContext += `- البريد الإلكتروني: ${discoveredEmails.join('، ')}\n`;
+        if (discoveredSocials.length) footerContext += `- روابط السوشيال ميديا: ${discoveredSocials.map(s => `${s.platform}: ${s.url}`).join(' | ')}\n`;
+        cleanText += footerContext;
 
         const apiKey = groqApiKey || process.env.GROQ_API_KEY || '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';
 
         let promptForPage = '';
         if (pageType === 'home') {
-            promptForPage = `حلل نص الصفحة واستخرج بدقة بصيغة JSON:
+            promptForPage = `حلل نص الصفحة والفوتر واستخرج بدقة بصيغة JSON:
 - projectName: اسم الشركة أو المشروع
 - niche: مجال وتخصص العمل
-- overview: نبذة تعريفية عن المشروع`;
+- overview: نبذة تعريفية عن المشروع
+- phones: مصفوفة أرقام الهواتف أو الواتساب المتاحة في الصفحة أو الفوتر
+- email: البريد الإلكتروني إن وجد
+- socialLinks: مصفوفة كائنات { platform, url } لروابط المنصات المذكورة بالفوتر أو الموقع`;
         } else if (pageType === 'services') {
-            promptForPage = `حلل نص الصفحة واستخرج قائمة الخدمات والمنتجات بصيغة JSON:
+            promptForPage = `حلل نص صفحة الخدمات والفوتر واستخرج بصيغة JSON:
 - services: مصفوفة كائنات من الخدمات/المنتجات، كل عنصر يحتوي على:
   * name: اسم الخدمة أو المنتج
   * price: السعر المذكور أو باقة السعر (أو "حسب الطلب والمواصفات")
-  * details: تفاصيل ومميزات الخدمة وكيفية الاستفادة منها`;
+  * details: تفاصيل ومميزات الخدمة وكيفية الاستفادة منها
+- phones: مصفوفة أرقام الهواتف المذكورة
+- email: البريد الإلكتروني إن وجد`;
         } else if (pageType === 'about') {
-            promptForPage = `حلل نص صفحة من نحن واستخرج بصيغة JSON:
+            promptForPage = `حلل نص صفحة من نحن والفوتر واستخرج بصيغة JSON:
 - companyStory: نبذة عن خبرات ورؤية الشركة
-- strengths: أبرز نقاط القوة`;
+- strengths: أبرز نقاط القوة
+- phones: مصفوفة أرقام الهواتف المذكورة
+- email: البريد الإلكتروني إن وجد`;
         } else if (pageType === 'contact') {
-            promptForPage = `حلل نص صفحة التواصل واستخرج بصيغة JSON:
+            promptForPage = `حلل نص صفحة التواصل والفوتر واستخرج بدقة بصيغة JSON:
 - phones: مصفوفة من أرقام الهواتف أو أرقام الواتساب المتاحة
 - email: البريد الإلكتروني المذكور
-- socialLinks: مصفوفة كائنات { platform: اسم المنصة (مثل فيسبوك أو انستجرام), url: الرابط }
-- address: العنوان أو المقر إن وجد`;
+- socialLinks: مصفوفة كائنات { platform: اسم المنصة, url: الرابط }
+- address: العنوان أو المقر المذكور`;
         }
 
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -711,19 +747,39 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
             body: JSON.stringify({
                 model: 'openai/gpt-oss-120b',
                 messages: [
-                    { role: 'system', content: `أنت خبير استخراج بيانات أعمال. استخرج البيانات المطلوبة بدقة وبصيغة JSON حصراً باللغة العربية.\n${promptForPage}` },
-                    { role: 'user', content: `إليك نص الصفحة:\n\n${cleanText}` }
+                    { role: 'system', content: `أنت خبير استخراج بيانات أعمال من نصوص المواقع والفوتر (Footer). استخرج البيانات المطلوبة بدقة وبصيغة JSON حصراً باللغة العربية.\n${promptForPage}` },
+                    { role: 'user', content: `إليك نص الصفحة ومحتوى الفوتر المكتشف:\n\n${cleanText}` }
                 ],
                 response_format: { type: 'json_object' },
                 temperature: 0.2,
-                max_tokens: 1000
+                max_tokens: 1100
             })
         });
 
         const groqData = await groqRes.json();
         if (groqData.error) throw new Error(groqData.error.message || 'Groq API error');
 
-        const parsed = JSON.parse(groqData.choices?.[0]?.message?.content || '{}');
+        let parsed = JSON.parse(groqData.choices?.[0]?.message?.content || '{}');
+
+        // دمج أرقام الهواتف والإيميل وروابط السوشيال المكتشفة كودياً لضمان عدم إفلات أي رقم أو إيميل
+        if (!parsed.phones || !Array.isArray(parsed.phones) || parsed.phones.length === 0) {
+            parsed.phones = discoveredTels;
+        } else if (discoveredTels.length > 0) {
+            parsed.phones = Array.from(new Set([...parsed.phones, ...discoveredTels]));
+        }
+
+        if (!parsed.email && discoveredEmails.length > 0) {
+            parsed.email = discoveredEmails[0];
+        }
+
+        if (!parsed.socialLinks || !Array.isArray(parsed.socialLinks) || parsed.socialLinks.length === 0) {
+            parsed.socialLinks = discoveredSocials;
+        } else if (discoveredSocials.length > 0) {
+            const existingUrls = new Set(parsed.socialLinks.map(s => s.url));
+            discoveredSocials.forEach(ds => {
+                if (!existingUrls.has(ds.url)) parsed.socialLinks.push(ds);
+            });
+        }
 
         res.json({
             success: true,
@@ -784,24 +840,46 @@ async function generateAutoReplyWithGroq({ postCaption, commentText, config, sen
     const apiKey = config?.groqApiKey || process.env.GROQ_API_KEY || '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';
     const model = 'openai/gpt-oss-120b';
 
-    const projectName = config?.projectName?.trim() || 'مشروعنا';
-    const niche = config?.niche?.trim() || 'خدمات وأعمال عامة';
-    const services = config?.services?.trim() || 'خدمات ومنتجات متميزة ومبتكرة';
-    const pricing = config?.pricing?.trim() || 'أسعار تنافسية تحدد حسب الطلب والمواصفات';
-    const contactInfo = config?.contactInfo?.trim() || 'عبر رسائل الصفحة أو الواتساب';
+    const projectName = (typeof config?.projectName === 'string' ? config.projectName.trim() : '') || 'مشروعنا';
+    const niche = (typeof config?.niche === 'string' ? config.niche.trim() : '') || 'خدمات وأعمال عامة';
+
+    let servicesFormatted = 'خدمات ومنتجات متميزة ومبتكرة';
+    if (Array.isArray(config?.services) && config.services.length > 0) {
+        servicesFormatted = config.services.map((s, idx) => `
+${idx + 1}. الخدمة/المنتج: ${s.name || 'خدمة'}
+   - السعر: ${s.price ? s.price : 'حسب المواصفات والطلب'}
+   - التفاصيل والمميزات: ${s.details || 'متاح بأعلى جودة واحترافية'}`).join('\n');
+    } else if (typeof config?.services === 'string' && config.services.trim()) {
+        servicesFormatted = config.services.trim();
+    }
+
+    let contactsFormatted = 'عبر رسائل الصفحة أو الواتساب';
+    const phonesList = Array.isArray(config?.phones) ? config.phones.filter(Boolean) : [];
+    if (phonesList.length > 0) {
+        contactsFormatted = `أرقام الهاتف والواتساب: ${phonesList.join('، ')}`;
+    } else if (typeof config?.contactInfo === 'string' && config.contactInfo.trim()) {
+        contactsFormatted = config.contactInfo.trim();
+    }
+    if (config?.email && typeof config.email === 'string' && config.email.trim()) {
+        contactsFormatted += ` | البريد الإلكتروني: ${config.email.trim()}`;
+    }
 
     // تنظيف اسم العميل واستخراجه لمناداته به في التحية
-    const rawName = (senderName && senderName.trim()) ? senderName.trim() : '';
+    const rawName = (senderName && typeof senderName === 'string' && senderName.trim()) ? senderName.trim() : '';
     let customerName = rawName.replace(/[@_.]/g, ' ').trim();
     if (!customerName || customerName === 'عميل' || customerName === 'عميلنا العزيز') {
         customerName = 'يا فندم';
     }
 
-    const systemPrompt = `أنت موظف خدمة عملاء ومبيعات مصري محترف ودود جداً، تتحدث بلهجة مصرية عامية طبيعية إنسانية ولطيفة للغاية، تعمل لدى (${projectName}).
-مجال وتخصص العمل: ${niche}
-قائمة الخدمات والمنتجات وتفاصيلها: ${services}
-الأسعار وعروض الأسعار: ${pricing}
-بيانات التواصل وطرق الحجز: ${contactInfo}
+    const customPromptHeader = (config?.customPrompt && typeof config.customPrompt === 'string' && config.customPrompt.trim())
+        ? `برومبت النظام المخصص المعتمد للمشروع:\n${config.customPrompt.trim()}\n\nمعلومات وتفاصيل الخدمات والاتصال:\n`
+        : `أنت موظف خدمة عملاء ومبيعات مصري محترف ودود جداً، تتحدث بلهجة مصرية عامية طبيعية إنسانية ولطيفة للغاية، تعمل لدى (${projectName}).\nمجال وتخصص العمل: ${niche}\n`;
+
+    const systemPrompt = `${customPromptHeader}
+قائمة الخدمات والمنتجات وتفاصيلها:
+${servicesFormatted}
+بيانات التواصل وطرق الحجز:
+${contactsFormatted}
 
 القواعد الذهبية الصارمة للرد:
 1. تحية العميل باسمه الشخصي (شرط إلزامي ورئيسي):

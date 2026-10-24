@@ -2034,6 +2034,28 @@ function runCrawlerCountdown(seconds, message) {
     });
 }
 
+function cleanEmptyInitialPhoneRow() {
+    if (!phonesListContainer) return;
+    const rows = phonesListContainer.querySelectorAll('.phone-repeater-row');
+    if (rows.length > 1) {
+        const firstInput = rows[0].querySelector('.phone-number-input');
+        if (firstInput && !firstInput.value.trim()) {
+            rows[0].remove();
+        }
+    }
+}
+
+function cleanEmptyInitialSocialRow() {
+    if (!socialLinksContainer) return;
+    const rows = socialLinksContainer.querySelectorAll('.social-repeater-row');
+    if (rows.length > 1) {
+        const firstUrl = rows[0].querySelector('.social-url-input');
+        if (firstUrl && !firstUrl.value.trim()) {
+            rows[0].remove();
+        }
+    }
+}
+
 function applyCrawledDataToUI(pageType, data) {
     if (!data) return;
 
@@ -2048,16 +2070,36 @@ function applyCrawledDataToUI(pageType, data) {
         if (Array.isArray(data.services) && data.services.length > 0) {
             renderServicesList(data.services);
         }
-    } else if (pageType === 'contact') {
-        if (Array.isArray(data.phones) && data.phones.length > 0) {
-            renderPhonesList(data.phones);
-        }
-        if (arEmailInput && data.email) {
-            arEmailInput.value = data.email;
-        }
-        if (Array.isArray(data.socialLinks) && data.socialLinks.length > 0) {
-            renderSocialLinks(data.socialLinks);
-        }
+    }
+
+    // دمج أرقام الهواتف والواتساب المكتشفة في محتوى أو فوتر أي صفحة تلقائياً
+    if (Array.isArray(data.phones) && data.phones.length > 0) {
+        const existingPhones = new Set(collectPhonesData());
+        data.phones.forEach(p => {
+            const cleanP = String(p).trim();
+            if (cleanP && !existingPhones.has(cleanP)) {
+                addPhoneRow(cleanP);
+                existingPhones.add(cleanP);
+            }
+        });
+        cleanEmptyInitialPhoneRow();
+    }
+
+    // دمج البريد الإلكتروني المكتشف في الفوتر أو المحتوى
+    if (arEmailInput && data.email && !arEmailInput.value.trim()) {
+        arEmailInput.value = data.email.trim();
+    }
+
+    // دمج روابط السوشيال ميديا المكتشفة بالفوتر
+    if (Array.isArray(data.socialLinks) && data.socialLinks.length > 0) {
+        const existingUrls = new Set(collectSocialData().map(s => s.url));
+        data.socialLinks.forEach(item => {
+            if (item && item.url && !existingUrls.has(item.url)) {
+                addSocialRow(item);
+                existingUrls.add(item.url);
+            }
+        });
+        cleanEmptyInitialSocialRow();
     }
 }
 
