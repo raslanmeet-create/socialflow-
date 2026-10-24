@@ -289,15 +289,20 @@ app.post('/api/verify-meta', async (req, res) => {
             } : null
         }));
 
-        // تسجيل الصفحات في الذاكرة
-        pages.forEach(acc => {
+        // تسجيل الصفحات في الذاكرة والاشتراك التلقائي في الويبهوك
+        for (const acc of pages) {
             if (acc.id && acc.access_token) {
                 pageTokensCache.set(acc.id, { token: acc.access_token, name: acc.name, igUserId: acc.instagram?.id || null });
+                // استدعاء تلقائي لربط الصفحة بتطبيق الميتا واستقبال التعليقات والرسائل
+                fetch(`https://graph.facebook.com/v21.0/${acc.id}/subscribed_apps?subscribed_fields=feed,messages&access_token=${acc.access_token}`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(d => console.log(`[Auto-Subscribe Webhook] Page (${acc.name} - ${acc.id}):`, d))
+                    .catch(e => console.warn(`[Auto-Subscribe Webhook Error]:`, e.message));
             }
             if (acc.instagram?.id && acc.access_token) {
                 pageTokensCache.set(acc.instagram.id, { token: acc.access_token, name: acc.name, pageId: acc.id, igUserId: acc.instagram.id });
             }
-        });
+        }
 
         res.json({ success: true, count: pages.length, pages });
     } catch (err) {
@@ -470,6 +475,37 @@ app.post('/api/autoreply/config', async (req, res) => {
     } catch (err) {
         console.error('Error in POST /api/autoreply/config:', err);
         res.status(500).json({ success: false, message: 'تعذر حفظ الإعدادات' });
+    }
+});
+
+// مسار يدوي/فوري لربط واشتراك الصفحة بتطبيق الميتا (Subscribed Apps)
+app.post('/api/autoreply/subscribe-page', async (req, res) => {
+    try {
+        const { pageId, token } = req.body;
+        const targetPageId = pageId;
+        const cached = pageTokensCache.get(targetPageId) || {};
+        const pageToken = token || cached.token || process.env.META_ACCESS_TOKEN;
+
+        if (!targetPageId || !pageToken) {
+            return res.status(400).json({ success: false, message: 'يرجى تحديد الصفحة وتوفير رمز Access Token صالح.' });
+        }
+
+        const url = `https://graph.facebook.com/v21.0/${targetPageId}/subscribed_apps?subscribed_fields=feed,messages&access_token=${pageToken.trim()}`;
+        const subRes = await fetch(url, { method: 'POST' });
+        const subData = await subRes.json();
+
+        if (subData.error) {
+            return res.status(400).json({ success: false, message: subData.error.message });
+        }
+
+        res.json({
+            success: true,
+            message: 'تم ربط الصفحة بالويبهوك بنجاح! ستصل أي تعليقات جديدة للسيرفر فوراً.',
+            result: subData
+        });
+    } catch (err) {
+        console.error('Error in /api/autoreply/subscribe-page:', err);
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
@@ -1093,8 +1129,8 @@ async function executePrivateDm(commentId, text, token, platform, igUserId) {
 
 // المعالج الشامل لدورة الرد التلقائي عند استلام تعليق
 async function handleIncomingComment({ platform, pageOrIgId, commentId, commentText, postId, senderId, senderName }) {
-    // 1. جلب إعدادات وقاعدة معرفة العميل
-    const config = await getAutoReplyConfig();
+    // 1. جلب إعدادات وقاعدة معرفة العميل للصفحة المحددة
+    const config = await getAutoReplyConfig(pageOrIgId);
     if (!config.enabled) {
         console.log('[Auto-Reply] نظام الرد التلقائي معطل حالياً.');
         return;
@@ -1102,7 +1138,7 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
 
     // 2. الحصول على توكن الصفحة
     const cached = pageTokensCache.get(pageOrIgId) || {};
-    const token = cached.token || META_ACCESS_TOKEN;
+    const token = cached.token || config.pageToken || META_ACCESS_TOKEN;
     const igUserId = cached.igUserId || (platform === 'instagram' ? pageOrIgId : null);
 
     if (!token) {
