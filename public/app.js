@@ -129,6 +129,13 @@ const btnSaveAutoReplyConfig = document.getElementById('btnSaveAutoReplyConfig')
 const saveConfigStatus = document.getElementById('saveConfigStatus');
 
 const arGroqApiKey = document.getElementById('arGroqApiKey');
+const btnOpenGroqHelpModal = document.getElementById('btnOpenGroqHelpModal');
+const groqHelpModal = document.getElementById('groqHelpModal');
+const btnCloseGroqHelpModal = document.getElementById('btnCloseGroqHelpModal');
+const btnCloseGroqHelpModalBtn = document.getElementById('btnCloseGroqHelpModalBtn');
+const btnToggleGroqVisibility = document.getElementById('btnToggleGroqVisibility');
+const btnVerifyGroqKey = document.getElementById('btnVerifyGroqKey');
+const groqKeyStatusMsg = document.getElementById('groqKeyStatusMsg');
 const checkLikeComment = document.getElementById('checkLikeComment');
 const checkReplyComment = document.getElementById('checkReplyComment');
 const checkSendDm = document.getElementById('checkSendDm');
@@ -2628,6 +2635,78 @@ if (btnRunSimulation) {
 
 if (btnRefreshLogs) {
     btnRefreshLogs.addEventListener('click', loadAutoReplyLogsUI);
+}
+
+// نافذة شرح مفتاح Groq والتحقق من الصلاحية
+if (btnOpenGroqHelpModal && groqHelpModal) {
+    btnOpenGroqHelpModal.addEventListener('click', () => {
+        groqHelpModal.style.display = 'flex';
+    });
+}
+
+if (btnCloseGroqHelpModal && groqHelpModal) {
+    btnCloseGroqHelpModal.addEventListener('click', () => {
+        groqHelpModal.style.display = 'none';
+    });
+}
+
+if (btnCloseGroqHelpModalBtn && groqHelpModal) {
+    btnCloseGroqHelpModalBtn.addEventListener('click', () => {
+        groqHelpModal.style.display = 'none';
+    });
+}
+
+if (btnToggleGroqVisibility && arGroqApiKey) {
+    btnToggleGroqVisibility.addEventListener('click', () => {
+        if (arGroqApiKey.type === 'password') {
+            arGroqApiKey.type = 'text';
+            btnToggleGroqVisibility.textContent = '🔒';
+        } else {
+            arGroqApiKey.type = 'password';
+            btnToggleGroqVisibility.textContent = '👁️';
+        }
+    });
+}
+
+if (btnVerifyGroqKey && arGroqApiKey) {
+    btnVerifyGroqKey.addEventListener('click', async () => {
+        const key = arGroqApiKey.value.trim();
+        if (!key) {
+            if (groqKeyStatusMsg) {
+                groqKeyStatusMsg.innerHTML = '<span style="color: #ef4444;">⚠️ يرجى لصق المفتاح أولاً للتحقق منه</span>';
+            }
+            return;
+        }
+
+        btnVerifyGroqKey.disabled = true;
+        btnVerifyGroqKey.textContent = '⏳ جاري الفحص...';
+        if (groqKeyStatusMsg) groqKeyStatusMsg.textContent = '';
+
+        try {
+            const res = await fetch('/api/autoreply/verify-groq-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiKey: key })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (groqKeyStatusMsg) {
+                    groqKeyStatusMsg.innerHTML = '<span style="color: #10b981; font-weight: bold;">✓ مفتاح Groq صالح ويعمل بنجاح! 🟢</span>';
+                }
+            } else {
+                if (groqKeyStatusMsg) {
+                    groqKeyStatusMsg.innerHTML = `<span style="color: #ef4444;">❌ ${escapeHtml(data.message || 'المفتاح غير صالح')}</span>`;
+                }
+            }
+        } catch (e) {
+            if (groqKeyStatusMsg) {
+                groqKeyStatusMsg.innerHTML = `<span style="color: #ef4444;">❌ فشل الاتصال: ${escapeHtml(e.message)}</span>`;
+            }
+        } finally {
+            btnVerifyGroqKey.disabled = false;
+            btnVerifyGroqKey.textContent = '⚡ تحقق';
+        }
+    });
 }
 
 // التحميل المبدئي عند تشغيل الموقع

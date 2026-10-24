@@ -124,7 +124,7 @@ const DEFAULT_AUTOREPLY_CONFIG = {
     customPrompt: '',
     targetAllPosts: true, // true: جميع المنشورات، false: منشورات محددة فقط
     targetPostIds: [],   // مصفوفة بمعرفات المنشورات المشمولة بالخدمة
-    groqApiKey: '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',
+    groqApiKey: '',
     groqModel: 'openai/gpt-oss-120b',
     likeComment: true,
     replyComment: true,
@@ -524,6 +524,35 @@ app.post('/api/autoreply/subscribe-page', async (req, res) => {
     }
 });
 
+// مسار فحص والتحقق من صحة مفتاح Groq API Key الخاص بكل عميل
+app.post('/api/autoreply/verify-groq-key', async (req, res) => {
+    try {
+        const { apiKey } = req.body;
+        if (!apiKey || !apiKey.trim()) {
+            return res.status(400).json({ success: false, message: 'يرجى إدخال مفتاح Groq API Key أولاً.' });
+        }
+
+        const verifyRes = await fetch('https://api.groq.com/openai/v1/models', {
+            headers: {
+                'Authorization': `Bearer ${apiKey.trim()}`
+            }
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData.error) {
+            return res.status(400).json({ success: false, message: verifyData.error.message || 'المفتاح غير صالح أو منتهي الصلاحية.' });
+        }
+
+        res.json({
+            success: true,
+            message: 'مفتاح Groq API Key صالح وفعال بنجاح! جاهز للاستخدام.',
+            modelCount: Array.isArray(verifyData.data) ? verifyData.data.length : 0
+        });
+    } catch (err) {
+        console.error('Error verifying Groq key:', err);
+        res.status(500).json({ success: false, message: err.message || 'تعذر الاتصال بخوادم Groq.' });
+    }
+});
+
 // 3. مسار جلب منشورات الصفحة لتحديد المنشورات المستهدفة بالخدمة
 app.get('/api/page-posts', async (req, res) => {
     try {
@@ -629,7 +658,13 @@ ${servicesFormatted || 'خدمات متنوعة'}
 
 اكتب نص البرومبت النهائي مباشرة باللغة العربية ليكون جاهزاً للاستخدام فوراً كنص برومبت أساسي.`;
 
-        const apiKey = groqApiKey || process.env.GROQ_API_KEY || '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';
+        const apiKey = groqApiKey || process.env.GROQ_API_KEY;
+        if (!apiKey || !apiKey.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'يرجى إدخال مفتاح Groq API Key الخاص بك في إعدادات المشروع لتوليد البرومبت.'
+            });
+        }
 
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
@@ -770,7 +805,13 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
         if (discoveredSocials.length) footerContext += `- روابط السوشيال ميديا: ${discoveredSocials.map(s => `${s.platform}: ${s.url}`).join(' | ')}\n`;
         cleanText += footerContext;
 
-        const apiKey = groqApiKey || process.env.GROQ_API_KEY || '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';
+        const apiKey = groqApiKey || process.env.GROQ_API_KEY;
+        if (!apiKey || !apiKey.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'يرجى إدخال مفتاح Groq API Key الخاص بك في إعدادات المشروع لتحليل موقع الويب.'
+            });
+        }
 
         let promptForPage = '';
         if (pageType === 'home') {
@@ -923,7 +964,10 @@ app.get('/api/autoreply/logs', async (req, res) => {
 // 🧠 محرك الذكاء الاصطناعي لتوليد الردود (Groq gpt-oss-120b)
 // ========================================================
 async function generateAutoReplyWithGroq({ postCaption, commentText, config, senderName }) {
-    const apiKey = config?.groqApiKey || process.env.GROQ_API_KEY || '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';
+    const apiKey = config?.groqApiKey || process.env.GROQ_API_KEY;
+    if (!apiKey || !apiKey.trim()) {
+        throw new Error('يرجى إضافة مفتاح Groq API Key الخاص بك في إعدادات الصفحة/المشروع لتفعيل الذكاء الاصطناعي.');
+    }
     const model = 'openai/gpt-oss-120b';
 
     const projectName = (typeof config?.projectName === 'string' ? config.projectName.trim() : '') || 'مشروعنا';
@@ -1111,16 +1155,14 @@ ${config?.customPrompt && typeof config.customPrompt === 'string' && config.cust
 
 // 1. الإعجاب بالتعليق أولاً (Auto-Like Comment)
 async function executeLikeComment(commentId, token, platform, igUserId) {
-    try {
-        let url;
-        if (platform === 'facebook') {
-            url = `https://graph.facebook.com/v21.0/${commentId}/likes?access_token=${token}`;
-        } else {
-            // انستجرام: Like عبر معرف المستخدم وحقل comment_id
-            const targetUser = igUserId || 'me';
-            url = `https://graph.facebook.com/v21.0/${targetUser}/likes?access_token=${token}&comment_id=${commentId}`;
-        }
+    if (platform === 'instagram') {
+        // تنبيه تقني: Meta تشترط مراجعة تطبيق متقدمة (App Review: instagram_manage_engagement) لوضع لايك للتعليقات على انستجرام، لذا يتم تخطيها لعدم حظر الرد أو إعطاء أخطاء
+        console.log(`[Meta Like Skipped] (${platform}): تتطلب مراجعة تطبيق متقدمة (App Review: instagram_manage_engagement)، يتم تخطي اللايك والتركيز على الرد العام والـ DM.`);
+        return { success: false, skipped: true, reason: 'Requires instagram_manage_engagement app review' };
+    }
 
+    try {
+        const url = `https://graph.facebook.com/v21.0/${commentId}/likes?access_token=${token}`;
         const res = await fetch(url, { method: 'POST' });
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
@@ -1159,15 +1201,11 @@ async function executePublicReply(commentId, text, token, platform) {
 }
 
 // 3. إرسال الرسالة الخاصة في الـ DM (Private Message)
-async function executePrivateDm(commentId, text, token, platform, igUserId) {
+async function executePrivateDm(commentId, text, token, platform, pageId) {
     try {
-        let url;
-        if (platform === 'facebook') {
-            url = `https://graph.facebook.com/v21.0/me/messages`;
-        } else {
-            const targetUser = igUserId || 'me';
-            url = `https://graph.facebook.com/v21.0/${targetUser}/messages`;
-        }
+        // كلاً من فيسبوك وانستجرام يرسلان الرسائل الخاصة عبر مسار رسائل الصفحة المرتبطة (me/messages أو pageId/messages)
+        const targetEndpoint = pageId || 'me';
+        const url = `https://graph.facebook.com/v21.0/${targetEndpoint}/messages`;
 
         const res = await fetch(url, {
             method: 'POST',
@@ -1179,7 +1217,7 @@ async function executePrivateDm(commentId, text, token, platform, igUserId) {
             })
         });
         const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
+        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
         return { success: true, id: data.message_id || data.recipient_id };
     } catch (err) {
         console.error(`[Meta Private DM Error] (${platform}):`, err.message);
@@ -1245,6 +1283,7 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
         token = await resolvePageToken(pageOrIgId);
     }
     const igUserId = cached.igUserId || (platform === 'instagram' ? pageOrIgId : null);
+    const pageIdForDm = cached.pageId || (platform === 'facebook' ? pageOrIgId : null);
 
     if (!token) {
         console.warn(`[Auto-Reply] لا يوجد Access Token متاح للصفحة: ${pageOrIgId}`);
@@ -1320,7 +1359,7 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
 
     // الخطوة 3: إرسال الرسالة الخاصة في الـ DM (Private Message)
     if (config.sendDm && replyData.privateMessage) {
-        const dmRes = await executePrivateDm(commentId, replyData.privateMessage, token, platform, igUserId);
+        const dmRes = await executePrivateDm(commentId, replyData.privateMessage, token, platform, pageIdForDm);
         if (dmRes.success) {
             actionsTaken.push('dm');
             console.log(`[Auto-Reply] 📩 تم إرسال الرسالة الخاصة في الـ DM بنجاح!`);
