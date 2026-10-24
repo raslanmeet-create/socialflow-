@@ -534,7 +534,10 @@ app.post('/api/autoreply/subscribe-page', async (req, res) => {
         const { pageId, token } = req.body;
         const targetPageId = pageId;
         const cached = pageTokensCache.get(targetPageId) || {};
-        const pageToken = token || cached.token || process.env.META_ACCESS_TOKEN;
+        let pageToken = token || cached.token;
+        if (!pageToken) {
+            pageToken = await resolvePageToken(targetPageId);
+        }
 
         if (!targetPageId || !pageToken) {
             return res.status(400).json({ success: false, message: 'يرجى تحديد الصفحة وتوفير رمز Access Token صالح.' });
