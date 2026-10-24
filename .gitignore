@@ -3,3 +3,5 @@ node_modules/
 uploads/
 *.log
 .vercel
+deploy_now.js
+scheduled_posts.json
