@@ -584,7 +584,7 @@ ${servicesFormatted || 'خدمات متنوعة'}
                     { role: 'user', content: architectPrompt }
                 ],
                 temperature: 0.4,
-                max_tokens: 1500
+                max_tokens: 2200
             })
         });
 
@@ -696,8 +696,8 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
             .replace(/\s+/g, ' ')
             .trim();
 
-        // تحليل عميق: رفع استيعاب النص إلى 11,000 حرف (~3,000 توكن مدخلات) ليبقى المجموع الكلي مع المخرجات (~4,500 توكن) تحت سقف الـ 6,000 TPM بأمان تام
-        if (cleanText.length > 11000) cleanText = cleanText.substring(0, 11000);
+        // تحليل فائق العمق والجودة: رفع استيعاب النص إلى 14,500 حرف (~3,800 توكن مدخلات) ليبقى المجموع الكلي مع المخرجات في حدود 5,500 إلى 6,000 توكن كحد أقصى لضمان أعلى جودة
+        if (cleanText.length > 14500) cleanText = cleanText.substring(0, 14500);
 
         // إرفاق بيانات الفوتر والروابط المكتشفة نصياً للنموذج
         let footerContext = '\n\n[بيانات وروابط مكتشفة من الفوتر وكود الصفحة]:\n';
@@ -710,8 +710,8 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
 
         let promptForPage = '';
         if (pageType === 'home') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي العميق" (Deep Business Analysis Mode).
-حلل نص الصفحة والفوتر تحليلاً عميقاً وشاملاً، واستخرج بدقة بصيغة JSON:
+            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق والجودة" (Ultra-Deep Business Analysis Mode).
+حلل نص الصفحة والفوتر تحليلاً عميقاً واستخرج بدقة استقصائية بصيغة JSON:
 - projectName: اسم الشركة أو المركز أو المشروع التجاري الرسمي
 - niche: المجال والتخصص الدقيق للنشاط
 - overview: نبذة تعريفية شاملة وعميقة عن رسالة المشروع وتاريخه والقيمة المضافة التي يقدمها
@@ -719,8 +719,8 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
 - email: البريد الإلكتروني إن وجد
 - socialLinks: مصفوفة كائنات { platform: اسم المنصة, url: الرابط } لروابط المنصات المذكورة بالفوتر أو الموقع`;
         } else if (pageType === 'services') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي العميق للخدمات" (Deep Services & Products Analysis Mode).
-حلل نص صفحة الخدمات والفوتر بعمق شديد، واستخرج كل خدمة أو منتج أو باقة مذكورة بدقة بصيغة JSON:
+            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق للخدمات والمنتجات" (Ultra-Deep Services Analysis Mode).
+حلل نص صفحة الخدمات والفوتر بأعلى درجات التفصيل والاستقصاء، واستخرج كل خدمة أو منتج أو باقة مذكورة بدقة بصيغة JSON:
 - services: مصفوفة كائنات شاملة تضم كافة الخدمات أو المنتجات المستخرجة بدون استثناء. لكل خدمة استخرج:
   * name: اسم الخدمة أو الباقة بدقة
   * price: السعر المذكور أو نسبة الخصم أو خطة التقسيط المتاحة (أو "حسب الطلب والمواصفات")
@@ -728,15 +728,15 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
 - phones: مصفوفة أرقام الهواتف المذكورة
 - email: البريد الإلكتروني إن وجد`;
         } else if (pageType === 'about') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي العميق لهوية الشركة" (Deep Company Persona Analysis Mode).
-حلل نص صفحة من نحن والفوتر بعمق، واستخرج بصيغة JSON:
+            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق لهوية الشركة" (Ultra-Deep Persona Analysis Mode).
+حلل نص صفحة من نحن والفوتر بعمق استقصائي شامل، واستخرج بصيغة JSON:
 - companyStory: قصة التأسيس، سنوات الخبرة، الرؤية، والاعتمادات أو الشهادات المذكورة
 - strengths: مصفوفة بأبرز نقاط القوة والميزات التنافسية للشركة
 - branches: عناوين الفروع أو المقرات إن ذكرت
 - phones: مصفوفة أرقام الهواتف المذكورة
 - email: البريد الإلكتروني إن وجد`;
         } else if (pageType === 'contact') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي العميق لقنوات التواصل" (Deep Contact Channels Analysis Mode).
+            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق لقنوات التواصل" (Ultra-Deep Contact Channels Mode).
 حلل نص صفحة التواصل والفوتر تحليلاً استقصائياً كاملاً لكافة قنوات الاتصال، واستخرج بدقة بصيغة JSON:
 - phones: مصفوفة شاملة لكافة أرقام الهواتف المحمولة والأرضية وأرقام الواتساب المتاحة
 - email: البريد الإلكتروني المذكور للتواصل أو الدعم
@@ -753,12 +753,12 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
             body: JSON.stringify({
                 model: 'openai/gpt-oss-120b',
                 messages: [
-                    { role: 'system', content: `أنت خبير استخراج بيانات أعمال استقصائي عميق. استخرج البيانات المطلوبة بأقصى درجات الدقة والشمول وبصيغة JSON حصراً باللغة العربية.\n${promptForPage}` },
+                    { role: 'system', content: `أنت خبير استخراج بيانات أعمال استقصائي رفيع المستوى لضمان أعلى درجات الجودة والشمول. استخرج البيانات المطلوبة بأقصى دقة وتفصيل وبصيغة JSON حصراً باللغة العربية.\n${promptForPage}` },
                     { role: 'user', content: `إليك نص الصفحة ومحتوى الفوتر المكتشف كاملاً:\n\n${cleanText}` }
                 ],
                 response_format: { type: 'json_object' },
                 temperature: 0.2,
-                max_tokens: 1500
+                max_tokens: 2000
             })
         });
 
