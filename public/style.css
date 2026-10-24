@@ -2433,3 +2433,468 @@ textarea:focus {
     margin-bottom: 4px;
     font-size: 13px;
 }
+
+/* ==========================================================================
+   🤖 قسم الرد التلقائي الذكي (AI Auto-Reply Bot)
+   ========================================================================== */
+
+.autoreply-card {
+    border-top: 3px solid #10b981;
+}
+
+.autoreply-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 24px;
+}
+
+.autoreply-badge {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    font-weight: 700;
+}
+
+/* التبديل الرئيسي للتشغيل/الإيقاف (Master Switch) */
+.autoreply-master-toggle {
+    display: flex;
+    align-items: center;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 52px;
+    height: 28px;
+    display: inline-block;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 34px;
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: #10b981;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+.toggle-text {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+/* شبكة الأعمدة للرد التلقائي */
+.autoreply-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.95fr;
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .autoreply-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.autoreply-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* كروت الأقسام الداخلية (Sub Cards) */
+.sub-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 20px;
+    transition: var(--transition);
+}
+
+.sub-card:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.sub-card-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.sub-card-title.space-between {
+    justify-content: space-between;
+}
+
+.sub-icon {
+    font-size: 24px;
+    width: 42px;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sub-card-title h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.sub-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* استكشاف وسحب الموقع */
+.scrape-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.btn-scrape-action {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: var(--transition);
+}
+
+.btn-scrape-action:hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+.scrape-status-box {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.scrape-status-box.loading {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+}
+
+.scrape-status-box.success {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #6ee7b7;
+}
+
+.scrape-status-box.error {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+}
+
+/* خيارات وقواعد التفاعل */
+.interaction-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.interaction-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.interaction-check:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.interaction-check input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.interaction-check .check-box {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    display: inline-block;
+    flex-shrink: 0;
+    margin-top: 2px;
+    position: relative;
+    transition: var(--transition);
+}
+
+.interaction-check input[type="checkbox"]:checked ~ .check-box {
+    background: #10b981;
+    border-color: #10b981;
+}
+
+.interaction-check input[type="checkbox"]:checked ~ .check-box:after {
+    content: "✓";
+    position: absolute;
+    color: white;
+    font-size: 13px;
+    font-weight: 800;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -55%);
+}
+
+.interaction-check strong {
+    display: block;
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.interaction-check small {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+}
+
+/* استوديو التجربة والمحاكاة (Live Simulator) */
+.simulator-card {
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.04), rgba(255, 255, 255, 0.02));
+}
+
+.btn-test-sim {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: var(--transition);
+}
+
+.btn-test-sim:hover {
+    background: linear-gradient(135deg, #4f46e5, #4338ca);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.sim-results-box {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: fadeIn 0.3s ease;
+}
+
+.sim-result-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sim-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.badge-mini {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.badge-mini.dm-badge {
+    background: rgba(168, 85, 247, 0.2);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.comment-bubble {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-radius: 12px 12px 12px 3px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #e0f2fe;
+    position: relative;
+}
+
+.dm-bubble {
+    background: linear-gradient(145deg, rgba(147, 51, 234, 0.12), rgba(79, 70, 229, 0.08));
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    border-radius: 12px 12px 3px 12px;
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #f3e8ff;
+    white-space: pre-line;
+}
+
+/* سجل النشاط (Activity Log) */
+.btn-refresh-log {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-refresh-log:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.activity-logs-list {
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.empty-logs {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.log-entry-card {
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.log-entry-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.log-platform-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+}
+
+.log-platform-tag.facebook {
+    background: rgba(24, 119, 242, 0.2);
+    color: #60a5fa;
+}
+
+.log-platform-tag.instagram {
+    background: rgba(225, 48, 108, 0.2);
+    color: #f472b6;
+}
+
+.log-time {
+    color: var(--text-secondary);
+    font-size: 10px;
+}
+
+.log-comment-text {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.log-actions-taken {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: #34d399;
+    margin-top: 2px;
+}
+

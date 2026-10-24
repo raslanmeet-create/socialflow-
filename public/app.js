@@ -1,3 +1,15 @@
+// دوال مساعدة عامة
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+window.escapeHtml = escapeHtml;
+
 // عناصر واجهة المستخدم
 const pageSelector = document.getElementById('pageSelector');
 const postContent = document.getElementById('postContent');
@@ -60,9 +72,42 @@ const btnBannerConnect = document.getElementById('btnBannerConnect');
 // عناصر التبويبات والمخطط (Meta Planner & Navigation Tabs)
 const tabBtnComposer = document.getElementById('tabBtnComposer');
 const tabBtnPlanner = document.getElementById('tabBtnPlanner');
+const tabBtnAutoReply = document.getElementById('tabBtnAutoReply');
 const plannerBadgeCount = document.getElementById('plannerBadgeCount');
 const composerSection = document.getElementById('composerSection');
 const plannerSection = document.getElementById('plannerSection');
+const autoReplySection = document.getElementById('autoReplySection');
+
+// عناصر الرد التلقائي الذكي (AI Auto-Reply Bot)
+const autoReplyMasterToggle = document.getElementById('autoReplyMasterToggle');
+const toggleMasterText = document.getElementById('toggleMasterText');
+const arWebsiteUrl = document.getElementById('arWebsiteUrl');
+const btnScrapeWebsite = document.getElementById('btnScrapeWebsite');
+const scrapeStatus = document.getElementById('scrapeStatus');
+
+const arProjectName = document.getElementById('arProjectName');
+const arNiche = document.getElementById('arNiche');
+const arServices = document.getElementById('arServices');
+const arPricing = document.getElementById('arPricing');
+const arContactInfo = document.getElementById('arContactInfo');
+const btnSaveAutoReplyConfig = document.getElementById('btnSaveAutoReplyConfig');
+const saveConfigStatus = document.getElementById('saveConfigStatus');
+
+const arGroqApiKey = document.getElementById('arGroqApiKey');
+const checkLikeComment = document.getElementById('checkLikeComment');
+const checkReplyComment = document.getElementById('checkReplyComment');
+const checkSendDm = document.getElementById('checkSendDm');
+
+const simSenderName = document.getElementById('simSenderName');
+const simPostCaption = document.getElementById('simPostCaption');
+const simComment = document.getElementById('simComment');
+const btnRunSimulation = document.getElementById('btnRunSimulation');
+const simResultsContainer = document.getElementById('simResultsContainer');
+const simPublicReplyOutput = document.getElementById('simPublicReplyOutput');
+const simPrivateMsgOutput = document.getElementById('simPrivateMsgOutput');
+
+const btnRefreshLogs = document.getElementById('btnRefreshLogs');
+const activityLogsList = document.getElementById('activityLogsList');
 
 // عناصر شريط حجز الموعد من الجدول
 const selectedSlotBanner = document.getElementById('selectedSlotBanner');
@@ -767,21 +812,33 @@ async function loadScheduledPosts() {
 // نظام التبويبات والمخطط الأسبوعي التفاعلي (Meta Planner)
 // ========================================================
 
-// 1. دالة التبديل بين التبويبات
+// 1. دالة التبديل بين التبويبات الثلاثة
 function switchTab(tabName) {
+    if (tabBtnComposer) tabBtnComposer.classList.remove('active');
+    if (tabBtnPlanner) tabBtnPlanner.classList.remove('active');
+    if (tabBtnAutoReply) tabBtnAutoReply.classList.remove('active');
+
+    if (composerSection) composerSection.style.display = 'none';
+    if (plannerSection) plannerSection.style.display = 'none';
+    if (autoReplySection) autoReplySection.style.display = 'none';
+
     if (tabName === 'planner') {
         if (tabBtnPlanner) tabBtnPlanner.classList.add('active');
-        if (tabBtnComposer) tabBtnComposer.classList.remove('active');
-        if (composerSection) composerSection.style.display = 'none';
         if (plannerSection) {
             plannerSection.style.display = 'block';
             plannerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         renderMetaPlanner();
+    } else if (tabName === 'autoreply') {
+        if (tabBtnAutoReply) tabBtnAutoReply.classList.add('active');
+        if (autoReplySection) {
+            autoReplySection.style.display = 'block';
+            autoReplySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        loadAutoReplyConfigUI();
+        loadAutoReplyLogsUI();
     } else {
         if (tabBtnComposer) tabBtnComposer.classList.add('active');
-        if (tabBtnPlanner) tabBtnPlanner.classList.remove('active');
-        if (plannerSection) plannerSection.style.display = 'none';
         if (composerSection) {
             composerSection.style.display = 'grid';
             composerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -792,6 +849,7 @@ function switchTab(tabName) {
 // ربط أزرار التبويبات
 if (tabBtnComposer) tabBtnComposer.addEventListener('click', () => switchTab('composer'));
 if (tabBtnPlanner) tabBtnPlanner.addEventListener('click', () => switchTab('planner'));
+if (tabBtnAutoReply) tabBtnAutoReply.addEventListener('click', () => switchTab('autoreply'));
 if (btnOpenPlannerCta) btnOpenPlannerCta.addEventListener('click', () => switchTab('planner'));
 
 // زر إضافة سريعة من رأس المخطط
@@ -1537,8 +1595,367 @@ function updateMockupHeader() {
 
 pageSelector.addEventListener('change', updateMockupHeader);
 
+// ========================================================
+// 🤖 وظائف وإدارة الرد التلقائي الذكي للعملاء (Multi-Client AI Bot)
+// ========================================================
+
+const STORAGE_AUTOREPLY_KEY = 'socialflow_autoreply_client_config';
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// 1. تحميل إعدادات وقاعدة معرفة العميل من الذاكرة المحلية أو الخادم
+async function loadAutoReplyConfigUI() {
+    let config = null;
+
+    // محاولة القراءة أولاً من localStorage (لكل عميل خصوصيته ومساحة عمله الخاصة)
+    try {
+        const local = localStorage.getItem(STORAGE_AUTOREPLY_KEY);
+        if (local) config = JSON.parse(local);
+    } catch (e) {
+        console.error('Error loading config from localStorage:', e);
+    }
+
+    // إذا لم تكن موجودة محلياً، نجلبها من الخادم
+    if (!config) {
+        try {
+            const res = await fetch('/api/autoreply/config');
+            const data = await res.json();
+            if (data.success && data.config) {
+                config = data.config;
+            }
+        } catch (e) {
+            console.error('Error loading config from server:', e);
+        }
+    }
+
+    if (!config) {
+        config = {
+            enabled: true,
+            projectName: '',
+            niche: '',
+            services: '',
+            pricing: '',
+            contactInfo: '',
+            groqApiKey: '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',
+            likeComment: true,
+            replyComment: true,
+            sendDm: true
+        };
+    }
+
+    // ملء عناصر واجهة المستخدم
+    if (autoReplyMasterToggle) autoReplyMasterToggle.checked = config.enabled !== false;
+    updateMasterToggleLabel();
+
+    if (arProjectName) arProjectName.value = config.projectName || '';
+    if (arNiche) arNiche.value = config.niche || '';
+    if (arServices) arServices.value = config.services || '';
+    if (arPricing) arPricing.value = config.pricing || '';
+    if (arContactInfo) arContactInfo.value = config.contactInfo || '';
+    if (arGroqApiKey) arGroqApiKey.value = config.groqApiKey || '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';
+
+    if (checkLikeComment) checkLikeComment.checked = config.likeComment !== false;
+    if (checkReplyComment) checkReplyComment.checked = config.replyComment !== false;
+    if (checkSendDm) checkSendDm.checked = config.sendDm !== false;
+}
+
+function updateMasterToggleLabel() {
+    if (!toggleMasterText || !autoReplyMasterToggle) return;
+    if (autoReplyMasterToggle.checked) {
+        toggleMasterText.innerHTML = 'الرد التلقائي: <span style="color: #10b981;">مفعّل وجاهز 🟢</span>';
+    } else {
+        toggleMasterText.innerHTML = 'الرد التلقائي: <span style="color: #94a3b8;">متوقف مؤقتاً ⚪</span>';
+    }
+}
+
+// 2. حفظ إعدادات وقاعدة معرفة العميل
+async function saveAutoReplyConfigUI() {
+    const config = {
+        enabled: autoReplyMasterToggle ? autoReplyMasterToggle.checked : true,
+        projectName: arProjectName ? arProjectName.value.trim() : '',
+        niche: arNiche ? arNiche.value.trim() : '',
+        services: arServices ? arServices.value.trim() : '',
+        pricing: arPricing ? arPricing.value.trim() : '',
+        contactInfo: arContactInfo ? arContactInfo.value.trim() : '',
+        groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : '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',
+        likeComment: checkLikeComment ? checkLikeComment.checked : true,
+        replyComment: checkReplyComment ? checkReplyComment.checked : true,
+        sendDm: checkSendDm ? checkSendDm.checked : true
+    };
+
+    // حفظ في localStorage لكل عميل
+    try {
+        localStorage.setItem(STORAGE_AUTOREPLY_KEY, JSON.stringify(config));
+    } catch (e) {
+        console.error('Error saving to localStorage:', e);
+    }
+
+    // مزامنة مع الخادم
+    if (btnSaveAutoReplyConfig) {
+        btnSaveAutoReplyConfig.disabled = true;
+        btnSaveAutoReplyConfig.innerHTML = '<span>⏳ جاري الحفظ...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/autoreply/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const data = await res.json();
+        if (data.success) {
+            showSaveConfigStatus('✓ تم حفظ قاعدة المعرفة والإعدادات بنجاح!', 'success');
+        } else {
+            showSaveConfigStatus('❌ تعذر الحفظ على السيرفر: ' + (data.message || ''), 'error');
+        }
+    } catch (err) {
+        console.error('Error saving config to server:', err);
+        showSaveConfigStatus('✓ تم الحفظ محلياً على جهازك بنجاح!', 'success');
+    } finally {
+        if (btnSaveAutoReplyConfig) {
+            btnSaveAutoReplyConfig.disabled = false;
+            btnSaveAutoReplyConfig.innerHTML = '<span>💾 حفظ قاعدة المعرفة والإعدادات</span>';
+        }
+    }
+}
+
+function showSaveConfigStatus(msg, type) {
+    if (!saveConfigStatus) return;
+    saveConfigStatus.textContent = msg;
+    saveConfigStatus.style.display = 'inline-block';
+    saveConfigStatus.style.color = type === 'success' ? '#10b981' : '#ef4444';
+    setTimeout(() => {
+        saveConfigStatus.style.display = 'none';
+    }, 4000);
+}
+
+// 3. فحص واستكشاف موقع العميل بالذكاء الاصطناعي (AI Web Scraper)
+async function scrapeClientWebsite() {
+    const url = arWebsiteUrl ? arWebsiteUrl.value.trim() : '';
+    if (!url) {
+        showScrapeStatus('يرجى إدخال رابط الموقع أولاً (مثال: https://mywebsite.com)', 'error');
+        return;
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        showScrapeStatus('يجب أن يبدأ الرابط بـ https:// أو http://', 'error');
+        return;
+    }
+
+    showScrapeStatus('⏳ جاري فحص الموقع واستخراج الخدمات وبيانات التواصل بذكاء اصطناعي Groq (gpt-oss-120b)...', 'loading');
+
+    if (btnScrapeWebsite) {
+        btnScrapeWebsite.disabled = true;
+        btnScrapeWebsite.innerHTML = '<span class="spinner-small"></span> <span>جاري الاستكشاف...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/autoreply/scrape-website', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                url,
+                groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : ''
+            })
+        });
+
+        const data = await res.json();
+        if (data.success && data.extracted) {
+            const ext = data.extracted;
+            if (arProjectName && ext.projectName) arProjectName.value = ext.projectName;
+            if (arNiche && ext.niche) arNiche.value = ext.niche;
+            if (arServices && ext.services) arServices.value = ext.services;
+            if (arPricing && ext.pricing) arPricing.value = ext.pricing;
+            if (arContactInfo && ext.contactInfo) arContactInfo.value = ext.contactInfo;
+
+            showScrapeStatus(`🎉 تم استخراج بيانات الموقع بنجاح (${data.tokensUsed || 0} توكنز فقط - أقل بكثير من حد 6000 TPM). راجع البيانات واضغط "حفظ" لحفظها!`, 'success');
+        } else {
+            showScrapeStatus('❌ فشل الاستخراج: ' + (data.message || 'تعذر تحليل الموقع.'), 'error');
+        }
+    } catch (err) {
+        console.error('Error in scrapeClientWebsite:', err);
+        showScrapeStatus('❌ تعذر الاتصال بالسيرفر لفحص الموقع: ' + err.message, 'error');
+    } finally {
+        if (btnScrapeWebsite) {
+            btnScrapeWebsite.disabled = false;
+            btnScrapeWebsite.innerHTML = '<span class="btn-icon">🔍</span><span>فحص واستخراج البيانات</span>';
+        }
+    }
+}
+
+function showScrapeStatus(msg, type) {
+    if (!scrapeStatus) return;
+    scrapeStatus.textContent = msg;
+    scrapeStatus.style.display = 'block';
+    scrapeStatus.className = `scrape-status-box ${type}`;
+}
+
+// 4. استوديو تجربة ومحاكاة الرد الفوري (Live Simulator)
+async function runAutoReplySimulation() {
+    const postCaption = simPostCaption ? simPostCaption.value.trim() : '';
+    const comment = simComment ? simComment.value.trim() : '';
+
+    if (!comment) {
+        alert('يرجى كتابة تعليق تجريبي في خانة "تعليق العميل" لتجربة رد الذكاء الاصطناعي عليه.');
+        if (simComment) simComment.focus();
+        return;
+    }
+
+    // تجميع إعدادات العميل الحالية من الحقول
+    const currentConfig = {
+        projectName: arProjectName ? arProjectName.value.trim() : '',
+        niche: arNiche ? arNiche.value.trim() : '',
+        services: arServices ? arServices.value.trim() : '',
+        pricing: arPricing ? arPricing.value.trim() : '',
+        contactInfo: arContactInfo ? arContactInfo.value.trim() : '',
+        groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : '',
+        likeComment: checkLikeComment ? checkLikeComment.checked : true,
+        replyComment: checkReplyComment ? checkReplyComment.checked : true,
+        sendDm: checkSendDm ? checkSendDm.checked : true
+    };
+
+    if (btnRunSimulation) {
+        btnRunSimulation.disabled = true;
+        btnRunSimulation.innerHTML = '<span class="spinner-small"></span> <span>جاري التوليد...</span>';
+    }
+
+    const senderName = simSenderName && simSenderName.value.trim() ? simSenderName.value.trim() : 'أحمد علي';
+
+    try {
+        const res = await fetch('/api/autoreply/test-simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                postCaption,
+                commentText: comment,
+                config: currentConfig,
+                senderName: senderName
+            })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            if (simPublicReplyOutput) {
+                simPublicReplyOutput.innerHTML = `
+                    <div style="margin-bottom: 6px;">
+                        <span style="color: #ef4444; font-weight: 700; margin-left: 6px;">❤️ تم الإعجاب بالتعليق أولاً</span>
+                        <span style="color: var(--text-secondary); font-size: 11px;">(Auto-Like)</span>
+                    </div>
+                    <div>${escapeHtml(data.publicReply)}</div>
+                `;
+            }
+
+            if (simPrivateMsgOutput) {
+                simPrivateMsgOutput.textContent = data.privateMessage;
+            }
+
+            if (simResultsContainer) {
+                simResultsContainer.style.display = 'flex';
+                simResultsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        } else {
+            alert('تعذر تجربة الرد: ' + (data.message || 'خطأ غير معروف'));
+        }
+    } catch (err) {
+        console.error('Error running simulation:', err);
+        alert('تعذر الاتصال بالخادم لتجربة الرد: ' + err.message);
+    } finally {
+        if (btnRunSimulation) {
+            btnRunSimulation.disabled = false;
+            btnRunSimulation.innerHTML = '<span class="btn-icon">⚡</span><span>تجربة الرد</span>';
+        }
+    }
+}
+
+// 5. جلب وعرض سجل النشاط والردود الحية (Live Logs)
+async function loadAutoReplyLogsUI() {
+    if (!activityLogsList) return;
+
+    try {
+        const res = await fetch('/api/autoreply/logs');
+        const data = await res.json();
+        const logs = data.logs || [];
+
+        if (logs.length === 0) {
+            activityLogsList.innerHTML = `
+                <div class="empty-logs">
+                    <span>لا توجد تعليقات جديدة حتى الآن. النظام بانتظار أحداث الويبهوك من فيسبوك وانستجرام!</span>
+                </div>
+            `;
+            return;
+        }
+
+        activityLogsList.innerHTML = logs.map(entry => {
+            const timeStr = new Date(entry.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            const isFb = entry.platform === 'facebook';
+            const platformTag = isFb ? '<span class="log-platform-tag facebook">فيسبوك</span>' : '<span class="log-platform-tag instagram">انستجرام</span>';
+
+            const actionsPills = (entry.actions || []).map(a => {
+                if (a === 'like') return '<span>❤️ إعجاب</span>';
+                if (a === 'reply') return '<span>💬 رد بالبوست</span>';
+                if (a === 'dm') return '<span>📩 رسالة خاصة</span>';
+                return '';
+            }).join(' ');
+
+            return `
+                <div class="log-entry-card">
+                    <div class="log-entry-top">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            ${platformTag}
+                            <span class="log-comment-text">${escapeHtml(entry.senderName || 'عميل')}: "${escapeHtml(entry.commentText)}"</span>
+                        </div>
+                        <span class="log-time">${timeStr}</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                        📌 سياق كابشن البوست: <em>${escapeHtml(entry.postCaption || 'بدون كابشن')}</em>
+                    </div>
+                    <div class="log-actions-taken">
+                        ${actionsPills}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Error loading logs:', err);
+    }
+}
+
+// 6. ربط أحداث واجهة الرد التلقائي
+if (autoReplyMasterToggle) {
+    autoReplyMasterToggle.addEventListener('change', () => {
+        updateMasterToggleLabel();
+        saveAutoReplyConfigUI();
+    });
+}
+
+if (btnSaveAutoReplyConfig) {
+    btnSaveAutoReplyConfig.addEventListener('click', saveAutoReplyConfigUI);
+}
+
+if (btnScrapeWebsite) {
+    btnScrapeWebsite.addEventListener('click', scrapeClientWebsite);
+}
+
+if (btnRunSimulation) {
+    btnRunSimulation.addEventListener('click', runAutoReplySimulation);
+}
+
+if (btnRefreshLogs) {
+    btnRefreshLogs.addEventListener('click', loadAutoReplyLogsUI);
+}
+
 // التحميل المبدئي عند تشغيل الموقع
 populateActiveAccounts();
 loadScheduledPosts();
+loadAutoReplyConfigUI();
+
 
 

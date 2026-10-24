@@ -87,6 +87,133 @@ async function saveScheduledPosts(posts) {
     }
 }
 
+// ========================================================
+// 🤖 إدارة إعدادات وسجلات الرد التلقائي الذكي (AI Auto-Reply)
+// ========================================================
+const AUTOREPLY_CONFIG_FILE = process.env.VERCEL 
+    ? path.join('/tmp', 'auto_reply_config.json') 
+    : path.join(__dirname, 'auto_reply_config.json');
+
+const AUTOREPLY_LOGS_FILE = process.env.VERCEL 
+    ? path.join('/tmp', 'auto_reply_activity.json') 
+    : path.join(__dirname, 'auto_reply_activity.json');
+
+// ذاكرة سريعة لحفظ توكنات الصفحات وكابشن البوستات للربط الفوري وتفادي استهلاك الكوتا
+const pageTokensCache = new Map();
+const postCaptionsCache = new Map();
+
+const DEFAULT_AUTOREPLY_CONFIG = {
+    enabled: true,
+    projectName: '',
+    niche: '',
+    services: '',
+    pricing: '',
+    contactInfo: '',
+    groqApiKey: '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',
+    groqModel: 'openai/gpt-oss-120b',
+    likeComment: true,
+    replyComment: true,
+    sendDm: true,
+    lastScrapedUrl: ''
+};
+
+async function getAutoReplyConfig() {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        try {
+            const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/socialflow_autoreply_config`, {
+                headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
+            });
+            const data = await res.json();
+            if (data.result) {
+                const parsed = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+                return { ...DEFAULT_AUTOREPLY_CONFIG, ...parsed };
+            }
+        } catch (e) {
+            console.error('Error reading autoreply config from Upstash:', e);
+        }
+    }
+
+    if (!fs.existsSync(AUTOREPLY_CONFIG_FILE)) return { ...DEFAULT_AUTOREPLY_CONFIG };
+    try {
+        const fileData = JSON.parse(fs.readFileSync(AUTOREPLY_CONFIG_FILE, 'utf8'));
+        return { ...DEFAULT_AUTOREPLY_CONFIG, ...fileData };
+    } catch {
+        return { ...DEFAULT_AUTOREPLY_CONFIG };
+    }
+}
+
+async function saveAutoReplyConfig(config) {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        try {
+            await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/socialflow_autoreply_config`, {
+                method: 'POST',
+                headers: { 
+                    Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+        } catch (e) {
+            console.error('Error saving autoreply config to Upstash:', e);
+        }
+    }
+
+    try {
+        fs.writeFileSync(AUTOREPLY_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Error saving AUTOREPLY_CONFIG_FILE:', e);
+    }
+}
+
+async function getAutoReplyLogs() {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        try {
+            const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/socialflow_autoreply_logs`, {
+                headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}` }
+            });
+            const data = await res.json();
+            if (data.result) {
+                return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+            }
+        } catch (e) {
+            console.error('Error reading autoreply logs from Upstash:', e);
+        }
+    }
+
+    if (!fs.existsSync(AUTOREPLY_LOGS_FILE)) return [];
+    try {
+        return JSON.parse(fs.readFileSync(AUTOREPLY_LOGS_FILE, 'utf8'));
+    } catch {
+        return [];
+    }
+}
+
+async function addAutoReplyLog(entry) {
+    try {
+        const logs = await getAutoReplyLogs();
+        logs.unshift(entry);
+        if (logs.length > 50) logs.pop();
+
+        if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+            try {
+                await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/socialflow_autoreply_logs`, {
+                    method: 'POST',
+                    headers: { 
+                        Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(logs)
+                });
+            } catch (e) {
+                console.error('Error saving logs to Upstash:', e);
+            }
+        }
+
+        fs.writeFileSync(AUTOREPLY_LOGS_FILE, JSON.stringify(logs, null, 2), 'utf8');
+    } catch (e) {
+        console.error('Error saving log entry:', e);
+    }
+}
 
 // 1. مسار جلب صفحات فيسبوك وحسابات انستجرام المرتبطة باللوجو والاسم (يدعم المفتاح العام أو مفتاح المستخدم)
 app.get('/api/accounts', async (req, res) => {
@@ -115,6 +242,16 @@ app.get('/api/accounts', async (req, res) => {
                 picture: acc.instagram_business_account.profile_picture_url || null
             } : null
         }));
+
+        // تسجيل توكنات الصفحات في الذاكرة لتسهيل الرد التلقائي السحابي
+        accounts.forEach(acc => {
+            if (acc.id && acc.access_token) {
+                pageTokensCache.set(acc.id, { token: acc.access_token, name: acc.name, igUserId: acc.instagram?.id || null });
+            }
+            if (acc.instagram?.id && acc.access_token) {
+                pageTokensCache.set(acc.instagram.id, { token: acc.access_token, name: acc.name, pageId: acc.id, igUserId: acc.instagram.id });
+            }
+        });
 
         res.json({ success: true, accounts });
     } catch (err) {
@@ -150,6 +287,16 @@ app.post('/api/verify-meta', async (req, res) => {
                 picture: acc.instagram_business_account.profile_picture_url || null
             } : null
         }));
+
+        // تسجيل الصفحات في الذاكرة
+        pages.forEach(acc => {
+            if (acc.id && acc.access_token) {
+                pageTokensCache.set(acc.id, { token: acc.access_token, name: acc.name, igUserId: acc.instagram?.id || null });
+            }
+            if (acc.instagram?.id && acc.access_token) {
+                pageTokensCache.set(acc.instagram.id, { token: acc.access_token, name: acc.name, pageId: acc.id, igUserId: acc.instagram.id });
+            }
+        });
 
         res.json({ success: true, count: pages.length, pages });
     } catch (err) {
@@ -204,18 +351,77 @@ app.get('/api/webhook', (req, res) => {
     }
 });
 
-// 2. مسار استقبال أحداث وتحديثات الويبهوك (POST /api/webhook)
-app.post('/api/webhook', (req, res) => {
+// 2. مسار استقبال ومعالجة أحداث الويبهوك التلقائية (POST /api/webhook)
+app.post('/api/webhook', async (req, res) => {
+    // الاستجابة الفورية لـ Meta بنجاح لتجنب انقطاع الاتصال أو إعادة الإرسال
+    res.status(200).send('EVENT_RECEIVED');
+
     try {
         const body = req.body;
-        console.log('\n🔔 [Meta Webhook POST] استلام إشعار جديد من Meta:');
-        console.log(JSON.stringify(body, null, 2));
+        if (!body || !body.entry || !Array.isArray(body.entry)) return;
 
-        // الاستجابة الفورية لـ Meta بنجاح خلال 20 ثانية لتجنب إعادة الإرسال
-        res.status(200).send('EVENT_RECEIVED');
+        console.log('\n🔔 [Meta Webhook] استلام حدث جديد من Meta:');
+
+        for (const entry of body.entry) {
+            const pageOrIgId = entry.id;
+            const changes = entry.changes || [];
+
+            for (const change of changes) {
+                const field = change.field;
+                const value = change.value;
+                if (!value) continue;
+
+                let platform = 'facebook';
+                let commentId = null;
+                let commentText = null;
+                let postId = null;
+                let senderId = null;
+                let senderName = 'عميلنا العزيز';
+
+                // فيسبوك: التعليق على المنشورات (field === 'feed')
+                if (field === 'feed' && value.item === 'comment' && value.verb === 'add') {
+                    platform = 'facebook';
+                    commentId = value.comment_id;
+                    commentText = value.message;
+                    postId = value.post_id || value.parent_id;
+                    senderId = value.sender_id || value.from?.id;
+                    senderName = value.sender_name || value.from?.name || 'عميل فيسبوك';
+                }
+                // انستجرام: التعليق على المنشورات (field === 'comments')
+                else if (field === 'comments') {
+                    platform = 'instagram';
+                    commentId = value.id;
+                    commentText = value.text;
+                    postId = value.media?.id;
+                    senderId = value.from?.id;
+                    senderName = value.from?.username || 'عميل انستجرام';
+                }
+
+                if (!commentId || !commentText) continue;
+
+                // حماية من الحلقات التكرارية اللانهائية: تجاهل إذا كان المعلق هو الصفحة أو الحساب نفسه
+                const cachedAcc = pageTokensCache.get(pageOrIgId);
+                if (senderId && (senderId === pageOrIgId || (cachedAcc && (senderId === cachedAcc.pageId || senderId === cachedAcc.igUserId)))) {
+                    console.log(`[Auto-Reply] تم تجاهل تعليق صادر من الصفحة نفسها: ${senderId}`);
+                    continue;
+                }
+
+                console.log(`[Auto-Reply] تعليق جديد مستلم على ${platform}: "${commentText}" من: ${senderName} (Post: ${postId})`);
+
+                // تنفيذ دورة الرد التلقائي الكاملة في الخلفية
+                handleIncomingComment({
+                    platform,
+                    pageOrIgId,
+                    commentId,
+                    commentText,
+                    postId,
+                    senderId,
+                    senderName
+                }).catch(err => console.error('[Auto-Reply Background Error]:', err));
+            }
+        }
     } catch (err) {
         console.error('Error handling webhook event:', err);
-        res.sendStatus(500);
     }
 });
 
@@ -231,6 +437,436 @@ app.get('/api/webhook-info', (req, res) => {
         verifyToken: WEBHOOK_VERIFY_TOKEN
     });
 });
+
+// ========================================================
+// 🤖 مسارات واجهة برمجة تطبيقات الرد التلقائي الذكي (Auto-Reply API)
+// ========================================================
+
+// 1. جلب إعدادات وقاعدة معرفة الرد التلقائي
+app.get('/api/autoreply/config', async (req, res) => {
+    try {
+        const config = await getAutoReplyConfig();
+        res.json({ success: true, config });
+    } catch (err) {
+        console.error('Error in GET /api/autoreply/config:', err);
+        res.status(500).json({ success: false, message: 'تعذر جلب الإعدادات' });
+    }
+});
+
+// 2. حفظ إعدادات وقاعدة معرفة الرد التلقائي
+app.post('/api/autoreply/config', async (req, res) => {
+    try {
+        const currentConfig = await getAutoReplyConfig();
+        const updatedConfig = { ...currentConfig, ...req.body };
+        await saveAutoReplyConfig(updatedConfig);
+        res.json({ success: true, config: updatedConfig, message: 'تم حفظ قاعدة المعرفة والإعدادات بنجاح!' });
+    } catch (err) {
+        console.error('Error in POST /api/autoreply/config:', err);
+        res.status(500).json({ success: false, message: 'تعذر حفظ الإعدادات' });
+    }
+});
+
+// 3. فحص واستكشاف موقع العميل واستخراج بيانات المشروع بذكاء اصطناعي Groq
+app.post('/api/autoreply/scrape-website', async (req, res) => {
+    try {
+        const { url, groqApiKey } = req.body;
+        if (!url || !url.trim().startsWith('http')) {
+            return res.status(400).json({ success: false, message: 'يرجى إدخال رابط موقع صالح يبدأ بـ http:// أو https://' });
+        }
+
+        console.log(`[AI Scraper] جاري فحص واستكشاف الموقع: ${url}`);
+        const response = await fetch(url.trim(), {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            },
+            signal: AbortSignal.timeout(15000)
+        });
+
+        if (!response.ok) {
+            return res.status(400).json({ success: false, message: `تعذر الاتصال بالموقع (رمز الخطأ: ${response.status})` });
+        }
+
+        const html = await response.text();
+
+        // تنظيف محتوى الـ HTML من الأكواد والوسوم الزائدة لتقليل التوكنز والحفاظ على الليميت
+        let cleanText = html
+            .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+            .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+            .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+            .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+            .replace(/<header[\s\S]*?<\/header>/gi, ' ')
+            .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+            .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+            .replace(/<iframe[\s\S]*?<\/iframe>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        // قصر المحتوى على أول 8000 حرف لتوفير التوكنز وضمان البقاء تحت 6000 TPM
+        if (cleanText.length > 8000) {
+            cleanText = cleanText.substring(0, 8000);
+        }
+
+        if (cleanText.length < 50) {
+            return res.status(400).json({ success: false, message: 'الموقع محمي أو لم يتم العثور على نصوص كافية لتحليلها.' });
+        }
+
+        // استخراج بيانات النشاط عبر نموذج Groq openai/gpt-oss-120b
+        const apiKey = groqApiKey || process.env.GROQ_API_KEY || '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';
+        console.log(`[AI Scraper] جاري استخراج البيانات بالذكاء الاصطناعي من نصوص الموقع (${cleanText.length} حرف)...`);
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey.trim()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'openai/gpt-oss-120b',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `أنت خبير فحص واستخراج بيانات الأعمال. قم بتحليل نص الموقع واستخرج المعلومات المطلوبة بدقة بصيغة JSON حصراً، وباللغة العربية الطبيعية:
+- projectName: اسم الشركة أو المشروع أو البراند
+- niche: مجال وتخصص النشاط بدقة (مثل: تسويق إلكتروني، عيادة أسنان، ملابس حريمي، مطاعم...)
+- services: تفاصيل وشرح وافٍ لقائمة الخدمات أو المنتجات المعروضة ومميزاتها
+- pricing: الأسعار أو باقات الأسعار المذكورة (أو "الأسعار تحدد حسب الطلب والمواصفات" إذا لم تذكر أسعار مباشرة)
+- contactInfo: بيانات التواصل كأرقام الهواتف أو الواتساب أو العنوان أو البريد الإلكتروني المذكور`
+                    },
+                    {
+                        role: 'user',
+                        content: `إليك محتوى نص موقع العميل:\n\n${cleanText}`
+                    }
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.3,
+                max_tokens: 1200
+            })
+        });
+
+        const groqData = await groqRes.json();
+        if (groqData.error) {
+            throw new Error(groqData.error.message || 'فشل الاتصال بـ Groq API');
+        }
+
+        const parsedResult = JSON.parse(groqData.choices?.[0]?.message?.content || '{}');
+        console.log('[AI Scraper] ✅ تم استخراج بيانات الموقع بنجاح:', parsedResult.projectName);
+
+        res.json({
+            success: true,
+            extracted: {
+                projectName: parsedResult.projectName || '',
+                niche: parsedResult.niche || '',
+                services: parsedResult.services || '',
+                pricing: parsedResult.pricing || '',
+                contactInfo: parsedResult.contactInfo || ''
+            },
+            tokensUsed: groqData.usage?.total_tokens || 0
+        });
+    } catch (err) {
+        console.error('Error in /api/autoreply/scrape-website:', err);
+        res.status(500).json({ success: false, message: err.message || 'حدث خطأ أثناء فحص الموقع.' });
+    }
+});
+
+// 4. استوديو تجربة ومحاكاة الرد الفوري (Live Simulator)
+app.post('/api/autoreply/test-simulate', async (req, res) => {
+    try {
+        const { postCaption, commentText, config, senderName } = req.body;
+        if (!commentText || !commentText.trim()) {
+            return res.status(400).json({ success: false, message: 'يرجى كتابة تعليق تجريبي لتجربة الرد عليه.' });
+        }
+
+        const effectiveConfig = config || await getAutoReplyConfig();
+        const replyResult = await generateAutoReplyWithGroq({
+            postCaption: postCaption || '',
+            commentText: commentText.trim(),
+            config: effectiveConfig,
+            senderName: senderName || 'أحمد علي'
+        });
+
+        res.json({
+            success: true,
+            publicReply: replyResult.publicReply,
+            privateMessage: replyResult.privateMessage,
+            actions: ['like', 'reply', 'dm'],
+            tokensUsed: replyResult.tokensUsed
+        });
+    } catch (err) {
+        console.error('Error in /api/autoreply/test-simulate:', err);
+        res.status(500).json({ success: false, message: err.message || 'تعذر توليد الرد التجريبي.' });
+    }
+});
+
+// 5. جلب سجل النشاط والردود الحية (Live Logs)
+app.get('/api/autoreply/logs', async (req, res) => {
+    try {
+        const logs = await getAutoReplyLogs();
+        res.json({ success: true, logs });
+    } catch (err) {
+        console.error('Error in GET /api/autoreply/logs:', err);
+        res.status(500).json({ success: false, logs: [] });
+    }
+});
+
+// ========================================================
+// 🧠 محرك الذكاء الاصطناعي لتوليد الردود (Groq gpt-oss-120b)
+// ========================================================
+async function generateAutoReplyWithGroq({ postCaption, commentText, config, senderName }) {
+    const apiKey = config?.groqApiKey || process.env.GROQ_API_KEY || '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';
+    const model = 'openai/gpt-oss-120b';
+
+    const projectName = config?.projectName?.trim() || 'مشروعنا';
+    const niche = config?.niche?.trim() || 'خدمات وأعمال عامة';
+    const services = config?.services?.trim() || 'خدمات ومنتجات متميزة ومبتكرة';
+    const pricing = config?.pricing?.trim() || 'أسعار تنافسية تحدد حسب الطلب والمواصفات';
+    const contactInfo = config?.contactInfo?.trim() || 'عبر رسائل الصفحة أو الواتساب';
+
+    // تنظيف اسم العميل واستخراجه لمناداته به في التحية
+    const rawName = (senderName && senderName.trim()) ? senderName.trim() : '';
+    let customerName = rawName.replace(/[@_.]/g, ' ').trim();
+    if (!customerName || customerName === 'عميل' || customerName === 'عميلنا العزيز') {
+        customerName = 'يا فندم';
+    }
+
+    const systemPrompt = `أنت موظف خدمة عملاء ومبيعات مصري محترف ودود جداً، تتحدث بلهجة مصرية عامية طبيعية إنسانية ولطيفة للغاية، تعمل لدى (${projectName}).
+مجال وتخصص العمل: ${niche}
+قائمة الخدمات والمنتجات وتفاصيلها: ${services}
+الأسعار وعروض الأسعار: ${pricing}
+بيانات التواصل وطرق الحجز: ${contactInfo}
+
+القواعد الذهبية الصارمة للرد:
+1. تحية العميل باسمه الشخصي (شرط إلزامي ورئيسي):
+   - يجب عليك في بداية الرد على الكومنت (publicReply) وأيضاً في بداية الرسالة الخاصة (privateMessage) أن تحيي العميل باسمه الشخصي ("${customerName}") بود مصري أصيل (مثال: "أهلاً يا أستاذ ${customerName}" أو "نورتنا يا ${customerName} يا فندم" أو "يا ${customerName} أهلاً بيك").
+   - مناداة العميل باسمه تجعل التجربة إنسانية وشخصية 100% وتبعدها تماماً عن الردود الآلية المكررة.
+
+2. الرد العام على التعليق في البوست (publicReply):
+   - إلزامي وحاسم: ممنوع نهائياً استخدام قالب ثابت أو رد مكرر ومحفوظ لكل العملاء! الرد يجب أن يُفصّل مخصوص على حسب سؤال العميل بالظبط في تعليقه ("${commentText}"):
+     * ابدأ بتحية العميل باسمه ("${customerName}").
+     * أجب مباشرة وبشكل مختصر جداً على جوهر سؤاله (إذا سأل عن السعر تلمح للسعر أو الخصم، إذا سأل عن ميزة أو شحن أو مقاسات أو فروع أو مواعيد تجاوبه فوراً على سؤاله المحدد، وإذا كتب "تفاصيل" تربط الرد باسم الخدمة المذكورة في كابشن البوست).
+     * نبّهه بلطف لمراجعة رسائل الخاص على الـ DM 📩 لأنك أرسلت له الشرح الكامل هناك.
+   - حافظ تماماً على أن يكون الرد العام مختصراً جداً (جملة واحدة أو جملتين كحد أقصى).
+   - لهجة مصرية عامية طبيعية إنسانية محبوبة.
+
+3. الرسالة الخاصة في الـ DM (privateMessage):
+   - تبدأ أيضاً بتحية العميل باسمه ("${customerName}") بحفاوة وترحاب مصري راقٍ.
+   - تشرح إجابة استفساره وسؤاله بالتفصيل الوافي والشافي بناءً على كابشن المنشور ومميزات خدمات المشروع وأسعاره.
+   - تذكر الأسعار أو طريقة حسابها وبيانات التواصل والواتساب للتسهيل عليه.
+   - تختم بسؤال لطيف لتشجيع العميل على إتمام الحجز أو الشراء.
+
+أجب بصيغة JSON حصراً بالشكل التالي:
+{
+  "publicReply": "الرد العام المختصر على الكومنت متضمناً اسم العميل وإجابة سؤاله والتنبيه للخاص",
+  "privateMessage": "الرسالة التفصيلية الشاملة في الخاص متضمنة اسم العميل والشرح الكامل"
+}`;
+
+    const userMessage = `كابشن المنشور: "${postCaption || 'بدون كابشن'}"\nاسم العميل: "${customerName}"\nتعليق العميل: "${commentText}"`;
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey.trim()}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.4,
+            max_tokens: 1200
+        })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+        throw new Error(data.error.message || 'فشل في الاتصال بنموذج Groq');
+    }
+
+    const content = data.choices?.[0]?.message?.content || '{}';
+    const parsed = JSON.parse(content);
+
+    return {
+        publicReply: parsed.publicReply || 'أهلاً بحضرتك يا فندم! نورتنا، تم إرسال كافة التفاصيل لحضرتك في رسالة خاصة على الـ DM 📩',
+        privateMessage: parsed.privateMessage || `أهلاً بحضرتك يا فندم! بخصوص استفسارك، يسعدنا خدمتك دائماً في ${projectName}. تواصل معنا لأي تفاصيل إضافية.`,
+        tokensUsed: data.usage?.total_tokens || 0
+    };
+}
+
+// ========================================================
+// ⚡ دوال التفاعل التلقائي الثلاثة مع Meta (Like -> Reply -> DM)
+// ========================================================
+
+// 1. الإعجاب بالتعليق أولاً (Auto-Like Comment)
+async function executeLikeComment(commentId, token, platform, igUserId) {
+    try {
+        let url;
+        if (platform === 'facebook') {
+            url = `https://graph.facebook.com/v21.0/${commentId}/likes?access_token=${token}`;
+        } else {
+            // انستجرام: Like عبر معرف المستخدم وحقل comment_id
+            const targetUser = igUserId || 'me';
+            url = `https://graph.facebook.com/v21.0/${targetUser}/likes?access_token=${token}&comment_id=${commentId}`;
+        }
+
+        const res = await fetch(url, { method: 'POST' });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        return { success: true };
+    } catch (err) {
+        console.error(`[Meta Like Error] (${platform}):`, err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// 2. الرد العام على التعليق في المنشور (Public Reply)
+async function executePublicReply(commentId, text, token, platform) {
+    try {
+        let url;
+        if (platform === 'facebook') {
+            url = `https://graph.facebook.com/v21.0/${commentId}/comments`;
+        } else {
+            url = `https://graph.facebook.com/v21.0/${commentId}/replies`;
+        }
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: text,
+                access_token: token
+            })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        return { success: true, id: data.id };
+    } catch (err) {
+        console.error(`[Meta Public Reply Error] (${platform}):`, err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// 3. إرسال الرسالة الخاصة في الـ DM (Private Message)
+async function executePrivateDm(commentId, text, token, platform, igUserId) {
+    try {
+        let url;
+        if (platform === 'facebook') {
+            url = `https://graph.facebook.com/v21.0/me/messages`;
+        } else {
+            const targetUser = igUserId || 'me';
+            url = `https://graph.facebook.com/v21.0/${targetUser}/messages`;
+        }
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipient: { comment_id: commentId },
+                message: { text: text },
+                access_token: token
+            })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        return { success: true, id: data.message_id || data.recipient_id };
+    } catch (err) {
+        console.error(`[Meta Private DM Error] (${platform}):`, err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// المعالج الشامل لدورة الرد التلقائي عند استلام تعليق
+async function handleIncomingComment({ platform, pageOrIgId, commentId, commentText, postId, senderId, senderName }) {
+    // 1. جلب إعدادات وقاعدة معرفة العميل
+    const config = await getAutoReplyConfig();
+    if (!config.enabled) {
+        console.log('[Auto-Reply] نظام الرد التلقائي معطل حالياً.');
+        return;
+    }
+
+    // 2. الحصول على توكن الصفحة
+    const cached = pageTokensCache.get(pageOrIgId) || {};
+    const token = cached.token || META_ACCESS_TOKEN;
+    const igUserId = cached.igUserId || (platform === 'instagram' ? pageOrIgId : null);
+
+    if (!token) {
+        console.warn(`[Auto-Reply] لا يوجد Access Token متاح للصفحة: ${pageOrIgId}`);
+        return;
+    }
+
+    // 3. استخراج كابشن المنشور لفهم سياق استفسار العميل بدقة
+    let postCaption = postCaptionsCache.get(postId) || '';
+    if (!postCaption && postId && token) {
+        try {
+            const postRes = await fetch(`https://graph.facebook.com/v21.0/${postId}?fields=message,caption&access_token=${token}`);
+            const postData = await postRes.json();
+            postCaption = postData.message || postData.caption || '';
+            if (postCaption) {
+                postCaptionsCache.set(postId, postCaption);
+            }
+        } catch (e) {
+            console.error('Could not fetch post caption from Graph API:', e);
+        }
+    }
+
+    // 4. توليد الردود بذكاء اصطناعي Groq (باللهجة المصرية الإنسانية)
+    const replyData = await generateAutoReplyWithGroq({
+        postCaption,
+        commentText,
+        config,
+        senderName
+    });
+
+    const actionsTaken = [];
+
+    // الخطوة 1 الصارمة: الإعجاب بالتعليق أولاً (Auto-Like Comment)
+    if (config.likeComment) {
+        const likeRes = await executeLikeComment(commentId, token, platform, igUserId);
+        if (likeRes.success) {
+            actionsTaken.push('like');
+            console.log(`[Auto-Reply] ❤️ تم وضع إعجاب بالتعليق بنجاح: ${commentId}`);
+        }
+    }
+
+    // الخطوة 2: الرد العام على المنشور (Public Reply)
+    if (config.replyComment && replyData.publicReply) {
+        const replyRes = await executePublicReply(commentId, replyData.publicReply, token, platform);
+        if (replyRes.success) {
+            actionsTaken.push('reply');
+            console.log(`[Auto-Reply] 💬 تم الرد العام على المنشور: "${replyData.publicReply}"`);
+        }
+    }
+
+    // الخطوة 3: إرسال الرسالة الخاصة في الـ DM (Private Message)
+    if (config.sendDm && replyData.privateMessage) {
+        const dmRes = await executePrivateDm(commentId, replyData.privateMessage, token, platform, igUserId);
+        if (dmRes.success) {
+            actionsTaken.push('dm');
+            console.log(`[Auto-Reply] 📩 تم إرسال الرسالة الخاصة في الـ DM بنجاح!`);
+        }
+    }
+
+    // 5. تسجيل الحدث في سجل النشاط والردود الحية (Live Activity Log)
+    await addAutoReplyLog({
+        id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+        platform,
+        senderName,
+        senderId,
+        commentText,
+        postCaption: postCaption ? (postCaption.length > 80 ? postCaption.substring(0, 80) + '...' : postCaption) : 'بدون كابشن',
+        publicReply: replyData.publicReply,
+        privateMessage: replyData.privateMessage,
+        actions: actionsTaken,
+        timestamp: new Date().toISOString()
+    });
+}
 
 
 // دالة ذكية لضمان مطابقة أبعاد الصورة لمعايير انستجرام الصارمة (بين 4:5 و 1.91:1)
@@ -490,6 +1126,15 @@ async function executePublish(post) {
         } catch (err) {
             results.instagram = { success: false, error: err.message };
         }
+    }
+
+    // حفظ كابشن البوست في ذاكرة الكاش ليفهم الرد التلقائي سياق الكومنتات لاحقاً
+    const fullCaption = fbCaption || igCaption || post.content || '';
+    if (fullCaption) {
+        if (post.id) postCaptionsCache.set(post.id, fullCaption);
+        if (results.facebook?.id) postCaptionsCache.set(results.facebook.id, fullCaption);
+        if (results.facebook?.post_id) postCaptionsCache.set(results.facebook.post_id, fullCaption);
+        if (results.instagram?.id) postCaptionsCache.set(results.instagram.id, fullCaption);
     }
 
     return results;

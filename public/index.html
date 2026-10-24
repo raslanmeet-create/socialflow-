@@ -57,6 +57,11 @@
                 <span class="tab-label">مخطط وجدول المحتوى (Meta Planner)</span>
                 <span class="tab-badge" id="plannerBadgeCount">0</span>
             </button>
+            <button type="button" class="nav-tab-btn" id="tabBtnAutoReply" data-tab="autoreply">
+                <span class="tab-icon">🤖</span>
+                <span class="tab-label">الرد التلقائي الذكي (AI Bot)</span>
+                <span class="tab-badge" id="autoReplyBadge">Groq</span>
+            </button>
         </nav>
 
         <!-- المحتوى الرئيسي (شبكة عمودين: استوديو الإنشاء والمعاينة) -->
@@ -431,6 +436,229 @@
                 <div class="legend-item">
                     <span class="legend-box today-box"></span>
                     <span>عمود اليوم الحالي</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم الرد التلقائي الذكي على المنشورات بالذكاء الاصطناعي (AI Auto-Reply Bot) -->
+        <section class="card autoreply-card" id="autoReplySection" style="display: none;">
+            <div class="autoreply-header">
+                <div class="autoreply-title-group">
+                    <div class="autoreply-icon-badge">🤖</div>
+                    <div>
+                        <div class="title-with-pill">
+                            <h2>نظام الرد التلقائي الذكي على المنشورات (AI Auto-Reply & DM Bot)</h2>
+                            <span class="ai-model-pill">⚡ Groq • openai/gpt-oss-120b</span>
+                        </div>
+                        <p class="autoreply-subtitle">إعجاب فوري بالتعليق، رد عام ذكي ومختصر، وإرسال رسالة خاصة (DM) بتفاصيل وافية بلهجة مصرية طبيعية وإنسانية</p>
+                    </div>
+                </div>
+
+                <div class="autoreply-toggle-group">
+                    <span class="toggle-status-label" id="autoReplyToggleLabel">الحالة: <strong>مفعل</strong></span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleAutoReplyMaster" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- شبكة القسم الرئيسية: عمودان -->
+            <div class="autoreply-grid">
+                <!-- العمود الأيمن: قاعدة معرفة المشروع (الموقع أو الإدخال اليدوي) -->
+                <div class="autoreply-column">
+                    <!-- كارت 1: استكشاف الموقع الإلكتروني بالذكاء الاصطناعي -->
+                    <div class="sub-card">
+                        <div class="sub-card-title">
+                            <span class="sub-icon">🌐</span>
+                            <div>
+                                <h3>استكشاف الموقع الإلكتروني تلقائياً (Website AI Scraper)</h3>
+                                <p class="sub-desc">ضع رابط موقعك وسيقوم الذكاء الاصطناعي باستخراج خدماتك وتفاصيل نشاطك تلقائياً ليفهم كيف يرد</p>
+                            </div>
+                        </div>
+
+                        <div class="scrape-input-group">
+                            <input type="url" id="inputWebsiteUrl" class="settings-input" placeholder="https://yourwebsite.com (أدخل رابط موقعك هنا)">
+                            <button type="button" class="btn-scrape-site" id="btnScrapeWebsite">
+                                <span class="btn-icon">🔍</span>
+                                <span id="btnScrapeText">فحص واستخراج البيانات</span>
+                            </button>
+                        </div>
+                        <div id="scrapeStatus" class="scrape-status" style="display: none;"></div>
+                    </div>
+
+                    <!-- كارت 2: بيانات وتفاصيل المشروع والخدمات -->
+                    <div class="sub-card">
+                        <div class="sub-card-title">
+                            <span class="sub-icon">🏢</span>
+                            <div>
+                                <h3>بيانات وتفاصيل المشروع والخدمات (Knowledge Base)</h3>
+                                <p class="sub-desc">يستخدمها الذكاء الاصطناعي كمرجع أساسي ودقيق عند تجهيز الردود للعملاء</p>
+                            </div>
+                        </div>
+
+                        <form id="autoReplyConfigForm">
+                            <div class="form-row">
+                                <div class="form-group flex-1">
+                                    <label class="section-label">اسم المشروع / الشركة:</label>
+                                    <input type="text" id="arProjectName" class="settings-input" placeholder="مثال: رسلان للتسويق الرقمي">
+                                </div>
+                                <div class="form-group flex-1">
+                                    <label class="section-label">مجال وتخصص المشروع:</label>
+                                    <input type="text" id="arNiche" class="settings-input" placeholder="مثال: تسويق إلكتروني، تصميم مواقع، مطاعم، عيادات...">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="section-label">الخدمات والمنتجات وتفاصيلها:</label>
+                                <textarea id="arServices" rows="4" class="settings-input text-area" placeholder="اكتب قائمة الخدمات أو المنتجات ومميزاتها بالتفصيل حتى يتمكن الذكاء الاصطناعي من شرحها للعميل..."></textarea>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group flex-1">
+                                    <label class="section-label">الأسعار وعروض الأسعار (اختياري):</label>
+                                    <input type="text" id="arPricing" class="settings-input" placeholder="مثال: تبدأ من 2000 ج، أو حسب الباقة والطلب...">
+                                </div>
+                                <div class="form-group flex-1">
+                                    <label class="section-label">بيانات التواصل وطرق الحجز:</label>
+                                    <input type="text" id="arContactInfo" class="settings-input" placeholder="مثال: واتساب 01012345678، العنوان، الموقع...">
+                                </div>
+                            </div>
+
+                            <div class="form-actions-right">
+                                <button type="button" class="btn-primary" id="btnSaveAutoReplyConfig">
+                                    <span>💾 حفظ قاعدة المعرفة والإعدادات</span>
+                                </button>
+                                <span id="saveConfigStatus" class="save-status-msg" style="display: none;"></span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- العمود الأيسر: إعدادات الذكاء الاصطناعي واستوديو التجربة المباشر -->
+                <div class="autoreply-column">
+                    <!-- كارت 3: إعدادات نموذج Groq وقواعد التفاعل -->
+                    <div class="sub-card">
+                        <div class="sub-card-title">
+                            <span class="sub-icon">⚡</span>
+                            <div>
+                                <h3>إعدادات الذكاء الاصطناعي وقواعد التفاعل</h3>
+                                <p class="sub-desc">ضبط أسلوب الرد المصري والتحكم في إجراءات التفاعل الثلاثة</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="section-label">مفتاح Groq API Key:</label>
+                            <input type="password" id="arGroqApiKey" class="settings-input code-font" placeholder="gsk_...">
+                            <span class="format-hint">✅ الموديل المستخدم: <strong>openai/gpt-oss-120b</strong> (سريع جداً وموفر للتوكنز أقل من 6000 TPM)</span>
+                        </div>
+
+                        <div class="interaction-toggles">
+                            <label class="interaction-check">
+                                <input type="checkbox" id="checkLikeComment" checked>
+                                <span class="check-box"></span>
+                                <div>
+                                    <strong>❤️ إعجاب تلقائي بالتعليق (Auto-Like)</strong>
+                                    <small>يضع Like فوري على كومنت العميل لإظهار الاهتمام</small>
+                                </div>
+                            </label>
+
+                            <label class="interaction-check">
+                                <input type="checkbox" id="checkReplyComment" checked>
+                                <span class="check-box"></span>
+                                <div>
+                                    <strong>💬 الرد على التعليق في المنشور (Public Reply)</strong>
+                                    <small>رد مختصر جداً وودود بلهجة مصرية ينبهه أننا أرسلنا له التفاصيل على الخاص 📩</small>
+                                </div>
+                            </label>
+
+                            <label class="interaction-check">
+                                <input type="checkbox" id="checkSendDm" checked>
+                                <span class="check-box"></span>
+                                <div>
+                                    <strong>📩 إرسال رسالة خاصة في الـ DM (Private Reply)</strong>
+                                    <small>رسالة خاصة شاملة تشرح استفساره بناءً على كابشن البوست وبيانات التواصل</small>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- كارت 4: استوديو تجربة الرد الذكي المباشر (Simulator Playground) -->
+                    <div class="sub-card simulator-card">
+                        <div class="sub-card-title">
+                            <span class="sub-icon">🧪</span>
+                            <div>
+                                <h3>استوديو تجربة الرد الذكي الفوري (Live Simulator)</h3>
+                                <p class="sub-desc">جرب كيف سيرد الذكاء الاصطناعي الآن بلهجة مصرية بناءً على كابشن البوست والكومنت!</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="section-label">كابشن المنشور (Post Caption):</label>
+                            <textarea id="simPostCaption" rows="2" class="settings-input text-area" placeholder="اكتب كابشن منشور تجريبي (مثال: عرض الجمعة البيضاء! خصم 40% على تصميم المتاجر الإلكترونية مع بوابات الدفع وشحن المنتجات...)"></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 0.85;">
+                                <label class="section-label">اسم العميل في التجربة (Name):</label>
+                                <input type="text" id="simSenderName" class="settings-input" value="أحمد علي" placeholder="مثال: أحمد علي، سارة محمد...">
+                            </div>
+                            <div class="form-group" style="flex: 1.15;">
+                                <label class="section-label">تعليق العميل (Comment):</label>
+                                <input type="text" id="simComment" class="settings-input" placeholder="مثال: بكام الباقة وهل متاح تقسيط؟">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; margin-top: 4px; margin-bottom: 14px;">
+                            <button type="button" class="btn-test-sim" id="btnRunSimulation">
+                                <span class="btn-icon">⚡</span>
+                                <span>تجربة الرد الذكي باسم وسؤال العميل</span>
+                            </button>
+                        </div>
+
+                        <!-- صندوق عرض النتيجة التفاعلية -->
+                        <div id="simResultsContainer" class="sim-results-box" style="display: none;">
+                            <div class="sim-result-item">
+                                <div class="sim-item-header">
+                                    <span>💬 الرد العام على الكومنت بالبوست (Public Comment):</span>
+                                    <span class="badge badge-mini">مختصر وينبه للخاص</span>
+                                </div>
+                                <div class="comment-bubble" id="simPublicReplyOutput">
+                                    ...
+                                </div>
+                            </div>
+
+                            <div class="sim-result-item">
+                                <div class="sim-item-header">
+                                    <span>📩 الرسالة الخاصة في الـ DM (Private Message):</span>
+                                    <span class="badge badge-mini dm-badge">شرح كافي بلهجة مصرية</span>
+                                </div>
+                                <div class="dm-bubble" id="simPrivateMsgOutput">
+                                    ...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- كارت 5: سجل النشاط والردود الحية (Live Activity Log) -->
+                    <div class="sub-card">
+                        <div class="sub-card-title space-between">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="sub-icon">📋</span>
+                                <div>
+                                    <h3>سجل الردود والنشاط الحي (Live Log)</h3>
+                                    <p class="sub-desc">آخر التعليقات المستلمة والإجراءات التلقائية المتخذة</p>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-refresh-log" id="btnRefreshLogs" title="تحديث السجل">🔄 تحديث</button>
+                        </div>
+
+                        <div class="activity-logs-list" id="activityLogsList">
+                            <div class="empty-logs">
+                                <span>لا توجد تعليقات جديدة حتى الآن. النظام بانتظار أحداث الويبهوك من فيسبوك وانستجرام!</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
