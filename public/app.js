@@ -612,6 +612,28 @@ postForm.addEventListener('submit', async (e) => {
         return;
     }
 
+    // تجميع أماكن النشر المحددة (بوست في الفيد / ستوري / كلاهما)
+    const fbPlacements = [];
+    if (document.getElementById('fb-opt-feed')?.checked) fbPlacements.push('feed');
+    if (document.getElementById('fb-opt-story')?.checked) fbPlacements.push('story');
+    if (selectedPlatforms.includes('facebook') && fbPlacements.length === 0) fbPlacements.push('feed');
+
+    const igPlacements = [];
+    if (document.getElementById('ig-opt-feed')?.checked) igPlacements.push('feed');
+    if (document.getElementById('ig-opt-story')?.checked) igPlacements.push('story');
+    if (selectedPlatforms.includes('instagram') && igPlacements.length === 0) igPlacements.push('feed');
+
+    // فحص شرط الستوري: إذا كان النشر كـ Story فقط بدون Feed، يلزم إرفاق وسائط
+    const onlyStoryFb = selectedPlatforms.includes('facebook') && fbPlacements.length === 1 && fbPlacements[0] === 'story';
+    const onlyStoryIg = selectedPlatforms.includes('instagram') && igPlacements.length === 1 && igPlacements[0] === 'story';
+    const hasAnyFeed = (selectedPlatforms.includes('facebook') && fbPlacements.includes('feed')) || 
+                       (selectedPlatforms.includes('instagram') && igPlacements.includes('feed'));
+
+    if ((onlyStoryFb || onlyStoryIg) && !hasAnyFeed && !selectedMediaFile && !croppedImageBlob) {
+        showAlert('⚠️ نشر الستوري (Story) يشترط إرفاق صورة أو فيديو! يرجى رفع ملف وسائط أولاً.', 'error');
+        return;
+    }
+
     const isScheduled = timingSchedule.checked;
     const scheduleTime = scheduleDateTime.value;
 
@@ -646,6 +668,8 @@ postForm.addEventListener('submit', async (e) => {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('platforms', JSON.stringify(selectedPlatforms));
+    formData.append('facebookPlacements', JSON.stringify(fbPlacements));
+    formData.append('instagramPlacements', JSON.stringify(igPlacements));
     formData.append('pageId', selectedPageId);
     if (targetAccount && targetAccount.access_token) {
         formData.append('pageAccessToken', targetAccount.access_token);
@@ -698,7 +722,10 @@ postForm.addEventListener('submit', async (e) => {
                 if (result.results) {
                     if (result.results.facebook) {
                         if (result.results.facebook.success) {
-                            details.push(`📘 <strong>فيسبوك:</strong> تم النشر بنجاح على الصفحة!`);
+                            const fbParts = [];
+                            if (result.results.facebook.feed?.success) fbParts.push('منشور في الصفحة 📝');
+                            if (result.results.facebook.story?.success) fbParts.push('ستوري (Story) 📸');
+                            details.push(`📘 <strong>فيسبوك:</strong> تم النشر بنجاح (${fbParts.join(' + ') || 'تمت العملية'})!`);
                         } else {
                             alertType = 'error';
                             details.push(`📘 <strong>فيسبوك:</strong> خطأ: ${result.results.facebook.error}`);
@@ -706,7 +733,10 @@ postForm.addEventListener('submit', async (e) => {
                     }
                     if (result.results.instagram) {
                         if (result.results.instagram.success) {
-                            details.push(`📸 <strong>انستجرام:</strong> تم النشر بنجاح!`);
+                            const igParts = [];
+                            if (result.results.instagram.feed?.success) igParts.push('منشور في الحساب 📝');
+                            if (result.results.instagram.story?.success) igParts.push('ستوري (Story) 📸');
+                            details.push(`📸 <strong>انستجرام:</strong> تم النشر بنجاح (${igParts.join(' + ') || 'تمت العملية'})!`);
                         } else {
                             details.push(`📸 <strong>انستجرام:</strong> ${result.results.instagram.message || result.results.instagram.error}`);
                         }
@@ -801,9 +831,22 @@ async function loadScheduledPosts() {
                         minute: '2-digit'
                     });
 
-                    const platformsBadges = (post.platforms || []).map(p => 
-                        `<span class="platform-mini-badge">${p === 'facebook' ? '📘 فيسبوك' : (p === 'instagram' ? '📸 انستجرام' : p)}</span>`
-                    ).join(' ');
+                    const platformsBadges = (post.platforms || []).map(p => {
+                        let placementText = '';
+                        if (p === 'facebook') {
+                            const hasFeed = (post.facebookPlacements || []).includes('feed');
+                            const hasStory = (post.facebookPlacements || []).includes('story');
+                            placementText = (hasFeed && hasStory) ? ' (بوست + ستوري)' : (hasStory ? ' (ستوري 📸)' : '');
+                            return `<span class="platform-mini-badge facebook">📘 فيسبوك${placementText}</span>`;
+                        }
+                        if (p === 'instagram') {
+                            const hasFeed = (post.instagramPlacements || []).includes('feed');
+                            const hasStory = (post.instagramPlacements || []).includes('story');
+                            placementText = (hasFeed && hasStory) ? ' (بوست + ستوري)' : (hasStory ? ' (ستوري 📸)' : '');
+                            return `<span class="platform-mini-badge instagram">📸 انستجرام${placementText}</span>`;
+                        }
+                        return `<span class="platform-mini-badge">${p}</span>`;
+                    }).join(' ');
 
                     item.innerHTML = `
                         <div class="scheduled-info">
@@ -2713,6 +2756,31 @@ if (btnVerifyGroqKey && arGroqApiKey) {
 populateActiveAccounts();
 loadScheduledPosts();
 loadAutoReplyConfigUI();
+
+// إدارة تفعيل وإظهار خيارات النشر (بوست / ستوري) للمنصات
+['facebook', 'instagram'].forEach(plat => {
+    const chipInput = document.getElementById(`plat-${plat}`);
+    const row = document.getElementById(`placements-${plat}`);
+    if (chipInput && row) {
+        chipInput.addEventListener('change', () => {
+            row.style.display = chipInput.checked ? 'flex' : 'none';
+        });
+    }
+
+    const prefix = plat === 'facebook' ? 'fb' : 'ig';
+    const feedOpt = document.getElementById(`${prefix}-opt-feed`);
+    const storyOpt = document.getElementById(`${prefix}-opt-story`);
+    
+    // ضمان بقاء خيار واحد على الأقل محدد (بوست أو ستوري) عند تحديد المنصة
+    [feedOpt, storyOpt].forEach(opt => {
+        if (!opt) return;
+        opt.addEventListener('change', () => {
+            if (!feedOpt.checked && !storyOpt.checked) {
+                opt.checked = true;
+            }
+        });
+    });
+});
 
 
 

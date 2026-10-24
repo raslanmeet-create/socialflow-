@@ -1570,6 +1570,8 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
         const { 
             content, 
             platforms, 
+            facebookPlacements,
+            instagramPlacements,
             isScheduled, 
             scheduledTime, 
             pageId, 
@@ -1587,6 +1589,26 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
         try {
             if (customCaptions) parsedCustomCaptions = JSON.parse(customCaptions);
         } catch {}
+
+        let parsedFbPlacements = ['feed'];
+        if (facebookPlacements) {
+            try {
+                parsedFbPlacements = typeof facebookPlacements === 'string' ? JSON.parse(facebookPlacements) : facebookPlacements;
+            } catch {
+                parsedFbPlacements = [facebookPlacements];
+            }
+        }
+        if (!Array.isArray(parsedFbPlacements) || parsedFbPlacements.length === 0) parsedFbPlacements = ['feed'];
+
+        let parsedIgPlacements = ['feed'];
+        if (instagramPlacements) {
+            try {
+                parsedIgPlacements = typeof instagramPlacements === 'string' ? JSON.parse(instagramPlacements) : instagramPlacements;
+            } catch {
+                parsedIgPlacements = [instagramPlacements];
+            }
+        }
+        if (!Array.isArray(parsedIgPlacements) || parsedIgPlacements.length === 0) parsedIgPlacements = ['feed'];
 
         let cloudUrl = null;
         let mediaWidth = null;
@@ -1637,6 +1659,8 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
             mediaHeight,
             mediaType: req.file ? req.file.mimetype : null,
             platforms: parsedPlatforms,
+            facebookPlacements: parsedFbPlacements,
+            instagramPlacements: parsedIgPlacements,
             pageId: pageId,
             pageAccessToken: pageAccessToken || null,
             igUserId: igUserId || null,
@@ -1768,32 +1792,76 @@ async function executePublish(post) {
     const igCaption = (post.customCaptions && post.customCaptions.instagram) ? post.customCaptions.instagram : post.content;
     const firstComment = (post.firstComment || '').trim();
 
+    // استخراج أماكن النشر المحددة (منشور عادي / ستوري / كلاهما)
+    const fbPlacements = Array.isArray(post.facebookPlacements) && post.facebookPlacements.length > 0
+        ? post.facebookPlacements 
+        : (post.facebookPlacement === 'story' ? ['story'] : (post.facebookPlacement === 'both' ? ['feed', 'story'] : ['feed']));
+
+    const igPlacements = Array.isArray(post.instagramPlacements) && post.instagramPlacements.length > 0
+        ? post.instagramPlacements 
+        : (post.instagramPlacement === 'story' ? ['story'] : (post.instagramPlacement === 'both' ? ['feed', 'story'] : ['feed']));
+
     // 1. فيسبوك (Facebook)
     if (post.platforms.includes('facebook') && post.pageId) {
-        try {
-            results.facebook = await publishToFacebookPage(post.pageId, pageAccessToken, post, fbCaption);
-            if (firstComment && results.facebook.success) {
-                const targetId = results.facebook.post_id || results.facebook.id;
-                results.facebook.firstComment = await postFacebookComment(targetId, firstComment, pageAccessToken);
+        results.facebook = {};
+        // أ. منشور عادي في الصفحة (Feed)
+        if (fbPlacements.includes('feed')) {
+            try {
+                results.facebook.feed = await publishToFacebookPage(post.pageId, pageAccessToken, post, fbCaption);
+                if (firstComment && results.facebook.feed.success) {
+                    const targetId = results.facebook.feed.post_id || results.facebook.feed.id;
+                    results.facebook.firstComment = await postFacebookComment(targetId, firstComment, pageAccessToken);
+                }
+            } catch (err) {
+                results.facebook.feed = { success: false, error: err.message };
             }
-        } catch (err) {
-            results.facebook = { success: false, error: err.message };
+        }
+        // ب. ستوري في الصفحة (Story)
+        if (fbPlacements.includes('story')) {
+            try {
+                results.facebook.story = await publishToFacebookStory(post.pageId, pageAccessToken, post);
+            } catch (err) {
+                results.facebook.story = { success: false, error: err.message };
+            }
+        }
+        results.facebook.success = !!(results.facebook.feed?.success || results.facebook.story?.success);
+        results.facebook.id = results.facebook.feed?.id || results.facebook.story?.id;
+        results.facebook.post_id = results.facebook.feed?.post_id || results.facebook.story?.post_id;
+        if (!results.facebook.success) {
+            results.facebook.error = results.facebook.feed?.error || results.facebook.story?.error || 'فشل نشر محتوى فيسبوك';
         }
     }
 
     // 2. انستجرام (Instagram)
     if (post.platforms.includes('instagram')) {
-        try {
-            if (!igUserId) {
-                results.instagram = { success: false, error: 'هذه الصفحة غير مربوطة بحساب انستجرام احترافي.' };
-            } else {
-                results.instagram = await publishToInstagram(igUserId, pageAccessToken, post, igCaption);
-                if (firstComment && results.instagram.success) {
-                    results.instagram.firstComment = await postInstagramComment(results.instagram.id, firstComment, pageAccessToken);
+        results.instagram = {};
+        if (!igUserId) {
+            results.instagram = { success: false, error: 'هذه الصفحة غير مربوطة بحساب انستجرام احترافي.' };
+        } else {
+            // أ. منشور عادي في الحساب (Feed)
+            if (igPlacements.includes('feed')) {
+                try {
+                    results.instagram.feed = await publishToInstagram(igUserId, pageAccessToken, post, igCaption);
+                    if (firstComment && results.instagram.feed.success) {
+                        results.instagram.firstComment = await postInstagramComment(results.instagram.feed.id, firstComment, pageAccessToken);
+                    }
+                } catch (err) {
+                    results.instagram.feed = { success: false, error: err.message };
                 }
             }
-        } catch (err) {
-            results.instagram = { success: false, error: err.message };
+            // ب. ستوري في الحساب (Story)
+            if (igPlacements.includes('story')) {
+                try {
+                    results.instagram.story = await publishToInstagramStory(igUserId, pageAccessToken, post);
+                } catch (err) {
+                    results.instagram.story = { success: false, error: err.message };
+                }
+            }
+            results.instagram.success = !!(results.instagram.feed?.success || results.instagram.story?.success);
+            results.instagram.id = results.instagram.feed?.id || results.instagram.story?.id;
+            if (!results.instagram.success) {
+                results.instagram.error = results.instagram.feed?.error || results.instagram.story?.error || 'فشل نشر محتوى انستجرام';
+            }
         }
     }
 
@@ -1943,6 +2011,172 @@ async function publishToInstagram(igUserId, token, post, caption) {
     }
 
     // الخطوة 2: نشر الحاوية (Publish)
+    const pubParams = new URLSearchParams({
+        creation_id: creationId,
+        access_token: token
+    });
+    const pubRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media_publish`, {
+        method: 'POST',
+        body: pubParams
+    });
+    const pubData = await pubRes.json();
+    if (pubData.error) throw new Error(pubData.error.message);
+
+    return { success: true, id: pubData.id };
+}
+
+// دالة النشر كـ Story على صفحة فيسبوك (Facebook Page Story)
+async function publishToFacebookStory(pageId, token, post) {
+    if (!post.mediaUrl && !post.mediaPath) {
+        throw new Error('فيسبوك يشترط إرفاق صورة أو فيديو لنشر الستوري.');
+    }
+
+    const isVideo = post.mediaType && post.mediaType.startsWith('video/');
+
+    if (isVideo) {
+        console.log(`[Facebook Story] جاري نشر فيديو ستوري على صفحة فيسبوك: ${pageId}`);
+        const initRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}/video_stories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                upload_phase: 'start',
+                access_token: token
+            })
+        });
+        const initData = await initRes.json();
+        if (initData.error) throw new Error(initData.error.message);
+
+        const videoId = initData.video_id;
+        const uploadUrl = initData.upload_url;
+
+        let fileBuffer;
+        if (post.mediaPath && fs.existsSync(post.mediaPath)) {
+            fileBuffer = fs.readFileSync(post.mediaPath);
+        } else if (post.mediaUrl) {
+            const vidFetch = await fetch(post.mediaUrl);
+            fileBuffer = Buffer.from(await vidFetch.arrayBuffer());
+        }
+
+        const upRes = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `OAuth ${token}`,
+                'offset': '0',
+                'file_size': String(fileBuffer.length)
+            },
+            body: fileBuffer
+        });
+        const upData = await upRes.json();
+        if (upData.error) throw new Error(upData.error.message);
+
+        const finishRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}/video_stories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                upload_phase: 'finish',
+                video_id: videoId,
+                access_token: token
+            })
+        });
+        const finishData = await finishRes.json();
+        if (finishData.error) throw new Error(finishData.error.message);
+        return { success: true, id: finishData.id || videoId, post_id: finishData.post_id };
+    } else {
+        console.log(`[Facebook Story] جاري نشر صورة ستوري على صفحة فيسبوك: ${pageId}`);
+        let photoId = null;
+        if (post.mediaUrl) {
+            const upRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: post.mediaUrl,
+                    published: false,
+                    access_token: token
+                })
+            });
+            const upData = await upRes.json();
+            if (upData.error) throw new Error(upData.error.message);
+            photoId = upData.id;
+        } else if (post.mediaPath && fs.existsSync(post.mediaPath)) {
+            const formData = new FormData();
+            const fileBlob = await fs.openAsBlob(post.mediaPath);
+            formData.append('source', fileBlob, path.basename(post.mediaPath));
+            formData.append('published', 'false');
+            formData.append('access_token', token);
+            const upRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photos`, {
+                method: 'POST',
+                body: formData
+            });
+            const upData = await upRes.json();
+            if (upData.error) throw new Error(upData.error.message);
+            photoId = upData.id;
+        }
+
+        if (!photoId) throw new Error('تعذر رفع صورة الستوري إلى فيسبوك.');
+
+        const storyRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}/photo_stories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                photo_id: photoId,
+                access_token: token
+            })
+        });
+        const storyData = await storyRes.json();
+        if (storyData.error) throw new Error(storyData.error.message);
+        return { success: true, id: storyData.id || photoId, post_id: storyData.post_id };
+    }
+}
+
+// دالة النشر كـ Story على انستجرام (Instagram Story)
+async function publishToInstagramStory(igUserId, token, post) {
+    if (!post.mediaUrl) {
+        throw new Error('انستجرام يشترط إرفاق صورة أو فيديو لنشر الستوري.');
+    }
+
+    const isVideo = post.mediaType && post.mediaType.startsWith('video/');
+    console.log(`[Instagram Story] جاري إنشاء حاوية ستوري لإنستجرام: ${igUserId}`);
+
+    const params = new URLSearchParams({
+        media_type: 'STORIES',
+        access_token: token
+    });
+
+    if (isVideo) {
+        params.append('video_url', post.mediaUrl);
+    } else {
+        const safeImageUrl = getInstagramSafeImageUrl(post.mediaUrl, post.mediaWidth, post.mediaHeight, post.aspectRatio);
+        params.append('image_url', safeImageUrl);
+    }
+
+    const createRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
+        method: 'POST',
+        body: params
+    });
+    const createData = await createRes.json();
+    if (createData.error) throw new Error(createData.error.message);
+
+    const creationId = createData.id;
+
+    // انتظار معالجة انستجرام للستوري
+    let ready = false;
+    for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const statusRes = await fetch(`https://graph.facebook.com/v21.0/${creationId}?fields=status_code&access_token=${token}`);
+        const statusData = await statusRes.json();
+        if (statusData.status_code === 'FINISHED') {
+            ready = true;
+            break;
+        }
+        if (statusData.status_code === 'ERROR') {
+            throw new Error('تعذر على انستجرام معالجة وسائط الستوري.');
+        }
+    }
+
+    if (!ready) {
+        throw new Error('استغرق انستجرام وقتاً أطول من المعتاد لتجهيز الستوري.');
+    }
+
     const pubParams = new URLSearchParams({
         creation_id: creationId,
         access_token: token

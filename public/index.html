@@ -97,29 +97,55 @@
                         </select>
                     </div>
 
-                    <!-- 1. اختيار المنصات -->
+                    <!-- 1. اختيار المنصات وطريقة النشر (بوست / ستوري / كلاهما) -->
                     <div class="form-group">
-                        <label class="section-label">اختر المنصات المستهدفة:</label>
+                        <label class="section-label">اختر المنصات المستهدفة ونوع النشر:</label>
                         <div class="platforms-selector">
                             <!-- فيسبوك -->
-                            <label class="platform-chip" for="plat-facebook">
-                                <input type="checkbox" id="plat-facebook" value="facebook" checked>
-                                <div class="chip-content facebook">
-                                    <span class="icon">📘</span>
-                                    <span class="name">Facebook</span>
-                                    <span class="check-icon">✓</span>
+                            <div class="platform-column-box" id="box-facebook">
+                                <label class="platform-chip" for="plat-facebook">
+                                    <input type="checkbox" id="plat-facebook" value="facebook" checked>
+                                    <div class="chip-content facebook">
+                                        <span class="icon">📘</span>
+                                        <span class="name">Facebook</span>
+                                        <span class="check-icon">✓</span>
+                                    </div>
+                                </label>
+                                <!-- خيارات نشر فيسبوك -->
+                                <div class="placement-pills-row" id="placements-facebook">
+                                    <label class="placement-pill active" for="fb-opt-feed">
+                                        <input type="checkbox" id="fb-opt-feed" value="feed" checked>
+                                        <span>📝 بوست (Feed)</span>
+                                    </label>
+                                    <label class="placement-pill" for="fb-opt-story">
+                                        <input type="checkbox" id="fb-opt-story" value="story">
+                                        <span>📸 ستوري (Story)</span>
+                                    </label>
                                 </div>
-                            </label>
+                            </div>
 
                             <!-- انستجرام -->
-                            <label class="platform-chip" for="plat-instagram">
-                                <input type="checkbox" id="plat-instagram" value="instagram" checked>
-                                <div class="chip-content instagram">
-                                    <span class="icon">📸</span>
-                                    <span class="name">Instagram</span>
-                                    <span class="check-icon">✓</span>
+                            <div class="platform-column-box" id="box-instagram">
+                                <label class="platform-chip" for="plat-instagram">
+                                    <input type="checkbox" id="plat-instagram" value="instagram" checked>
+                                    <div class="chip-content instagram">
+                                        <span class="icon">📸</span>
+                                        <span class="name">Instagram</span>
+                                        <span class="check-icon">✓</span>
+                                    </div>
+                                </label>
+                                <!-- خيارات نشر انستجرام -->
+                                <div class="placement-pills-row" id="placements-instagram">
+                                    <label class="placement-pill active" for="ig-opt-feed">
+                                        <input type="checkbox" id="ig-opt-feed" value="feed" checked>
+                                        <span>📝 بوست (Feed)</span>
+                                    </label>
+                                    <label class="placement-pill" for="ig-opt-story">
+                                        <input type="checkbox" id="ig-opt-story" value="story">
+                                        <span>📸 ستوري (Story)</span>
+                                    </label>
                                 </div>
-                            </label>
+                            </div>
                         </div>
                     </div>
 

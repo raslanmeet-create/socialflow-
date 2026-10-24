@@ -257,6 +257,72 @@ body {
 .platform-chip input:checked + .chip-content.twitter { border-color: var(--x-color); box-shadow: 0 0 12px rgba(255, 255, 255, 0.2); }
 .platform-chip input:checked + .chip-content.linkedin { border-color: var(--li-color); box-shadow: 0 0 12px rgba(10, 102, 194, 0.2); }
 
+/* تنسيق خيارات طريقة النشر (بوست / ستوري / كلاهما) */
+.platform-column-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    transition: var(--transition);
+}
+
+.platform-column-box:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.placement-pills-row {
+    display: flex;
+    gap: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+    transition: var(--transition);
+}
+
+.placement-pill {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.placement-pill input[type="checkbox"] {
+    display: none;
+}
+
+.placement-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.placement-pill:has(input:checked) {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.placement-pill:has(input[value="story"]:checked) {
+    background: rgba(236, 72, 153, 0.2);
+    border-color: #ec4899;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(236, 72, 153, 0.3);
+}
+
 /* حقل الاختيار (Select) */
 .form-select {
     width: 100%;
