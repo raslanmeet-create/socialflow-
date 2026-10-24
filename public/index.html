@@ -195,7 +195,88 @@
 
                     <!-- 3. رفع الميديا وضبط أبعاد الصورة -->
                     <div class="form-group">
-                        <label class="section-label">الوسائط (صورة أو فيديو MP4):</label>
+                        <div class="media-section-header">
+                            <label class="section-label" style="margin-bottom: 0;">الوسائط (صورة أو فيديو MP4):</label>
+                            <button type="button" class="btn-toggle-guide" id="btnToggleSizesGuide">
+                                <span>📏 دليل المقاسات الموصى بها لكل منصة</span>
+                            </button>
+                        </div>
+
+                        <!-- كارت دليل المقاسات التفاعلي -->
+                        <div class="image-sizes-guide-card" id="imageSizesGuideCard" style="display: none;">
+                            <div class="guide-header">
+                                <div class="guide-title">
+                                    <span class="guide-icon">📐</span>
+                                    <strong>المقاسات والنسب المثالية الموصى بها للصور والفيديو</strong>
+                                </div>
+                                <button type="button" class="btn-close-guide" id="btnCloseSizesGuide" title="إغلاق الدليل">✕</button>
+                            </div>
+                            
+                            <div class="guide-platforms-grid">
+                                <!-- انستجرام -->
+                                <div class="guide-platform-item instagram">
+                                    <div class="gp-head">
+                                        <span class="gp-icon">📸</span>
+                                        <span class="gp-name">Instagram</span>
+                                    </div>
+                                    <div class="gp-specs">
+                                        <div class="spec-row">
+                                            <span class="spec-type">📱 بوست طولي بورتريه (الأفضل):</span>
+                                            <span class="spec-val">1080 × 1350 px (4:5)</span>
+                                        </div>
+                                        <div class="spec-row">
+                                            <span class="spec-type">🔲 بوست مربع قياسي:</span>
+                                            <span class="spec-val">1080 × 1080 px (1:1)</span>
+                                        </div>
+                                        <div class="spec-row">
+                                            <span class="spec-type">⚡ ستوري وريلز (Stories & Reels):</span>
+                                            <span class="spec-val">1080 × 1920 px (9:16)</span>
+                                        </div>
+                                        <div class="spec-row">
+                                            <span class="spec-type">🖼️ بوست أفقي (لاندسكيب):</span>
+                                            <span class="spec-val">1080 × 566 px (1.91:1)</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- فيسبوك -->
+                                <div class="guide-platform-item facebook">
+                                    <div class="gp-head">
+                                        <span class="gp-icon">📘</span>
+                                        <span class="gp-name">Facebook</span>
+                                    </div>
+                                    <div class="gp-specs">
+                                        <div class="spec-row">
+                                            <span class="spec-type">📝 بوست المنشور العادي:</span>
+                                            <span class="spec-val">1200 × 630 px أو 1080 × 1080 px</span>
+                                        </div>
+                                        <div class="spec-row">
+                                            <span class="spec-type">📸 فيسبوك ستوري (Story):</span>
+                                            <span class="spec-val">1080 × 1920 px (9:16)</span>
+                                        </div>
+                                        <div class="spec-row">
+                                            <span class="spec-type">🖼️ غلاف الصفحة (Cover):</span>
+                                            <span class="spec-val">820 × 312 px (كمبيوتر) / 640 × 360 px (موبايل)</span>
+                                        </div>
+                                        <div class="spec-row">
+                                            <span class="spec-type">👤 الصورة الشخصية (Profile):</span>
+                                            <span class="spec-val">180 × 180 px (1:1)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- نصائح الجودة الذهبية -->
+                            <div class="guide-tips-box">
+                                💡 <strong>نصائح ذهبية لضمان أعلى جودة بدون تشويش:</strong>
+                                <ul>
+                                    <li>استخدم دقة عرض <strong>1080px</strong> على الأقل لتجنب تقليل الجودة وضغط خوارزميات ميتا.</li>
+                                    <li>للحصول على أعلى معدل وصول وتفاعل (Reach) على انستجرام، اختر المقاس الطولي <strong>4:5 (1080×1350)</strong> لأنه يشغل المساحة الأكبر من الشاشة.</li>
+                                    <li>في الستوري والريلز <strong>(9:16)</strong>: اترك مسافة أمان (Safe Zone) 250px من الأعلى والأسفل حتى لا تغطي عناصر التطبيق كتاباتك وتصميمك.</li>
+                                </ul>
+                            </div>
+                        </div>
+
                         <div class="upload-dropzone" id="dropzone">
                             <input type="file" id="mediaInput" accept="image/png, image/jpeg, image/webp, video/mp4, video/quicktime" hidden>
                             <div class="dropzone-prompt" id="dropzonePrompt">
@@ -234,6 +315,7 @@
                                     <span class="ctrl-label">النسبة:</span>
                                     <button type="button" class="studio-ratio-btn active" data-ratio="1">🔲 مربع 1:1</button>
                                     <button type="button" class="studio-ratio-btn" data-ratio="0.8">📱 طولي 4:5 (الأفضل للريتش)</button>
+                                    <button type="button" class="studio-ratio-btn" data-ratio="0.5625">⚡ ستوري/ريلز 9:16</button>
                                     <button type="button" class="studio-ratio-btn" data-ratio="1.91">🖼️ أفقي 1.91:1</button>
                                     <button type="button" class="studio-ratio-btn" data-ratio="free">🔓 حر / أصلي</button>
                                 </div>
@@ -412,6 +494,10 @@
                 </div>
 
                 <div class="planner-header-actions">
+                    <button type="button" class="btn-sync-posts" id="btnSyncPagePosts" title="سحب ومزامنة المنشورات المنشورة سابقاً من صفحة فيسبوك">
+                        <span class="sync-icon">🔄</span>
+                        <span>مزامنة منشورات الصفحة</span>
+                    </button>
                     <button type="button" class="btn-quick-schedule" id="btnPlannerQuickAdd">
                         <span>➕ جدولة منشور جديد</span>
                     </button>
@@ -429,17 +515,24 @@
 
                 <div class="planner-filters">
                     <div class="filter-group">
-                        <span class="filter-label">عرض المنصة:</span>
+                        <span class="filter-label">المنصة:</span>
                         <button type="button" class="filter-btn active" data-filter="all">الكل</button>
                         <button type="button" class="filter-btn" data-filter="facebook">📘 فيسبوك</button>
                         <button type="button" class="filter-btn" data-filter="instagram">📸 انستجرام</button>
+                    </div>
+
+                    <div class="filter-group">
+                        <span class="filter-label">الحالة:</span>
+                        <button type="button" class="status-filter-btn active" data-status="all">الكل</button>
+                        <button type="button" class="status-filter-btn" data-status="PENDING">⏳ مجدول</button>
+                        <button type="button" class="status-filter-btn" data-status="PUBLISHED">✅ منشورة</button>
                     </div>
                 </div>
             </div>
 
             <!-- تلميح توجيهي للمستخدم -->
             <div class="planner-interactive-hint">
-                <span>💡 <strong>ميزة تفاعلية:</strong> الخانات المتاحة مظللة ويمكنك الضغط على أي ساعة في أي يوم لفتح استوديو الكتابة وجدولة المنشور في ذلك الوقت بالتحديد!</span>
+                <span>💡 <strong>ميزة تفاعلية:</strong> تظهر جميع المنشورات المجدولة والمنشورة في أوقاتها المحددة — اضغط على أي منشور لمعاينته، تعديل نصه وموعده، أو حذفه من السوشيال ميديا!</span>
             </div>
 
             <!-- جدول الأيام والساعات التفاعلي (Meta Schedule Grid) -->
@@ -453,11 +546,15 @@
             <div class="planner-legend">
                 <div class="legend-item">
                     <span class="legend-box available-box"></span>
-                    <span>خانة متاحة (اضغط لحجز الموعد والجدولة)</span>
+                    <span>خانة متاحة (اضغط للجدولة)</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-box scheduled-box"></span>
-                    <span>منشور مجدول في هذا التوقيت</span>
+                    <span>منشور مجدول (قيد الانتظار)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-box published-box"></span>
+                    <span>منشور تم نشره (يمكن تعديله أو حذفه)</span>
                 </div>
                 <div class="legend-item">
                     <span class="legend-box today-box"></span>
@@ -1116,8 +1213,47 @@
             </div>
 
             <div class="modal-footer preview-modal-footer">
-                <button type="button" class="btn-delete-scheduled-danger" id="btnDeleteFromPreviewModal">🗑️ إلغاء هذا المنشور المجدول</button>
+                <button type="button" class="btn-edit-scheduled-action" id="btnEditFromPreviewModal">✏️ تعديل هذا المنشور</button>
+                <button type="button" class="btn-delete-scheduled-danger" id="btnDeleteFromPreviewModal">🗑️ حذف المنشور</button>
                 <button type="button" class="btn-secondary" id="btnClosePreviewModalBtn">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تعديل المنشور (Edit Post Modal) -->
+    <div class="modal-overlay" id="editPostModal" style="display: none;">
+        <div class="modal-dialog modal-preview-dialog">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <span class="modal-icon">✏️</span>
+                    <div>
+                        <h3 id="editModalTitle">تعديل المنشور</h3>
+                        <p class="modal-subtitle" id="editModalSubtitle">تعديل نص المنشور وتوقيت النشر</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close-modal" id="btnCloseEditModal">✕</button>
+            </div>
+
+            <div class="modal-body" id="editModalBody">
+                <input type="hidden" id="editPostId">
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label class="section-label" style="margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">نص المنشور:</label>
+                    <textarea id="editPostContent" rows="6" class="form-control" style="width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); font-family: inherit; font-size: 14px; line-height: 1.6; resize: vertical;" placeholder="اكتب النص الجديد هنا..."></textarea>
+                </div>
+
+                <div class="form-group" id="editScheduleTimeGroup" style="margin-bottom: 14px;">
+                    <label class="section-label" style="margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">توقيت الجدولة:</label>
+                    <input type="datetime-local" id="editScheduledTime" class="form-control" style="width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); font-family: inherit; font-size: 14px;">
+                </div>
+
+                <div id="editPublishedNote" style="display: none; font-size: 13px; color: #58a6ff; background: rgba(88, 166, 255, 0.1); border: 1px solid rgba(88, 166, 255, 0.3); padding: 10px 14px; border-radius: 8px; margin-top: 8px; line-height: 1.5;">
+                    💡 <strong>تحديث مباشر:</strong> هذا المنشور تم نشره بالفعل على فيسبوك! عند حفظ التعديل، سيتم تحديث نص المنشور مباشرة على صفحتك في فيسبوك وفي جدول المواعيد.
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnCancelEditModal">إلغاء</button>
+                <button type="button" class="btn-primary" id="btnSaveEditedPost">💾 حفظ التعديلات</button>
             </div>
         </div>
     </div>

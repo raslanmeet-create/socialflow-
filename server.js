@@ -264,7 +264,7 @@ async function addAutoReplyLog(entry) {
 // 1. مسار جلب صفحات فيسبوك وحسابات انستجرام المرتبطة باللوجو والاسم (يدعم المفتاح العام أو مفتاح المستخدم)
 app.get('/api/accounts', async (req, res) => {
     try {
-        const token = req.query.metaToken;
+        const token = req.query.metaToken || META_ACCESS_TOKEN;
         if (!token || !token.trim()) {
             return res.json({ success: true, accounts: [] });
         }
@@ -1688,9 +1688,23 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
         console.log(`[نشر فوري] جاري النشر إلى المنصات: ${parsedPlatforms.join(', ')}`);
         const results = await executePublish(postData);
 
+        // حفظ المنشور المنشور فوراً في السجل ليظهر في الكالندر وجدول المواعيد
+        postData.status = 'PUBLISHED';
+        postData.scheduledTime = new Date().toISOString();
+        postData.publishedAt = new Date().toISOString();
+        postData.publishResults = results;
+        try {
+            const allPosts = await getScheduledPosts();
+            allPosts.push(postData);
+            await saveScheduledPosts(allPosts);
+        } catch (e) {
+            console.warn('Could not save published post to history:', e.message);
+        }
+
         return res.json({
             success: true,
-            message: 'تمت معالجة النشر بنجاح!',
+            message: 'تمت معالجة النشر وحفظه في سجل المواعيد بنجاح!',
+            post: postData,
             results
         });
 
@@ -1700,7 +1714,7 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
     }
 });
 
-// 3. مسار جلب المنشورات المجدولة (GET /api/scheduled)
+// 3. مسار جلب المنشورات المجدولة وسجل المنشورات (GET /api/scheduled)
 app.get('/api/scheduled', async (req, res) => {
     try {
         const all = await getScheduledPosts();
@@ -1714,16 +1728,147 @@ app.get('/api/scheduled', async (req, res) => {
     }
 });
 
-// 4. مسار حذف منشور مجدول (DELETE /api/scheduled/:id)
+// 4. مسار تعديل المنشور (سواء مجدول PENDING أو منشور بالفعل PUBLISHED)
+app.put('/api/scheduled/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { content, scheduledTime, customCaptions } = req.body;
+        const posts = await getScheduledPosts();
+        const post = posts.find(p => p.id === id);
+
+        if (!post) {
+            return res.status(404).json({ success: false, message: 'المنشور غير موجود.' });
+        }
+
+        if (content !== undefined) post.content = content;
+        if (customCaptions !== undefined) post.customCaptions = customCaptions;
+
+        // إذا كان مجدولاً، يمكن تعديل وقت الجدولة
+        if (post.status === 'PENDING' && scheduledTime) {
+            post.scheduledTime = scheduledTime;
+        }
+
+        // إذا كان تم نشره، محاولة تحديث نصه مباشرة على فيسبوك
+        let liveUpdated = false;
+        if (post.status === 'PUBLISHED' && post.pageId && content) {
+            try {
+                let token = post.pageAccessToken;
+                if (!token) token = await resolvePageToken(post.pageId);
+                const fbTargetId = post.publishResults?.facebook?.feed?.id || post.publishResults?.facebook?.post_id || post.publishResults?.facebook?.id || (post.id.startsWith('post_') ? null : post.id);
+
+                if (fbTargetId && token) {
+                    const fbRes = await fetch(`https://graph.facebook.com/v21.0/${fbTargetId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: content,
+                            access_token: token.trim()
+                        })
+                    });
+                    const fbData = await fbRes.json();
+                    if (fbData.success) liveUpdated = true;
+                }
+            } catch (e) {
+                console.warn('Could not update live post on Facebook:', e.message);
+            }
+        }
+
+        await saveScheduledPosts(posts);
+
+        const msg = liveUpdated 
+            ? 'تم تحديث المنشور بنجاح على فيسبوك وفي سجل المواعيد!'
+            : 'تم تحديث المنشور بنجاح في سجل المواعيد!';
+
+        res.json({ success: true, message: msg, post, liveUpdated });
+    } catch (err) {
+        console.error('Error updating post:', err);
+        res.status(500).json({ success: false, message: 'تعذر تعديل المنشور.' });
+    }
+});
+
+// 5. مسار حذف المنشور (مجدول أو منشور) مع خيار الحذف الحي من فيسبوك وإنستجرام
 app.delete('/api/scheduled/:id', async (req, res) => {
     try {
         const id = req.params.id;
+        const deleteFromMeta = req.query.deleteFromMeta === 'true';
         let posts = await getScheduledPosts();
+        const post = posts.find(p => p.id === id);
+
+        if (post && post.status === 'PUBLISHED' && deleteFromMeta && post.pageId) {
+            try {
+                let token = post.pageAccessToken;
+                if (!token) token = await resolvePageToken(post.pageId);
+
+                // حذف من فيسبوك
+                const fbId = post.publishResults?.facebook?.feed?.id || post.publishResults?.facebook?.post_id || post.publishResults?.facebook?.id || (post.id.startsWith('post_') ? null : post.id);
+                if (fbId && token) {
+                    await fetch(`https://graph.facebook.com/v21.0/${fbId}?access_token=${token.trim()}`, { method: 'DELETE' });
+                }
+
+                // حذف من إنستجرام
+                const igId = post.publishResults?.instagram?.feed?.id || post.publishResults?.instagram?.id;
+                if (igId && token) {
+                    await fetch(`https://graph.facebook.com/v21.0/${igId}?access_token=${token.trim()}`, { method: 'DELETE' });
+                }
+            } catch (metaErr) {
+                console.warn('Could not delete post from Meta:', metaErr.message);
+            }
+        }
+
         posts = posts.filter(p => p.id !== id);
         await saveScheduledPosts(posts);
-        res.json({ success: true, message: 'تم حذف المنشور المجدول.' });
+        res.json({ success: true, message: deleteFromMeta ? 'تم حذف المنشور من السجل ومن السوشيال ميديا بنجاح.' : 'تم حذف المنشور من جدول المواعيد.' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'تعذر حذف المنشور.' });
+    }
+});
+
+// 6. مسار مزامنة المنشورات المنشورة سابقاً من صفحة فيسبوك لإظهارها في الكالندر
+app.post('/api/posts/sync-page', async (req, res) => {
+    try {
+        const { pageId } = req.body;
+        if (!pageId) return res.status(400).json({ success: false, message: 'يرجى تحديد الصفحة.' });
+
+        let token = await resolvePageToken(pageId);
+        if (!token) token = META_ACCESS_TOKEN;
+
+        const url = `https://graph.facebook.com/v21.0/${pageId}/published_posts?fields=id,message,created_time,full_picture,attachments{media}&limit=30&access_token=${token.trim()}`;
+        const fbRes = await fetch(url);
+        const fbData = await fbRes.json();
+
+        if (fbData.error) throw new Error(fbData.error.message);
+
+        const currentPosts = await getScheduledPosts();
+        let addedCount = 0;
+
+        for (const item of (fbData.data || [])) {
+            const exists = currentPosts.some(p => p.id === item.id || p.publishResults?.facebook?.id === item.id || p.publishResults?.facebook?.post_id === item.id);
+            if (!exists) {
+                currentPosts.push({
+                    id: item.id,
+                    content: item.message || '',
+                    mediaUrl: item.full_picture || item.attachments?.data?.[0]?.media?.image?.src || null,
+                    platforms: ['facebook'],
+                    facebookPlacements: ['feed'],
+                    instagramPlacements: [],
+                    pageId: pageId,
+                    status: 'PUBLISHED',
+                    scheduledTime: item.created_time,
+                    publishedAt: item.created_time,
+                    createdAt: item.created_time
+                });
+                addedCount++;
+            }
+        }
+
+        if (addedCount > 0) {
+            await saveScheduledPosts(currentPosts);
+        }
+
+        res.json({ success: true, addedCount, total: currentPosts.length });
+    } catch (err) {
+        console.error('Error in /api/posts/sync-page:', err);
+        res.status(500).json({ success: false, message: err.message || 'تعذر مزامنة منشورات الصفحة.' });
     }
 });
 

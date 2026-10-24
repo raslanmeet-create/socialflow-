@@ -177,8 +177,25 @@ const previewModalBody = document.getElementById('previewModalBody');
 // متغيرات حالة مخطط ميتا
 let plannerCurrentDate = new Date();
 let plannerPlatformFilter = 'all';
+let plannerStatusFilter = 'all';
 let cachedScheduledPosts = [];
 let activePreviewPostId = null;
+
+// عناصر نافذة تعديل المنشور ومزامنة المنشورات ودليل المقاسات
+const editPostModal = document.getElementById('editPostModal');
+const btnCloseEditModal = document.getElementById('btnCloseEditModal');
+const btnCancelEditModal = document.getElementById('btnCancelEditModal');
+const btnSaveEditedPost = document.getElementById('btnSaveEditedPost');
+const editPostId = document.getElementById('editPostId');
+const editPostContent = document.getElementById('editPostContent');
+const editScheduleTimeGroup = document.getElementById('editScheduleTimeGroup');
+const editScheduledTime = document.getElementById('editScheduledTime');
+const editPublishedNote = document.getElementById('editPublishedNote');
+const btnEditFromPreviewModal = document.getElementById('btnEditFromPreviewModal');
+const btnSyncPagePosts = document.getElementById('btnSyncPagePosts');
+const btnToggleSizesGuide = document.getElementById('btnToggleSizesGuide');
+const btnCloseSizesGuide = document.getElementById('btnCloseSizesGuide');
+const imageSizesGuideCard = document.getElementById('imageSizesGuideCard');
 // حالة إعدادات المستخدم والصفحات
 let userConfig = {
     metaToken: '',
@@ -1085,6 +1102,16 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
     });
 });
 
+// أزرار فلترة الحالة في المخطط (الكل، مجدول، منشورة)
+document.querySelectorAll('.status-filter-btn[data-status]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.status-filter-btn[data-status]').forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        plannerStatusFilter = e.currentTarget.dataset.status;
+        renderMetaPlanner();
+    });
+});
+
 // 5. رسم وتوليد جدول مخطط ميتا (Render Meta Planner Grid)
 function renderMetaPlanner() {
     if (!plannerGrid) return;
@@ -1145,23 +1172,30 @@ function renderMetaPlanner() {
             slotCell.dataset.date = dateKey;
             slotCell.dataset.hour = hour;
 
-            // البحث عن منشورات تطابق هذا اليوم والساعة
+            // البحث عن منشورات تطابق هذا اليوم والساعة (سواء مجدولة أو تم نشرها)
             const matchingPosts = cachedScheduledPosts.filter(post => {
-                if (!post.scheduledTime) return false;
-                const postDate = new Date(post.scheduledTime);
+                const targetTime = post.scheduledTime || post.publishedAt || post.createdAt;
+                if (!targetTime) return false;
+                const postDate = new Date(targetTime);
                 const isMatchingTime = isSameDay(postDate, day) && postDate.getHours() === hour;
                 if (!isMatchingTime) return false;
 
-                if (plannerPlatformFilter === 'all') return true;
-                return (post.platforms || []).includes(plannerPlatformFilter);
+                if (plannerPlatformFilter !== 'all' && !(post.platforms || []).includes(plannerPlatformFilter)) {
+                    return false;
+                }
+                if (plannerStatusFilter !== 'all' && post.status !== plannerStatusFilter) {
+                    return false;
+                }
+                return true;
             });
 
             if (matchingPosts.length > 0) {
-                // الخانة تحتوي على منشورات مجدولة
+                // الخانة تحتوي على منشورات
                 slotCell.classList.add('has-posts');
 
                 matchingPosts.forEach(post => {
-                    const postDate = new Date(post.scheduledTime);
+                    const targetTime = post.scheduledTime || post.publishedAt || post.createdAt;
+                    const postDate = new Date(targetTime);
                     const minutesStr = String(postDate.getMinutes()).padStart(2, '0');
                     const timeTag = `${formatHour12(hour).replace(':00', `:${minutesStr}`)}`;
 
@@ -1172,7 +1206,7 @@ function renderMetaPlanner() {
 
                     const chip = document.createElement('div');
                     chip.className = `planner-post-chip ${isPublished ? 'status-published' : ''}`;
-                    chip.title = 'اضغط لمعاينة المنشور';
+                    chip.title = isPublished ? 'منشور تم نشره — اضغط للمعاينة والتعديل' : 'منشور مجدول بالسحابة — اضغط للمعاينة';
 
                     let thumbHtml = '';
                     if (post.mediaUrl) {
@@ -1185,10 +1219,11 @@ function renderMetaPlanner() {
                     }
 
                     const snippet = post.content ? post.content.slice(0, 45) + (post.content.length > 45 ? '...' : '') : 'وسائط بدون نص';
+                    const statusTag = isPublished ? '<span style="font-size:10px;color:#3fb950;font-weight:bold;">✅ منشور</span>' : '<span style="font-size:10px;color:var(--accent);">⏳ مجدول</span>';
 
                     chip.innerHTML = `
                         <div class="chip-top">
-                            <span class="chip-platforms">${platformsHtml}</span>
+                            <span class="chip-platforms">${platformsHtml} ${statusTag}</span>
                             <span class="chip-time-badge">${timeTag}</span>
                         </div>
                         <div class="chip-content">
@@ -1197,25 +1232,32 @@ function renderMetaPlanner() {
                         </div>
                         <div class="chip-actions">
                             <button type="button" class="btn-chip-action btn-chip-view" title="معاينة كاملة">👁️</button>
-                            ${!isPublished ? `<button type="button" class="btn-chip-action delete btn-chip-del" title="إلغاء المنشور">🗑️</button>` : '<span style="font-size:10px;color:#3fb950;">✓ تم</span>'}
+                            <button type="button" class="btn-chip-action btn-chip-edit" title="تعديل المنشور">✏️</button>
+                            <button type="button" class="btn-chip-action delete btn-chip-del" title="حذف المنشور">🗑️</button>
                         </div>
                     `;
 
                     // عند الضغط على الكارت تفتح المعاينة
                     chip.addEventListener('click', (e) => {
-                        if (e.target.closest('.btn-chip-del')) return;
+                        if (e.target.closest('.btn-chip-edit') || e.target.closest('.btn-chip-del')) return;
                         openPostPreviewModal(post);
                     });
 
-                    // زر الحذف السريع
+                    // زر التعديل السريع
+                    const editBtn = chip.querySelector('.btn-chip-edit');
+                    if (editBtn) {
+                        editBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            openEditPostModal(post);
+                        });
+                    }
+
+                    // زر الحذف
                     const delBtn = chip.querySelector('.btn-chip-del');
                     if (delBtn) {
-                        delBtn.addEventListener('click', async (e) => {
+                        delBtn.addEventListener('click', (e) => {
                             e.stopPropagation();
-                            if (confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) {
-                                await fetch(`/api/scheduled/${post.id}`, { method: 'DELETE' });
-                                loadScheduledPosts();
-                            }
+                            handleDeletePost(post);
                         });
                     }
 
@@ -1244,12 +1286,13 @@ function renderMetaPlanner() {
     }
 }
 
-// 6. نافذة تفاصيل ومعاينة المنشور المجدول (Post Preview Modal)
+// 6. نافذة تفاصيل ومعاينة المنشور (Post Preview Modal)
 function openPostPreviewModal(post) {
     if (!postPreviewModal || !previewModalBody) return;
     activePreviewPostId = post.id;
 
-    const postDate = new Date(post.scheduledTime);
+    const targetTime = post.scheduledTime || post.publishedAt || post.createdAt;
+    const postDate = new Date(targetTime);
     const dateFormatted = formatArabicSlot(postDate);
     const isPublished = post.status === 'PUBLISHED';
 
@@ -1257,7 +1300,7 @@ function openPostPreviewModal(post) {
         previewModalTitle.textContent = isPublished ? 'معاينة منشور تم نشره' : 'معاينة منشور مجدول بالسحابة';
     }
     if (previewModalSubtitle) {
-        previewModalSubtitle.textContent = `موعد النشر: ${dateFormatted} (${isPublished ? '✅ تم النشر' : '⏳ قيد الانتظار'})`;
+        previewModalSubtitle.textContent = `توقيت النشر: ${dateFormatted} (${isPublished ? '✅ تم النشر' : '⏳ قيد الانتظار'})`;
     }
 
     const isFb = (post.platforms || []).includes('facebook');
@@ -1315,8 +1358,17 @@ function openPostPreviewModal(post) {
         </div>
     `;
 
+    if (btnEditFromPreviewModal) {
+        btnEditFromPreviewModal.onclick = () => {
+            closePostPreviewModal();
+            openEditPostModal(post);
+        };
+    }
+
     if (btnDeleteFromPreviewModal) {
-        btnDeleteFromPreviewModal.style.display = isPublished ? 'none' : 'block';
+        btnDeleteFromPreviewModal.onclick = () => {
+            handleDeletePost(post);
+        };
     }
 
     postPreviewModal.style.display = 'flex';
@@ -1337,15 +1389,152 @@ if (postPreviewModal) {
     });
 }
 
-// زر حذف المنشور من داخل نافذة المعاينة
-if (btnDeleteFromPreviewModal) {
-    btnDeleteFromPreviewModal.addEventListener('click', async () => {
-        if (!activePreviewPostId) return;
-        if (confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) {
-            await fetch(`/api/scheduled/${activePreviewPostId}`, { method: 'DELETE' });
-            closePostPreviewModal();
-            loadScheduledPosts();
+// دالة حذف المنشور (مجدول أو منشور مع خيار الحذف من ميتا)
+async function handleDeletePost(post) {
+    if (!post) return;
+    const isPub = post.status === 'PUBLISHED';
+    let deleteFromMeta = false;
+
+    if (isPub) {
+        const confirmMsg = 'هذا المنشور تم نشره بالفعل على المنصات!\n\nهل تريد حذفه من فيسبوك وانستجرام أيضاً؟\n- اضغط (OK / موافق) لحذفه نهائياً من فيسبوك وإنستجرام ومن المخطط.\n- اضغط (Cancel / إلغاء) لحذفه من جدول المواعيد فقط.';
+        deleteFromMeta = confirm(confirmMsg);
+    } else {
+        if (!confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) return;
+    }
+
+    try {
+        const url = `/api/scheduled/${post.id}${deleteFromMeta ? '?deleteFromMeta=true' : ''}`;
+        const res = await fetch(url, { method: 'DELETE' });
+        const data = await res.json();
+        showAlert(data.message || 'تم حذف المنشور بنجاح.', 'success');
+        closePostPreviewModal();
+        loadScheduledPosts();
+    } catch (e) {
+        showAlert('حدث خطأ أثناء محاولة حذف المنشور.', 'error');
+    }
+}
+
+// دالة فتح نافذة تعديل المنشور
+function openEditPostModal(post) {
+    if (!post || !editPostModal) return;
+    if (editPostId) editPostId.value = post.id;
+    if (editPostContent) editPostContent.value = post.content || '';
+
+    const isPub = post.status === 'PUBLISHED';
+    if (editScheduleTimeGroup) {
+        editScheduleTimeGroup.style.display = isPub ? 'none' : 'block';
+    }
+    if (editPublishedNote) {
+        editPublishedNote.style.display = isPub ? 'block' : 'none';
+    }
+    if (editScheduledTime && !isPub && post.scheduledTime) {
+        try {
+            const d = new Date(post.scheduledTime);
+            editScheduledTime.value = formatLocalDateTime(d);
+        } catch {}
+    }
+
+    editPostModal.style.display = 'flex';
+}
+
+function closeEditPostModal() {
+    if (editPostModal) editPostModal.style.display = 'none';
+}
+
+if (btnCloseEditModal) btnCloseEditModal.addEventListener('click', closeEditPostModal);
+if (btnCancelEditModal) btnCancelEditModal.addEventListener('click', closeEditPostModal);
+if (editPostModal) {
+    editPostModal.addEventListener('click', (e) => {
+        if (e.target === editPostModal) closeEditPostModal();
+    });
+}
+
+// حفظ تعديل المنشور
+if (btnSaveEditedPost) {
+    btnSaveEditedPost.addEventListener('click', async () => {
+        const id = editPostId ? editPostId.value : null;
+        if (!id) return;
+        const newContent = editPostContent ? editPostContent.value.trim() : '';
+        const newTime = editScheduledTime ? editScheduledTime.value : null;
+
+        btnSaveEditedPost.disabled = true;
+        const originalText = btnSaveEditedPost.textContent;
+        btnSaveEditedPost.textContent = 'جاري الحفظ...';
+
+        try {
+            const res = await fetch(`/api/scheduled/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: newContent,
+                    scheduledTime: newTime ? new Date(newTime).toISOString() : undefined
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert(data.message || 'تم حفظ التعديلات بنجاح!', 'success');
+                closeEditPostModal();
+                loadScheduledPosts();
+            } else {
+                showAlert(data.message || 'تعذر تعديل المنشور.', 'error');
+            }
+        } catch (e) {
+            showAlert('فشل الاتصال بالخادم لحفظ التعديلات.', 'error');
+        } finally {
+            btnSaveEditedPost.disabled = false;
+            btnSaveEditedPost.textContent = originalText;
         }
+    });
+}
+
+// زر مزامنة منشورات الصفحة من فيسبوك
+if (btnSyncPagePosts) {
+    btnSyncPagePosts.addEventListener('click', async () => {
+        const selectedPageId = pageSelector ? pageSelector.value : '';
+        if (!selectedPageId) {
+            showAlert('يرجى اختيار الصفحة أولاً من القائمة العلوية لمزامنة منشوراتها.', 'error');
+            return;
+        }
+
+        btnSyncPagePosts.classList.add('loading');
+        btnSyncPagePosts.disabled = true;
+        const origContent = btnSyncPagePosts.innerHTML;
+        btnSyncPagePosts.innerHTML = '<span class="sync-icon">🔄</span><span>جاري مزامنة المنشورات من فيسبوك...</span>';
+
+        try {
+            const res = await fetch('/api/posts/sync-page', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pageId: selectedPageId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert(`✨ تمت المزامنة بنجاح! تم استيراد ${data.addedCount} منشور وإضافتها لجدول المواعيد.`, 'success');
+                loadScheduledPosts();
+            } else {
+                showAlert(data.message || 'تعذر مزامنة منشورات الصفحة.', 'error');
+            }
+        } catch (e) {
+            showAlert('حدث خطأ أثناء الاتصال بميتا لمزامنة المنشورات.', 'error');
+        } finally {
+            btnSyncPagePosts.classList.remove('loading');
+            btnSyncPagePosts.disabled = false;
+            btnSyncPagePosts.innerHTML = origContent;
+        }
+    });
+}
+
+// دليل المقاسات التفاعلي
+if (btnToggleSizesGuide && imageSizesGuideCard) {
+    btnToggleSizesGuide.addEventListener('click', () => {
+        const isHidden = imageSizesGuideCard.style.display === 'none' || !imageSizesGuideCard.style.display;
+        imageSizesGuideCard.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) imageSizesGuideCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+}
+if (btnCloseSizesGuide && imageSizesGuideCard) {
+    btnCloseSizesGuide.addEventListener('click', () => {
+        imageSizesGuideCard.style.display = 'none';
     });
 }
 
