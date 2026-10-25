@@ -1998,7 +1998,11 @@ function populateActiveAccounts() {
                 opt.textContent = `🏢 صفحة: ${acc.name}${hasIg}`;
                 arTargetPageSelector.appendChild(opt);
             });
-            if (currentSelected) arTargetPageSelector.value = currentSelected;
+            if (currentSelected && Array.from(arTargetPageSelector.options).some(o => o.value === currentSelected)) {
+                arTargetPageSelector.value = currentSelected;
+            } else if (currentAccounts.length > 0) {
+                arTargetPageSelector.value = currentAccounts[0].id;
+            }
         }
 
         currentAccounts.forEach(acc => {
@@ -2073,7 +2077,13 @@ function updateMockupHeader() {
     }
 }
 
-pageSelector.addEventListener('change', updateMockupHeader);
+pageSelector.addEventListener('change', () => {
+    updateMockupHeader();
+    if (arTargetPageSelector && pageSelector.value) {
+        arTargetPageSelector.value = pageSelector.value;
+        loadAutoReplyConfigUI(pageSelector.value);
+    }
+});
 
 // ========================================================
 // 🤖 وظائف وإدارة الرد التلقائي الذكي للعملاء (Multi-Client AI Bot)
@@ -2471,14 +2481,14 @@ async function startDeepCrawl() {
 
             // إتمام المرحلة
             setCrawlerPillState(stage.pill, 'done');
-            const tokensMsg = data.tokensUsed ? ` (${data.tokensUsed} توكن • استهلاك آمن تحت 6,000 TPM)` : '';
+            const tokensMsg = data.tokensUsed ? ` (${data.tokensUsed} توكن • استهلاك آمن تحت 8,000 Max Tokens)` : '';
             updateCrawlerProgress(stage.pct, `اكتمل التحليل العميق لـ: ${stage.label}${tokensMsg}`);
 
-            // 3. إذا لم تكن هذه آخر مرحلة، نبدأ عداد الانتظار 60 ثانية لحماية الحصة
+            // 3. إذا لم تكن هذه آخر مرحلة، نبدأ عداد الانتظار 60 ثانية لتصفير كوتا Groq وضمان عدم تجاوز الحد
             if (i < stages.length - 1) {
                 const nextStage = stages[i + 1];
                 setCrawlerPillState(nextStage.pill, 'waiting');
-                await runCrawlerCountdown(60, `تم التحليل العميق لـ ${stage.label}. ننتظر 60 ثانية لتجديد كوتا الـ 6,000 TPM بالكامل قبل بدء ${nextStage.label}...`);
+                await runCrawlerCountdown(60, `تم التحليل الاستقصائي لـ ${stage.label}. ننتظر دقيقة كاملة (60 ثانية) لتصفير كوتا Groq وضمان عدم تجاوز 8,000 Max Tokens قبل بدء ${nextStage.label}...`);
             }
         }
 
@@ -2574,20 +2584,59 @@ function applyCrawledDataToUI(pageType, data) {
     if (!data) return;
 
     if (pageType === 'home') {
-        if (arProjectName && data.projectName && !arProjectName.value) {
+        if (arProjectName && data.projectName) {
             arProjectName.value = data.projectName;
         }
-        if (arNiche && data.niche && !arNiche.value) {
-            arNiche.value = data.niche;
+        if (arNiche && (data.niche || data.overview)) {
+            let fullNiche = data.niche || '';
+            if (data.overview && !fullNiche.includes(data.overview)) {
+                fullNiche = fullNiche ? `${fullNiche} | ${data.overview}` : data.overview;
+            }
+            if (data.slogan && !fullNiche.includes(data.slogan)) {
+                fullNiche = `[${data.slogan}] - ${fullNiche}`;
+            }
+            arNiche.value = fullNiche;
         }
     } else if (pageType === 'services') {
         if (Array.isArray(data.services) && data.services.length > 0) {
             renderServicesList(data.services);
         }
+    } else if (pageType === 'about') {
+        // تعميق هوية الشركة بإضافة قصة التأسيس ونقاط القوة المكتشفة
+        if (arNiche && (data.companyStory || data.strengths)) {
+            let extra = '';
+            if (data.companyStory && !arNiche.value.includes(data.companyStory)) {
+                extra += ` [نبذة وخبرات: ${data.companyStory}]`;
+            }
+            if (Array.isArray(data.strengths) && data.strengths.length > 0) {
+                const strJoined = data.strengths.slice(0, 3).join('، ');
+                if (!arNiche.value.includes(strJoined)) {
+                    extra += ` [مميزاتنا: ${strJoined}]`;
+                }
+            }
+            if (extra) {
+                arNiche.value = (arNiche.value + extra).substring(0, 1000);
+            }
+        }
+    } else if (pageType === 'contact') {
+        if (arCallPhoneInput && data.callPhone && !arCallPhoneInput.value) {
+            arCallPhoneInput.value = data.callPhone;
+        }
+        if (arWhatsappPhoneInput && data.whatsapp && !arWhatsappPhoneInput.value) {
+            arWhatsappPhoneInput.value = data.whatsapp;
+        }
     }
 
     // دمج أرقام الهواتف والواتساب المكتشفة في محتوى أو فوتر أي صفحة تلقائياً
     if (Array.isArray(data.phones) && data.phones.length > 0) {
+        if (arCallPhoneInput && !arCallPhoneInput.value && data.phones[0]) {
+            arCallPhoneInput.value = data.phones[0];
+        }
+        if (arWhatsappPhoneInput && !arWhatsappPhoneInput.value) {
+            const waCandidate = data.phones.find(p => String(p).includes('wa.me') || String(p).startsWith('01'));
+            if (waCandidate) arWhatsappPhoneInput.value = waCandidate;
+        }
+
         const existingPhones = new Set(collectPhonesData());
         data.phones.forEach(p => {
             const cleanP = String(p).trim();
@@ -2688,29 +2737,34 @@ async function generateCustomPromptUI() {
 // 7. تحميل وحفظ إعدادات وقاعدة معرفة المشروع (Per-Page Config)
 // ----------------------------------------------------
 async function loadAutoReplyConfigUI(pageId) {
-    const targetPageId = pageId || (arTargetPageSelector ? arTargetPageSelector.value : '');
+    const targetPageId = pageId !== undefined ? pageId : (arTargetPageSelector ? arTargetPageSelector.value : '');
 
     let config = null;
+    const userAutoReply = (userConfig && userConfig.autoReplyConfig) ? userConfig.autoReplyConfig : {};
 
-    // 1. أولاً: فحص إعدادات المستخدم الحالي من حسابه في Supabase
-    if (userConfig && userConfig.autoReplyConfig && Object.keys(userConfig.autoReplyConfig).length > 0) {
-        const userAutoReply = userConfig.autoReplyConfig;
-        if (targetPageId && userAutoReply.pages && userAutoReply.pages[targetPageId]) {
-            config = userAutoReply.pages[targetPageId];
-        } else if (!targetPageId && userAutoReply.global) {
-            config = userAutoReply.global;
-        } else if (!targetPageId && (userAutoReply.projectName || userAutoReply.niche)) {
-            config = userAutoReply;
+    // 1. أولاً: فحص إعدادات الصفحة المحددة للمستخدم
+    if (targetPageId && userAutoReply.pages && userAutoReply.pages[targetPageId]) {
+        config = userAutoReply.pages[targetPageId];
+    }
+    // 2. ثانياً: فحص الإعدادات العامة للمشروع (Global Default)
+    if (!config && userAutoReply.global && (userAutoReply.global.projectName || userAutoReply.global.niche || (userAutoReply.global.services && userAutoReply.global.services.length))) {
+        config = userAutoReply.global;
+    }
+    // 3. ثالثاً: إذا كان هناك أي صفحة أخرى تم حفظ بياناتها في حساب المستخدم، نستخدمها كقاعدة معرفة رئيسية حتى لا تكون الحقول فارغة
+    if (!config && userAutoReply.pages && Object.keys(userAutoReply.pages).length > 0) {
+        const anyPageConfig = Object.values(userAutoReply.pages).find(p => p && (p.projectName || p.niche || (p.services && p.services.length)));
+        if (anyPageConfig) {
+            config = { ...anyPageConfig, pageId: targetPageId };
         }
     }
-
-    // 2. إذا لم يكن محفوظاً في حساب المستخدم وكان هناك targetPageId، نحاول جلبه
-    if (!config && targetPageId) {
+    // 4. رابعاً: إذا لم نجدها محلياً، نحاول جلبها من السيرفر وسحابة Supabase
+    if (!config) {
         try {
-            const url = `/api/autoreply/config?pageId=${encodeURIComponent(targetPageId)}`;
+            const uId = currentAuthUser ? currentAuthUser.id : '';
+            const url = `/api/autoreply/config?pageId=${encodeURIComponent(targetPageId || '')}&userId=${encodeURIComponent(uId)}`;
             const res = await fetch(url);
             const data = await res.json();
-            if (data.success && data.config) {
+            if (data.success && data.config && (data.config.projectName || data.config.niche || (data.config.services && data.config.services.length))) {
                 config = data.config;
             }
         } catch (e) {
@@ -2718,7 +2772,7 @@ async function loadAutoReplyConfigUI(pageId) {
         }
     }
 
-    // 3. نموذج نظيف وخاص بالمستخدم الجديد إذا لم تكن هناك إعدادات
+    // 5. نموذج نظيف وخاص بالمستخدم الجديد إذا لم تكن هناك أي إعدادات سابقة نهائياً
     if (!config) {
         config = {
             enabled: true,
@@ -2817,6 +2871,7 @@ async function saveAutoReplyConfigUI() {
     const config = {
         enabled: autoReplyMasterToggle ? autoReplyMasterToggle.checked : true,
         pageId: targetPageId,
+        userId: currentAuthUser ? currentAuthUser.id : null,
         projectName: arProjectName ? arProjectName.value.trim() : '',
         niche: arNiche ? arNiche.value.trim() : '',
         services: collectServicesData(),
@@ -2836,7 +2891,7 @@ async function saveAutoReplyConfigUI() {
 
     if (btnSaveAutoReplyConfig) {
         btnSaveAutoReplyConfig.disabled = true;
-        btnSaveAutoReplyConfig.innerHTML = '<span>⏳ جاري الحفظ...</span>';
+        btnSaveAutoReplyConfig.innerHTML = '<span>⏳ جاري الحفظ والتثبيت...</span>';
     }
 
     try {
@@ -2847,37 +2902,42 @@ async function saveAutoReplyConfigUI() {
         });
         const data = await res.json();
         if (data.success) {
-            showSaveConfigStatus('✓ تم حفظ قاعدة المعرفة والإعدادات والبرومبت بنجاح للمشروع!', 'success');
+            // حفظ إعدادات الرد التلقائي في حساب المستخدم في Supabase و localStorage
+            let userAutoReply = userConfig.autoReplyConfig || {};
+            if (typeof userAutoReply !== 'object' || !userAutoReply) userAutoReply = {};
 
-            // حفظ إعدادات الرد التلقائي في حساب المستخدم في Supabase
+            if (targetPageId) {
+                if (!userAutoReply.pages) userAutoReply.pages = {};
+                userAutoReply.pages[targetPageId] = config;
+            } else {
+                userAutoReply.global = config;
+            }
+
+            // مزامنة الـ global دائماً لضمان وجود قاعدة معرفة افتراضية للمشروع في كل الحالات
+            userAutoReply.global = { ...(userAutoReply.global || {}), ...config, pageId: '' };
+
+            // الحفاظ على بيانات Cloudinary داخل auto_reply_config
+            if (userConfig.cloudinary && userConfig.cloudinary.cloudName) {
+                userAutoReply.cloudinary = userConfig.cloudinary;
+            }
+            userConfig.autoReplyConfig = userAutoReply;
+            userConfig.groqApiKey = config.groqApiKey || userConfig.groqApiKey || '';
+
             if (currentAuthUser && supabaseClient) {
-                let userAutoReply = userConfig.autoReplyConfig || {};
-                if (typeof userAutoReply !== 'object') userAutoReply = {};
-
-                if (targetPageId) {
-                    if (!userAutoReply.pages) userAutoReply.pages = {};
-                    userAutoReply.pages[targetPageId] = config;
-                } else {
-                    userAutoReply.global = config;
-                }
-                // الحفاظ على بيانات Cloudinary داخل auto_reply_config
-                if (userConfig.cloudinary && userConfig.cloudinary.cloudName) {
-                    userAutoReply.cloudinary = userConfig.cloudinary;
-                }
-                userConfig.autoReplyConfig = userAutoReply;
-                userConfig.groqApiKey = config.groqApiKey || userConfig.groqApiKey || '';
-
                 try {
-                    await supabaseClient.from('user_profiles').update({
+                    const { error: dbErr } = await supabaseClient.from('user_profiles').update({
                         auto_reply_config: userAutoReply,
                         groq_api_key: userConfig.groqApiKey,
                         updated_at: new Date().toISOString()
                     }).eq('id', currentAuthUser.id);
-                    localStorage.setItem('socialflow_user_' + currentAuthUser.id, JSON.stringify(userConfig));
-                } catch (dbErr) {
-                    console.error('Supabase auto_reply_config update error:', dbErr);
+                    if (dbErr) console.warn('Supabase client update warning:', dbErr.message);
+                } catch (e) {
+                    console.warn('Supabase update exception:', e);
                 }
+                localStorage.setItem('socialflow_user_' + currentAuthUser.id, JSON.stringify(userConfig));
             }
+
+            showSaveConfigStatus('✓ تم حفظ وتثبيت قاعدة المعرفة والإعدادات والبرومبت بنجاح لهذا المشروع!', 'success');
         } else {
             showSaveConfigStatus('❌ تعذر الحفظ: ' + (data.message || ''), 'error');
         }
@@ -3345,7 +3405,9 @@ async function initSupabaseAuth() {
             // جلب بيانات وصفحات وإعدادات هذا الجيميل حصرياً من سحابة Supabase
             await loadUserSettings();
             populateActiveAccounts();
-            await loadAutoReplyConfigUI();
+            const pageToLoad = (arTargetPageSelector && arTargetPageSelector.value) ? arTargetPageSelector.value : (currentAccounts.length > 0 ? currentAccounts[0].id : '');
+            if (arTargetPageSelector && pageToLoad) arTargetPageSelector.value = pageToLoad;
+            await loadAutoReplyConfigUI(pageToLoad);
             await loadScheduledPosts();
         } else {
             currentAuthUser = null;

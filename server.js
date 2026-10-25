@@ -580,11 +580,42 @@ app.get('/api/webhook-info', (req, res) => {
 // 🤖 مسارات واجهة برمجة تطبيقات الرد التلقائي الذكي (Auto-Reply API)
 // ========================================================
 
-// 1. جلب إعدادات وقاعدة معرفة الرد التلقائي (يدعم تخصيص الصفحة)
+// 1. جلب إعدادات وقاعدة معرفة الرد التلقائي (يدعم تخصيص الصفحة والمستخدم سحابياً)
 app.get('/api/autoreply/config', async (req, res) => {
     try {
         const pageId = req.query.pageId;
-        const config = await getAutoReplyConfig(pageId);
+        const userId = req.query.userId;
+        let config = null;
+
+        // إذا تم إرسال userId و supabaseAdmin متاح، نجلب مباشرة من سحابة Supabase
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config, groq_api_key')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                const uConfig = userRow?.auto_reply_config || {};
+                if (pageId && uConfig.pages?.[pageId]) {
+                    config = uConfig.pages[pageId];
+                } else if (uConfig.global && (uConfig.global.projectName || uConfig.global.niche)) {
+                    config = uConfig.global;
+                } else if (uConfig.pages && Object.keys(uConfig.pages).length > 0) {
+                    config = Object.values(uConfig.pages)[0];
+                }
+                if (config && userRow?.groq_api_key && !config.groqApiKey) {
+                    config.groqApiKey = userRow.groq_api_key;
+                }
+            } catch (dbErr) {
+                console.warn('Error fetching config from Supabase in GET:', dbErr.message);
+            }
+        }
+
+        if (!config) {
+            config = await getAutoReplyConfig(pageId);
+        }
+
         res.json({ success: true, config });
     } catch (err) {
         console.error('Error in GET /api/autoreply/config:', err);
@@ -592,14 +623,56 @@ app.get('/api/autoreply/config', async (req, res) => {
     }
 });
 
-// 2. حفظ إعدادات وقاعدة معرفة الرد التلقائي (تخصيص الصفحة المحددة)
+// 2. حفظ إعدادات وقاعدة معرفة الرد التلقائي (تخصيص الصفحة المحددة وحفظ سحابي دائم)
 app.post('/api/autoreply/config', async (req, res) => {
     try {
         const pageId = req.body.pageId || req.query.pageId;
+        const userId = req.body.userId;
         const currentConfig = await getAutoReplyConfig(pageId);
         const updatedConfig = { ...currentConfig, ...req.body };
         await saveAutoReplyConfig(updatedConfig, pageId);
-        res.json({ success: true, config: updatedConfig, message: 'تم حفظ قاعدة المعرفة والإعدادات بنجاح للمشروع المحدد!' });
+
+        // حفظ مباشر سحابي عبر SupabaseAdmin لضمان استقرار وديمومة البيانات 100%
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config, groq_api_key')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                let userAutoReply = userRow?.auto_reply_config || {};
+                if (typeof userAutoReply !== 'object') userAutoReply = {};
+
+                if (pageId) {
+                    if (!userAutoReply.pages) userAutoReply.pages = {};
+                    userAutoReply.pages[pageId] = updatedConfig;
+                } else {
+                    userAutoReply.global = updatedConfig;
+                }
+
+                // الحفاظ على أن يكون global متاحاً دائماً كقاعدة معرفة احتياطية لكافة الصفحات
+                userAutoReply.global = { ...(userAutoReply.global || {}), ...updatedConfig, pageId: '' };
+
+                const updatePayload = {
+                    auto_reply_config: userAutoReply,
+                    updated_at: new Date().toISOString()
+                };
+                if (updatedConfig.groqApiKey) {
+                    updatePayload.groq_api_key = updatedConfig.groqApiKey;
+                }
+
+                await supabaseAdmin
+                    .from('user_profiles')
+                    .update(updatePayload)
+                    .eq('id', userId);
+                console.log(`[Supabase Admin] تم حفظ وتأكيد قاعدة المعرفة سحابياً بنجاح للمستخدم: ${userId}`);
+            } catch (dbErr) {
+                console.warn('[Supabase Admin] Error saving auto_reply_config:', dbErr.message);
+            }
+        }
+
+        res.json({ success: true, config: updatedConfig, message: 'تم حفظ وتثبيت قاعدة المعرفة والإعدادات بنجاح للمشروع!' });
     } catch (err) {
         console.error('Error in POST /api/autoreply/config:', err);
         res.status(500).json({ success: false, message: 'تعذر حفظ الإعدادات' });
@@ -911,8 +984,9 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
             .replace(/\s+/g, ' ')
             .trim();
 
-        // تحليل فائق العمق والجودة: رفع استيعاب النص إلى 14,500 حرف (~3,800 توكن مدخلات) ليبقى المجموع الكلي مع المخرجات في حدود 5,500 إلى 6,000 توكن كحد أقصى لضمان أعلى جودة
-        if (cleanText.length > 14500) cleanText = cleanText.substring(0, 14500);
+        // تحليل فائق العمق والجودة تحت سقف 8,000 توكن كحد أقصى للطلب بالكامل
+        const MAX_INPUT_CHARS = 13500; // ~4,500 توكن مدخلات كحد أقصى
+        if (cleanText.length > MAX_INPUT_CHARS) cleanText = cleanText.substring(0, MAX_INPUT_CHARS);
 
         // إرفاق بيانات الفوتر والروابط المكتشفة نصياً للنموذج
         let footerContext = '\n\n[بيانات وروابط مكتشفة من الفوتر وكود الصفحة]:\n';
@@ -931,60 +1005,83 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
 
         let promptForPage = '';
         if (pageType === 'home') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق والجودة" (Ultra-Deep Business Analysis Mode).
-حلل نص الصفحة والفوتر تحليلاً عميقاً واستخرج بدقة استقصائية بصيغة JSON:
-- projectName: اسم الشركة أو المركز أو المشروع التجاري الرسمي
-- niche: المجال والتخصص الدقيق للنشاط
-- overview: نبذة تعريفية شاملة وعميقة عن رسالة المشروع وتاريخه والقيمة المضافة التي يقدمها
-- phones: مصفوفة أرقام الهواتف أو الواتساب المتاحة في الصفحة أو الفوتر
-- email: البريد الإلكتروني إن وجد
-- socialLinks: مصفوفة كائنات { platform: اسم المنصة, url: الرابط } لروابط المنصات المذكورة بالفوتر أو الموقع`;
+            promptForPage = `أنت في وضع "التحليل التجاري الاستقصائي فائق العمق" (Ultra-Deep Business & Brand Analysis Mode).
+حلل نص الصفحة الرئيسية والفوتر تحليلاً دقيقاً وشاملاً، واستخرج بصيغة JSON حصراً:
+- projectName: الاسم التجاري الرسمي للشركة أو المشروع
+- slogan: الشعار التسويقي أو الجملة الترويجية الرئيسية للنشاط
+- niche: التخصص الدقيق ومجال النشاط بالتفصيل
+- overview: نبذة تعريفية عميقة وشاملة عن رسالة المشروع وتاريخه والقيمة المضافة التي يقدمها
+- targetAudience: الشريحة والعملاء المستهدفين بدقة
+- keyHighlights: مصفوفة بأبرز 3 إلى 5 ميزات تنافسية رئيسية تميز هذا النشاط
+- phones: مصفوفة أرقام الهواتف أو الواتساب المتاحة
+- email: البريد الإلكتروني المذكور
+- socialLinks: مصفوفة كائنات { platform, url } لروابط المنصات المذكورة`;
         } else if (pageType === 'services') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق للخدمات والمنتجات" (Ultra-Deep Services Analysis Mode).
+            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق للخدمات والمنتجات" (Ultra-Deep Services & Packages Analysis Mode).
 حلل نص صفحة الخدمات والفوتر بأعلى درجات التفصيل والاستقصاء، واستخرج كل خدمة أو منتج أو باقة مذكورة بدقة بصيغة JSON:
 - services: مصفوفة كائنات شاملة تضم كافة الخدمات أو المنتجات المستخرجة بدون استثناء. لكل خدمة استخرج:
   * name: اسم الخدمة أو الباقة بدقة
   * price: السعر المذكور أو نسبة الخصم أو خطة التقسيط المتاحة (أو "حسب الطلب والمواصفات")
-  * details: تفاصيل ومميزات الخدمة وكيفية الاستفادة منها والضمان أو شروط الاستفادة
+  * details: شرح وافٍ وشامل لمميزات الخدمة وكيفية الاستفادة منها وما الذي يحصل عليه العميل بالضبط
 - phones: مصفوفة أرقام الهواتف المذكورة
 - email: البريد الإلكتروني إن وجد`;
         } else if (pageType === 'about') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق لهوية الشركة" (Ultra-Deep Persona Analysis Mode).
+            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق لهوية وخبرات الشركة" (Ultra-Deep Company Persona & Credibility Mode).
 حلل نص صفحة من نحن والفوتر بعمق استقصائي شامل، واستخرج بصيغة JSON:
-- companyStory: قصة التأسيس، سنوات الخبرة، الرؤية، والاعتمادات أو الشهادات المذكورة
+- companyStory: قصة التأسيس، سنوات الخبرة، الرؤية، والاعتمادات أو التراخيص والشهادات الرسمية
 - strengths: مصفوفة بأبرز نقاط القوة والميزات التنافسية للشركة
 - branches: عناوين الفروع أو المقرات إن ذكرت
 - phones: مصفوفة أرقام الهواتف المذكورة
 - email: البريد الإلكتروني إن وجد`;
         } else if (pageType === 'contact') {
-            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق لقنوات التواصل" (Ultra-Deep Contact Channels Mode).
+            promptForPage = `أنت في وضع "التحليل الاستقصائي فائق العمق لقنوات التواصل والتفاعل" (Ultra-Deep Omnichannel Contact Mode).
 حلل نص صفحة التواصل والفوتر تحليلاً استقصائياً كاملاً لكافة قنوات الاتصال، واستخرج بدقة بصيغة JSON:
-- phones: مصفوفة شاملة لكافة أرقام الهواتف المحمولة والأرضية وأرقام الواتساب المتاحة
-- email: البريد الإلكتروني المذكور للتواصل أو الدعم
-- socialLinks: مصفوفة كائنات { platform: اسم المنصة, url: الرابط } لكافة منصات السوشيال ميديا
-- address: عناوين الفروع أو المقرات وساعات ومواعيد العمل المذكورة`;
+- callPhone: رقم الهاتف الأساسي للاتصال الهاتفي المباشر
+- whatsapp: رقم أو رابط محادثة الواتساب المباشرة
+- phones: مصفوفة شاملة لكافة أرقام الهواتف المتاحة (محمول، أرضي، خط ساخن)
+- email: البريد الإلكتروني المذكور للتواصل أو الدعم أو المبيعات
+- socialLinks: مصفوفة كائنات { platform, url } لكافة منصات السوشيال ميديا المتاحة
+- address: عناوين المقرات والفروع وساعات ومواعيد العمل الرسمية`;
         }
 
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey.trim()}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'openai/gpt-oss-120b',
-                messages: [
-                    { role: 'system', content: `أنت خبير استخراج بيانات أعمال استقصائي رفيع المستوى لضمان أعلى درجات الجودة والشمول. استخرج البيانات المطلوبة بأقصى دقة وتفصيل وبصيغة JSON حصراً باللغة العربية.\n${promptForPage}` },
-                    { role: 'user', content: `إليك نص الصفحة ومحتوى الفوتر المكتشف كاملاً:\n\n${cleanText}` }
-                ],
-                response_format: { type: 'json_object' },
-                temperature: 0.2,
-                max_tokens: 2000
-            })
-        });
+        let groqData = null;
+        const candidateModels = ['openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'qwen/qwen3.8-27b'];
 
-        const groqData = await groqRes.json();
-        if (groqData.error) throw new Error(groqData.error.message || 'Groq API error');
+        for (const candidateModel of candidateModels) {
+            try {
+                const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey.trim()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: candidateModel,
+                        messages: [
+                            { role: 'system', content: `أنت خبير استخراج بيانات أعمال استقصائي رفيع المستوى لضمان أعلى درجات الجودة والشمول. استخرج البيانات المطلوبة بأقصى دقة وتفصيل وبصيغة JSON حصراً باللغة العربية.\n${promptForPage}` },
+                            { role: 'user', content: `إليك نص الصفحة ومحتوى الفوتر المكتشف كاملاً:\n\n${cleanText}` }
+                        ],
+                        response_format: { type: 'json_object' },
+                        temperature: 0.2,
+                        max_tokens: 2200
+                    })
+                });
+
+                const resJson = await groqRes.json();
+                if (resJson.choices?.[0]?.message?.content) {
+                    groqData = resJson;
+                    break;
+                } else if (resJson.error) {
+                    console.warn(`[Groq Model ${candidateModel} scrape failed]:`, resJson.error.message);
+                }
+            } catch (errM) {
+                console.warn(`[Groq Model ${candidateModel} scrape exception]:`, errM.message);
+            }
+        }
+
+        if (!groqData) {
+            throw new Error('تعذر معالجة فحص الصفحة عبر نماذج Groq.');
+        }
 
         let parsed = JSON.parse(groqData.choices?.[0]?.message?.content || '{}');
 
