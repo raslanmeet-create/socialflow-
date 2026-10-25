@@ -195,7 +195,7 @@ async function getAutoReplyConfig(pageOrIgId) {
                     const ownsPage = Array.isArray(u.selected_pages) && u.selected_pages.some(p => p.id === pageOrIgId || p.instagram?.id === pageOrIgId);
                     if (ownsPage) {
                         const uConfig = u.auto_reply_config || {};
-                        let matchedPageConfig = uConfig.pages?.[pageOrIgId] || uConfig.global || null;
+                        let matchedPageConfig = pageOrIgId ? (uConfig.pages?.[pageOrIgId] || null) : (uConfig.global || null);
                         if (matchedPageConfig) {
                             return {
                                 ...DEFAULT_AUTOREPLY_CONFIG,
@@ -597,12 +597,10 @@ app.get('/api/autoreply/config', async (req, res) => {
                     .maybeSingle();
 
                 const uConfig = userRow?.auto_reply_config || {};
-                if (pageId && uConfig.pages?.[pageId]) {
-                    config = uConfig.pages[pageId];
-                } else if (uConfig.global && (uConfig.global.projectName || uConfig.global.niche)) {
-                    config = uConfig.global;
-                } else if (uConfig.pages && Object.keys(uConfig.pages).length > 0) {
-                    config = Object.values(uConfig.pages)[0];
+                if (pageId) {
+                    config = uConfig.pages?.[pageId] || null;
+                } else {
+                    config = uConfig.global || null;
                 }
                 if (config && userRow?.groq_api_key && !config.groqApiKey) {
                     config.groqApiKey = userRow.groq_api_key;
@@ -612,8 +610,8 @@ app.get('/api/autoreply/config', async (req, res) => {
             }
         }
 
-        if (!config) {
-            config = await getAutoReplyConfig(pageId);
+        if (!config && !pageId) {
+            config = await getAutoReplyConfig();
         }
 
         res.json({ success: true, config });
@@ -651,8 +649,7 @@ app.post('/api/autoreply/config', async (req, res) => {
                     userAutoReply.global = updatedConfig;
                 }
 
-                // الحفاظ على أن يكون global متاحاً دائماً كقاعدة معرفة احتياطية لكافة الصفحات
-                userAutoReply.global = { ...(userAutoReply.global || {}), ...updatedConfig, pageId: '' };
+                // عزل تام: لا يتم تعديل أو دمج بيانات الصفحة المحددة في global حتى لا ترث الصفحات الأخرى بياناتها نهائياً
 
                 const updatePayload = {
                     auto_reply_config: userAutoReply,

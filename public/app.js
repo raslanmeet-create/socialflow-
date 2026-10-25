@@ -1701,11 +1701,11 @@ btnFetchPages.addEventListener('click', async () => {
                 showMetaStatus('الرمز صحيح ولكن لم يتم العثور على أي صفحات فيسبوك تابعة له.', 'error');
                 discoveredPagesContainer.style.display = 'none';
             } else {
-                showMetaStatus(`🎉 تم التحقق بنجاح! تم العثور على ${tempDiscoveredPages.length} صفحة وحساب.`, 'success');
-                // تحديد الكل افتراضياً إذا لم يكن محدد
-                const currentSelected = userConfig.selectedPageIds && userConfig.selectedPageIds.length > 0 
+                showMetaStatus(`🎉 تم التحقق بنجاح! تم العثور على ${tempDiscoveredPages.length} صفحة. حدد الصفحات التي تريد تفعيلها للخدمة يدوياً ثم اضغط حفظ.`, 'success');
+                // لا يتم تحديد الصفحات تلقائياً، بل يختار المستخدم بنفسه الصفحات المطلوبة (عدم إضافة الصفحات تلقائياً)
+                const currentSelected = (userConfig.selectedPageIds && userConfig.selectedPageIds.length > 0) 
                     ? userConfig.selectedPageIds 
-                    : tempDiscoveredPages.map(p => p.id);
+                    : [];
                 renderPagesChecklist(tempDiscoveredPages, currentSelected);
                 discoveredPagesContainer.style.display = 'block';
             }
@@ -2742,33 +2742,41 @@ async function loadAutoReplyConfigUI(pageId) {
     let config = null;
     const userAutoReply = (userConfig && userConfig.autoReplyConfig) ? userConfig.autoReplyConfig : {};
 
-    // 1. أولاً: فحص إعدادات الصفحة المحددة للمستخدم
-    if (targetPageId && userAutoReply.pages && userAutoReply.pages[targetPageId]) {
-        config = userAutoReply.pages[targetPageId];
-    }
-    // 2. ثانياً: فحص الإعدادات العامة للمشروع (Global Default)
-    if (!config && userAutoReply.global && (userAutoReply.global.projectName || userAutoReply.global.niche || (userAutoReply.global.services && userAutoReply.global.services.length))) {
-        config = userAutoReply.global;
-    }
-    // 3. ثالثاً: إذا كان هناك أي صفحة أخرى تم حفظ بياناتها في حساب المستخدم، نستخدمها كقاعدة معرفة رئيسية حتى لا تكون الحقول فارغة
-    if (!config && userAutoReply.pages && Object.keys(userAutoReply.pages).length > 0) {
-        const anyPageConfig = Object.values(userAutoReply.pages).find(p => p && (p.projectName || p.niche || (p.services && p.services.length)));
-        if (anyPageConfig) {
-            config = { ...anyPageConfig, pageId: targetPageId };
+    // 1. أولاً: إذا تم اختيار صفحة محددة، نفحص إعدادات تلك الصفحة فقط دون وراثة أي بيانات
+    if (targetPageId) {
+        if (userAutoReply.pages && userAutoReply.pages[targetPageId]) {
+            config = userAutoReply.pages[targetPageId];
         }
-    }
-    // 4. رابعاً: إذا لم نجدها محلياً، نحاول جلبها من السيرفر وسحابة Supabase
-    if (!config) {
-        try {
-            const uId = currentAuthUser ? currentAuthUser.id : '';
-            const url = `/api/autoreply/config?pageId=${encodeURIComponent(targetPageId || '')}&userId=${encodeURIComponent(uId)}`;
-            const res = await fetch(url);
-            const data = await res.json();
-            if (data.success && data.config && (data.config.projectName || data.config.niche || (data.config.services && data.config.services.length))) {
-                config = data.config;
+        // محاولة جلبها من السيرفر وسحابة Supabase لهذه الصفحة حصراً
+        if (!config) {
+            try {
+                const uId = currentAuthUser ? currentAuthUser.id : '';
+                const url = `/api/autoreply/config?pageId=${encodeURIComponent(targetPageId)}&userId=${encodeURIComponent(uId)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.success && data.config && data.config.pageId === targetPageId && (data.config.projectName || data.config.niche || (data.config.services && data.config.services.length))) {
+                    config = data.config;
+                }
+            } catch (e) {
+                console.error('Error loading config from server for page:', e);
             }
-        } catch (e) {
-            console.error('Error loading config from server:', e);
+        }
+    } else {
+        // 2. ثانياً: الإعدادات العامة (Global) فقط وفقط إذا اختار المستخدم خيار "الإعدادات العامة الافتراضية" صراحة
+        if (userAutoReply.global && (userAutoReply.global.projectName || userAutoReply.global.niche || (userAutoReply.global.services && userAutoReply.global.services.length))) {
+            config = userAutoReply.global;
+        } else {
+            try {
+                const uId = currentAuthUser ? currentAuthUser.id : '';
+                const url = `/api/autoreply/config?userId=${encodeURIComponent(uId)}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.success && data.config && !data.config.pageId) {
+                    config = data.config;
+                }
+            } catch (e) {
+                console.error('Error loading global config from server:', e);
+            }
         }
     }
 
@@ -2913,8 +2921,7 @@ async function saveAutoReplyConfigUI() {
                 userAutoReply.global = config;
             }
 
-            // مزامنة الـ global دائماً لضمان وجود قاعدة معرفة افتراضية للمشروع في كل الحالات
-            userAutoReply.global = { ...(userAutoReply.global || {}), ...config, pageId: '' };
+            // عزل تام لكل صفحة: لا يتم تعديل أو دمج بيانات الصفحة المحددة في global حتى لا ترث الصفحات الأخرى بياناتها نهائياً
 
             // الحفاظ على بيانات Cloudinary داخل auto_reply_config
             if (userConfig.cloudinary && userConfig.cloudinary.cloudName) {
