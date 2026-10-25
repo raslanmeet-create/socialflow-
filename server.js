@@ -5,10 +5,22 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gmddkphzgjufnkaoppie.supabase.co';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+let supabaseAdmin = null;
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+        supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    } catch (e) {
+        console.warn('Could not initialize supabaseAdmin:', e.message);
+    }
+}
 
 
 
@@ -306,10 +318,10 @@ app.get('/api/accounts', async (req, res) => {
     }
 });
 
-// مسار فحص رمز Meta وجلب الصفحات المتاحة بحساب المستخدم (SaaS BYOK)
+// مسار فحص رمز Meta وجلب الصفحات المتاحة بحساب المستخدم (SaaS BYOK) مع منع تكرار الصفحات
 app.post('/api/verify-meta', async (req, res) => {
     try {
-        const { metaToken } = req.body;
+        const { metaToken, userId } = req.body;
         if (!metaToken || !metaToken.trim()) {
             return res.status(400).json({ success: false, message: 'يرجى إدخال رمز Meta Access Token أولاً.' });
         }
@@ -322,23 +334,62 @@ app.post('/api/verify-meta', async (req, res) => {
             return res.status(400).json({ success: false, message: data.error.message || 'رمز Meta غير صالح أو تنقصه الصلاحيات.' });
         }
 
-        const pages = (data.data || []).map(acc => ({
-            id: acc.id,
-            name: acc.name,
-            picture: acc.picture?.data?.url || null,
-            access_token: acc.access_token,
-            instagram: acc.instagram_business_account ? {
-                id: acc.instagram_business_account.id,
-                username: acc.instagram_business_account.username,
-                picture: acc.instagram_business_account.profile_picture_url || null
-            } : null
-        }));
+        // 1. فلترة وتفادي أي تكرار لنفس الصفحة في استجابة Meta
+        const rawPages = data.data || [];
+        const seenIds = new Set();
+        const uniquePagesList = [];
+        for (const acc of rawPages) {
+            if (!acc.id || seenIds.has(acc.id)) continue;
+            seenIds.add(acc.id);
+            uniquePagesList.push(acc);
+        }
 
-        // تسجيل الصفحات في الذاكرة والاشتراك التلقائي في الويبهوك
+        // 2. فحص الملكية الحصرية عبر Supabase لمنع ربط نفس الصفحة في حسابات جيميل متعددة
+        const claimedPagesMap = new Map(); // pageId -> { claimedBy: email }
+        if (supabaseAdmin) {
+            try {
+                let query = supabaseAdmin.from('user_profiles').select('id, email, selected_pages');
+                if (userId) {
+                    query = query.neq('id', userId);
+                }
+                const { data: otherUsers } = await query;
+                if (otherUsers && Array.isArray(otherUsers)) {
+                    for (const u of otherUsers) {
+                        const pages = u.selected_pages || [];
+                        for (const p of pages) {
+                            if (p && p.id) {
+                                claimedPagesMap.set(p.id, { claimedBy: u.email || 'حساب آخر' });
+                            }
+                        }
+                    }
+                }
+            } catch (dbErr) {
+                console.warn('Error checking claimed pages from Supabase:', dbErr.message);
+            }
+        }
+
+        const pages = uniquePagesList.map(acc => {
+            const isClaimed = claimedPagesMap.has(acc.id);
+            return {
+                id: acc.id,
+                name: acc.name,
+                picture: acc.picture?.data?.url || null,
+                access_token: acc.access_token,
+                instagram: acc.instagram_business_account ? {
+                    id: acc.instagram_business_account.id,
+                    username: acc.instagram_business_account.username,
+                    picture: acc.instagram_business_account.profile_picture_url || null
+                } : null,
+                alreadyClaimed: isClaimed,
+                claimedBy: isClaimed ? claimedPagesMap.get(acc.id).claimedBy : null
+            };
+        });
+
+        // تسجيل الصفحات غير المحجوزة في الذاكرة والاشتراك التلقائي في الويبهوك
         for (const acc of pages) {
+            if (acc.alreadyClaimed) continue; // لا نشترك في صفحات محجوزة لحساب آخر
             if (acc.id && acc.access_token) {
                 pageTokensCache.set(acc.id, { token: acc.access_token, name: acc.name, igUserId: acc.instagram?.id || null });
-                // استدعاء تلقائي لربط الصفحة بتطبيق الميتا واستقبال التعليقات والرسائل
                 fetch(`https://graph.facebook.com/v21.0/${acc.id}/subscribed_apps?subscribed_fields=feed,messages&access_token=${acc.access_token}`, { method: 'POST' })
                     .then(r => r.json())
                     .then(d => console.log(`[Auto-Subscribe Webhook] Page (${acc.name} - ${acc.id}):`, d))

@@ -1678,7 +1678,10 @@ btnFetchPages.addEventListener('click', async () => {
         const res = await fetch('/api/verify-meta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ metaToken: token })
+            body: JSON.stringify({ 
+                metaToken: token,
+                userId: currentAuthUser ? currentAuthUser.id : null
+            })
         });
         const data = await res.json();
 
@@ -1715,32 +1718,53 @@ function showMetaStatus(msg, type) {
     metaStatusMsg.style.display = 'block';
 }
 
-// عرض قائمة الصفحات لاختيار المطلوب منها
+// عرض قائمة الصفحات لاختيار المطلوب منها مع منع تكرار الصفحات المحجوزة
 function renderPagesChecklist(pages, selectedIds) {
     pagesChecklist.innerHTML = '';
-    pages.forEach(p => {
-        const card = document.createElement('label');
-        card.className = 'page-check-card';
 
-        const isChecked = selectedIds.includes(p.id) ? 'checked' : '';
+    // إلغاء أي تكرار مكرر لنفس الصفحة
+    const seen = new Set();
+    const uniquePages = [];
+    (pages || []).forEach(p => {
+        if (p && p.id && !seen.has(p.id)) {
+            seen.add(p.id);
+            uniquePages.push(p);
+        }
+    });
+
+    uniquePages.forEach(p => {
+        const card = document.createElement('label');
+        const isClaimed = !!p.alreadyClaimed;
+        card.className = 'page-check-card' + (isClaimed ? ' page-claimed-disabled' : '');
+
+        const isChecked = !isClaimed && selectedIds.includes(p.id) ? 'checked' : '';
+        const disabledAttr = isClaimed ? 'disabled' : '';
         const igInfo = p.instagram ? `<span class="page-check-ig">📸 @${p.instagram.username}</span>` : '<span style="font-size:11px; color:var(--text-secondary);">غير مربوط بانستجرام</span>';
         const avatarHtml = p.picture ? `<img src="${p.picture}" class="page-check-avatar" alt="">` : `<div class="page-check-avatar">📄</div>`;
 
+        const claimedNotice = isClaimed ? `
+            <div style="font-size: 11px; color: #ef4444; margin-top: 4px; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                <span>🔒</span>
+                <span>مربوطة بالفعل بحساب آخر (${escapeHtml(p.claimedBy || 'مستخدم آخر')}) — ممنوع التكرار</span>
+            </div>
+        ` : '';
+
         card.innerHTML = `
-            <input type="checkbox" value="${p.id}" ${isChecked} class="chk-page-item">
+            <input type="checkbox" value="${p.id}" ${isChecked} ${disabledAttr} class="chk-page-item">
             ${avatarHtml}
             <div class="page-check-details">
-                <span class="page-check-title">${p.name}</span>
+                <span class="page-check-title">${escapeHtml(p.name)}</span>
                 ${igInfo}
+                ${claimedNotice}
             </div>
         `;
         pagesChecklist.appendChild(card);
     });
 }
 
-// تحديد أو إلغاء تحديد الكل
+// تحديد أو إلغاء تحديد الكل (مع استثناء الصفحات المحجوزة لحساب آخر)
 btnToggleAllPages.addEventListener('click', () => {
-    const checkboxes = document.querySelectorAll('.chk-page-item');
+    const checkboxes = document.querySelectorAll('.chk-page-item:not([disabled])');
     const allChecked = Array.from(checkboxes).every(c => c.checked);
     checkboxes.forEach(c => c.checked = !allChecked);
     btnToggleAllPages.textContent = allChecked ? 'تحديد الكل' : 'إلغاء التحديد';
@@ -1788,13 +1812,22 @@ btnTestCloudinary.addEventListener('click', async () => {
     }
 });
 
-// حفظ وتطبيق الإعدادات
+// حفظ وتطبيق الإعدادات مع منع تكرار الصفحات
 btnSaveSettings.addEventListener('click', async () => {
-    const selectedIds = Array.from(document.querySelectorAll('.chk-page-item:checked')).map(c => c.value);
-    const activePages = tempDiscoveredPages.filter(p => selectedIds.includes(p.id));
+    const selectedIds = Array.from(document.querySelectorAll('.chk-page-item:checked:not([disabled])')).map(c => c.value);
+    
+    // استبعاد أي صفحات محجوزة لحساب آخر وتفادي أي تكرار لنفس الصفحة
+    const seen = new Set();
+    const activePages = [];
+    tempDiscoveredPages.forEach(p => {
+        if (selectedIds.includes(p.id) && !p.alreadyClaimed && !seen.has(p.id)) {
+            seen.add(p.id);
+            activePages.push(p);
+        }
+    });
 
     userConfig.metaToken = inputMetaToken.value.trim();
-    userConfig.selectedPageIds = selectedIds;
+    userConfig.selectedPageIds = activePages.map(p => p.id);
     userConfig.pages = activePages;
     userConfig.cloudinary = {
         cloudName: inputCloudName.value.trim(),
@@ -1909,7 +1942,7 @@ function setupCopyButton(btn, input) {
 setupCopyButton(btnCopyWebhookUrl, webhookCallbackUrl);
 setupCopyButton(btnCopyWebhookToken, webhookVerifyToken);
 
-// ملء قائمة الاختيار بالصفحات المفعلة لهذا الحساب فقط
+// ملء قائمة الاختيار بالصفحات المفعلة لهذا الحساب فقط مع ضمان عدم تكرار أي صفحة
 function populateActiveAccounts() {
     let activePages = [];
 
@@ -1920,6 +1953,17 @@ function populateActiveAccounts() {
             activePages = userConfig.pages;
         }
     }
+
+    // تنظيف وضمان عدم تكرار أي صفحة مطلقاً
+    const seen = new Set();
+    const uniquePages = [];
+    activePages.forEach(p => {
+        if (p && p.id && !seen.has(p.id)) {
+            seen.add(p.id);
+            uniquePages.push(p);
+        }
+    });
+    activePages = uniquePages;
 
     if (activePages.length > 0) {
         if (onboardingBanner) onboardingBanner.style.display = 'none';
