@@ -717,6 +717,9 @@ postForm.addEventListener('submit', async (e) => {
     if (userConfig.cloudinary && userConfig.cloudinary.cloudName) {
         formData.append('userCloudinary', JSON.stringify(userConfig.cloudinary));
     }
+    if (currentAuthUser) {
+        formData.append('userId', currentAuthUser.id);
+    }
     formData.append('isScheduled', isScheduled);
     formData.append('isCustomCaptions', isCustom);
     formData.append('customCaptions', JSON.stringify(customCaptions));
@@ -833,8 +836,24 @@ function showAlert(message, type) {
 
 // 6. تحميل وإدارة المنشورات المجدولة ومخطط ميتا (Meta Planner)
 async function loadScheduledPosts() {
+    if (!currentAuthUser) {
+        cachedScheduledPosts = [];
+        if (scheduledList) {
+            scheduledList.innerHTML = `
+                <div class="empty-scheduled">
+                    <p>يرجى تسجيل الدخول لعرض منشوراتك وجدولتها.</p>
+                </div>
+            `;
+        }
+        if (scheduledCount) scheduledCount.textContent = '0 منشورات';
+        if (plannerBadgeCount) plannerBadgeCount.textContent = '0';
+        renderPlannerView();
+        return;
+    }
+
     try {
-        const response = await fetch('/api/scheduled?all=true');
+        const userIdParam = currentAuthUser ? `&userId=${encodeURIComponent(currentAuthUser.id)}` : '';
+        const response = await fetch(`/api/scheduled?all=true${userIdParam}`);
         const posts = await response.json();
         cachedScheduledPosts = Array.isArray(posts) ? posts : [];
 
@@ -1560,21 +1579,60 @@ if (btnCloseSizesGuide && imageSizesGuideCard) {
 // 7. إدارة الإعدادات وحسابات المستخدم (SaaS BYOK Workspace)
 // ========================================================
 
-function loadUserSettings() {
+async function loadUserSettings() {
+    if (!currentAuthUser) {
+        userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: {} };
+        return;
+    }
+
+    const userKey = 'socialflow_user_' + currentAuthUser.id;
+    // مسح المفتاح المشترك القديم تماماً لمنع أي تداخل بين الحسابات
+    localStorage.removeItem('socialflow_user_config');
+
+    userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: {} };
     try {
-        const saved = localStorage.getItem('socialflow_user_config');
+        const saved = localStorage.getItem(userKey);
         if (saved) {
             userConfig = JSON.parse(saved);
         }
     } catch (e) {
-        console.error('Error loading config:', e);
+        userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: {} };
+    }
+
+    // مزامنة البيانات الحية من سحابة Supabase الخاصة بهذا المستخدم تحديداً
+    if (supabaseClient) {
+        try {
+            const { data, error } = await supabaseClient
+                .from('user_profiles')
+                .select('*')
+                .eq('id', currentAuthUser.id)
+                .maybeSingle();
+
+            if (data) {
+                userConfig.metaToken = data.meta_access_token || '';
+                userConfig.pages = Array.isArray(data.selected_pages) ? data.selected_pages : [];
+                userConfig.selectedPageIds = userConfig.pages.map(p => p.id);
+                userConfig.groqApiKey = data.groq_api_key || '';
+                userConfig.autoReplyConfig = data.auto_reply_config || null;
+                if (data.cloudinary_config) {
+                    userConfig.cloudinary = data.cloudinary_config;
+                }
+                localStorage.setItem(userKey, JSON.stringify(userConfig));
+            } else if (!error) {
+                // مستخدم جديد نظيف بدون أي صفحات سابقة
+                userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: {} };
+                localStorage.setItem(userKey, JSON.stringify(userConfig));
+            }
+        } catch (err) {
+            console.warn('تعذر تحميل إعدادات المستخدم من Supabase:', err);
+        }
     }
 }
 
-function openSettingsModal() {
-    loadUserSettings();
+async function openSettingsModal() {
+    await loadUserSettings();
 
-    // تعبئة الحقول
+    // تعبئة الحقول الخاصة بهذا المستخدم فقط
     inputMetaToken.value = userConfig.metaToken || '';
     if (userConfig.cloudinary) {
         inputCloudName.value = userConfig.cloudinary.cloudName || '';
@@ -1585,12 +1643,14 @@ function openSettingsModal() {
     metaStatusMsg.style.display = 'none';
     cloudStatusMsg.style.display = 'none';
 
-    // إذا كانت هناك صفحات محفوظة بالفعل، نعرضها في القائمة
+    // إذا كانت هناك صفحات محفوظة لهذا المستخدم، نعرضها في القائمة
     if (userConfig.pages && userConfig.pages.length > 0) {
         tempDiscoveredPages = [...userConfig.pages];
         renderPagesChecklist(tempDiscoveredPages, userConfig.selectedPageIds || []);
         discoveredPagesContainer.style.display = 'block';
     } else {
+        tempDiscoveredPages = [];
+        pagesChecklist.innerHTML = '';
         discoveredPagesContainer.style.display = 'none';
     }
 
@@ -1729,25 +1789,75 @@ btnTestCloudinary.addEventListener('click', async () => {
 });
 
 // حفظ وتطبيق الإعدادات
-btnSaveSettings.addEventListener('click', () => {
+btnSaveSettings.addEventListener('click', async () => {
     const selectedIds = Array.from(document.querySelectorAll('.chk-page-item:checked')).map(c => c.value);
+    const activePages = tempDiscoveredPages.filter(p => selectedIds.includes(p.id));
 
     userConfig.metaToken = inputMetaToken.value.trim();
     userConfig.selectedPageIds = selectedIds;
-    userConfig.pages = tempDiscoveredPages.length > 0 ? tempDiscoveredPages : (userConfig.pages || []);
+    userConfig.pages = activePages;
     userConfig.cloudinary = {
         cloudName: inputCloudName.value.trim(),
         apiKey: inputCloudApiKey.value.trim(),
         apiSecret: inputCloudApiSecret.value.trim()
     };
 
-    localStorage.setItem('socialflow_user_config', JSON.stringify(userConfig));
-    closeSettingsModal();
+    if (currentAuthUser && supabaseClient) {
+        btnSaveSettings.disabled = true;
+        btnSaveSettings.textContent = 'جاري الحفظ في حسابك...';
+        try {
+            await supabaseClient.from('user_profiles').update({
+                meta_access_token: userConfig.metaToken,
+                selected_pages: activePages,
+                cloudinary_config: userConfig.cloudinary,
+                updated_at: new Date().toISOString()
+            }).eq('id', currentAuthUser.id);
+        } catch (e) {
+            console.error('Failed to save to Supabase:', e);
+        } finally {
+            btnSaveSettings.disabled = false;
+            btnSaveSettings.textContent = '💾 حفظ وتطبيق الإعدادات';
+        }
+        localStorage.setItem('socialflow_user_' + currentAuthUser.id, JSON.stringify(userConfig));
+    }
 
-    // تحديث لوحة التحكم
+    closeSettingsModal();
     populateActiveAccounts();
-    showAlert('🎉 تم حفظ الإعدادات وتحديث صفحاتك بنجاح!', 'success');
+    showAlert('🎉 تم حفظ صفحات وإعدادات حسابك بنجاح!', 'success');
 });
+
+// زر حذف وفصل الصفحات يدوياً من الحساب الحالي
+const btnClearAllPages = document.getElementById('btnClearAllPages');
+if (btnClearAllPages) {
+    btnClearAllPages.addEventListener('click', async () => {
+        if (!confirm('هل أنت متأكد من رغبتك في حذف وفصل كافة الصفحات المربوطة بهذا الجيميل؟ لن تتأثر أي حسابات أخرى.')) {
+            return;
+        }
+        tempDiscoveredPages = [];
+        pagesChecklist.innerHTML = '';
+        discoveredPagesContainer.style.display = 'none';
+        inputMetaToken.value = '';
+        userConfig.pages = [];
+        userConfig.selectedPageIds = [];
+        userConfig.metaToken = '';
+
+        if (currentAuthUser && supabaseClient) {
+            try {
+                await supabaseClient.from('user_profiles').update({
+                    meta_access_token: null,
+                    selected_pages: [],
+                    updated_at: new Date().toISOString()
+                }).eq('id', currentAuthUser.id);
+            } catch (e) {
+                console.error('Error clearing pages in Supabase:', e);
+            }
+            localStorage.setItem('socialflow_user_' + currentAuthUser.id, JSON.stringify(userConfig));
+        }
+
+        populateActiveAccounts();
+        showAlert('🗑️ تم حذف وفصل جميع الصفحات والمفاتيح من حسابك بنجاح!', 'success');
+    });
+}
 
 // إغلاق المودال عند الضغط على أزرار الإلغاء أو الخلفية
 btnOpenSettings.addEventListener('click', openSettingsModal);
@@ -1799,16 +1909,13 @@ function setupCopyButton(btn, input) {
 setupCopyButton(btnCopyWebhookUrl, webhookCallbackUrl);
 setupCopyButton(btnCopyWebhookToken, webhookVerifyToken);
 
-// ملء قائمة الاختيار بالصفحات المفعلة فقط
+// ملء قائمة الاختيار بالصفحات المفعلة لهذا الحساب فقط
 function populateActiveAccounts() {
-    loadUserSettings();
-
     let activePages = [];
 
     if (userConfig.pages && userConfig.pages.length > 0) {
         const allowedIds = userConfig.selectedPageIds || [];
         activePages = userConfig.pages.filter(p => allowedIds.includes(p.id));
-        // إذا لم يكن هناك تحديد، نأخذ جميع الصفحات المكتشفة
         if (activePages.length === 0 && allowedIds.length === 0) {
             activePages = userConfig.pages;
         }
@@ -1841,25 +1948,6 @@ function populateActiveAccounts() {
         updateMockupHeader();
         headerStatusText.textContent = `🟢 متصل: ${currentAccounts.length} صفحة مفعلة`;
     } else {
-        // محاولة جلب الصفحات المربوطة سحابياً بالسيرفر تلقائياً
-        if (!window._fetchingDefaultAccounts) {
-            window._fetchingDefaultAccounts = true;
-            headerStatusText.textContent = '⏳ جاري مزامنة الصفحات المربوطة...';
-            fetch('/api/accounts')
-                .then(r => r.json())
-                .then(d => {
-                    if (d.success && d.accounts && d.accounts.length > 0) {
-                        userConfig.pages = d.accounts;
-                        userConfig.selectedPageIds = d.accounts.map(a => a.id);
-                        localStorage.setItem('socialflow_user_config', JSON.stringify(userConfig));
-                        populateActiveAccounts();
-                    } else {
-                        renderEmptyAccountsState();
-                    }
-                })
-                .catch(() => renderEmptyAccountsState());
-            return;
-        }
         renderEmptyAccountsState();
     }
 
@@ -2528,17 +2616,34 @@ async function loadAutoReplyConfigUI(pageId) {
     const targetPageId = pageId || (arTargetPageSelector ? arTargetPageSelector.value : '');
 
     let config = null;
-    try {
-        const url = targetPageId ? `/api/autoreply/config?pageId=${encodeURIComponent(targetPageId)}` : '/api/autoreply/config';
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.success && data.config) {
-            config = data.config;
+
+    // 1. أولاً: فحص إعدادات المستخدم الحالي من حسابه في Supabase
+    if (userConfig && userConfig.autoReplyConfig && Object.keys(userConfig.autoReplyConfig).length > 0) {
+        const userAutoReply = userConfig.autoReplyConfig;
+        if (targetPageId && userAutoReply.pages && userAutoReply.pages[targetPageId]) {
+            config = userAutoReply.pages[targetPageId];
+        } else if (!targetPageId && userAutoReply.global) {
+            config = userAutoReply.global;
+        } else if (!targetPageId && (userAutoReply.projectName || userAutoReply.niche)) {
+            config = userAutoReply;
         }
-    } catch (e) {
-        console.error('Error loading config from server:', e);
     }
 
+    // 2. إذا لم يكن محفوظاً في حساب المستخدم وكان هناك targetPageId، نحاول جلبه
+    if (!config && targetPageId) {
+        try {
+            const url = `/api/autoreply/config?pageId=${encodeURIComponent(targetPageId)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.success && data.config) {
+                config = data.config;
+            }
+        } catch (e) {
+            console.error('Error loading config from server:', e);
+        }
+    }
+
+    // 3. نموذج نظيف وخاص بالمستخدم الجديد إذا لم تكن هناك إعدادات
     if (!config) {
         config = {
             enabled: true,
@@ -2547,12 +2652,12 @@ async function loadAutoReplyConfigUI(pageId) {
             niche: '',
             services: [],
             phones: [],
-            email: '',
+            email: currentAuthUser ? currentAuthUser.email : '',
             socialLinks: [],
             customPrompt: '',
             targetAllPosts: true,
             targetPostIds: [],
-            groqApiKey: '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',
+            groqApiKey: userConfig.groqApiKey || '',
             likeComment: true,
             replyComment: true,
             sendDm: true
@@ -2668,6 +2773,32 @@ async function saveAutoReplyConfigUI() {
         const data = await res.json();
         if (data.success) {
             showSaveConfigStatus('✓ تم حفظ قاعدة المعرفة والإعدادات والبرومبت بنجاح للمشروع!', 'success');
+
+            // حفظ إعدادات الرد التلقائي في حساب المستخدم في Supabase
+            if (currentAuthUser && supabaseClient) {
+                let userAutoReply = userConfig.autoReplyConfig || {};
+                if (typeof userAutoReply !== 'object') userAutoReply = {};
+
+                if (targetPageId) {
+                    if (!userAutoReply.pages) userAutoReply.pages = {};
+                    userAutoReply.pages[targetPageId] = config;
+                } else {
+                    userAutoReply.global = config;
+                }
+                userConfig.autoReplyConfig = userAutoReply;
+                userConfig.groqApiKey = config.groqApiKey || userConfig.groqApiKey || '';
+
+                try {
+                    await supabaseClient.from('user_profiles').update({
+                        auto_reply_config: userAutoReply,
+                        groq_api_key: userConfig.groqApiKey,
+                        updated_at: new Date().toISOString()
+                    }).eq('id', currentAuthUser.id);
+                    localStorage.setItem('socialflow_user_' + currentAuthUser.id, JSON.stringify(userConfig));
+                } catch (dbErr) {
+                    console.error('Supabase auto_reply_config update error:', dbErr);
+                }
+            }
         } else {
             showSaveConfigStatus('❌ تعذر الحفظ: ' + (data.message || ''), 'error');
         }
@@ -2980,10 +3111,8 @@ if (btnVerifyGroqKey && arGroqApiKey) {
     });
 }
 
-// التحميل المبدئي عند تشغيل الموقع
+// التهيئة المبدئية لحالة فارغة حتى اكتمال تسجيل الدخول
 populateActiveAccounts();
-loadScheduledPosts();
-loadAutoReplyConfigUI();
 
 // إدارة تفعيل وإظهار خيارات النشر (بوست / ستوري) للمنصات
 ['facebook', 'instagram'].forEach(plat => {
@@ -3075,6 +3204,9 @@ async function initSupabaseAuth() {
         btnLogout.addEventListener('click', async () => {
             if (!supabaseClient) return;
             if (confirm('هل ترغب بتسجيل الخروج من حسابك؟')) {
+                // مسح كل التخزين المؤقت والمحلي لمنع أي تداخل بين الحسابات
+                localStorage.clear();
+                sessionStorage.clear();
                 await supabaseClient.auth.signOut();
                 window.location.reload();
             }
@@ -3091,21 +3223,24 @@ async function initSupabaseAuth() {
 
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
-        renderUserState(session?.user);
+        await renderUserState(session?.user);
 
-        supabaseClient.auth.onAuthStateChange((event, session) => {
-            renderUserState(session?.user);
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            await renderUserState(session?.user);
         });
     } catch (e) {
         console.error('Auth error:', e);
-        renderUserState(null);
+        await renderUserState(null);
     }
 
-    function renderUserState(user) {
+    async function renderUserState(user) {
         if (loadingState) loadingState.style.display = 'none';
 
         if (user) {
             currentAuthUser = user;
+
+            // إزالة أي مفتاح عام قديم كان مشتركاً بين الحسابات
+            localStorage.removeItem('socialflow_user_config');
 
             // إخفاء شاشة تسجيل الدخول وإظهار لوحة التحكم بالكامل للمستخدم المسجل
             if (authGateScreen) authGateScreen.style.display = 'none';
@@ -3121,8 +3256,20 @@ async function initSupabaseAuth() {
             if (userDisplayName) userDisplayName.textContent = name;
             if (userEmailText) userEmailText.textContent = user.email;
             if (userAvatarImg) userAvatarImg.src = avatar;
+
+            // جلب بيانات وصفحات وإعدادات هذا الجيميل حصرياً من سحابة Supabase
+            await loadUserSettings();
+            populateActiveAccounts();
+            await loadAutoReplyConfigUI();
+            await loadScheduledPosts();
         } else {
             currentAuthUser = null;
+            userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: {} };
+            currentAccounts = [];
+            cachedScheduledPosts = [];
+
+            // تفريغ القوائم والواجهة بالكامل
+            populateActiveAccounts();
 
             // إخفاء لوحة التحكم وقفل المنصة خلف شاشة تسجيل الدخول
             if (appDashboard) appDashboard.style.display = 'none';

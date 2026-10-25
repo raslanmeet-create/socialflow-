@@ -1145,7 +1145,10 @@
                     <div id="discoveredPagesContainer" class="discovered-pages-container" style="display: none;">
                         <div class="pages-list-header">
                             <h5>الصفحات المتاحة بحسابك (حدد الصفحات التي تريد ظهورها في لوحة التحكم):</h5>
-                            <button type="button" class="btn-toggle-all-pages" id="btnToggleAllPages">تحديد الكل</button>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <button type="button" class="btn-toggle-all-pages" id="btnToggleAllPages">تحديد الكل</button>
+                                <button type="button" class="btn-clear-pages" id="btnClearAllPages" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; transition: all 0.2s;">🗑️ حذف وفصل الصفحات</button>
+                            </div>
                         </div>
                         <div id="pagesChecklist" class="pages-checklist">
                             <!-- بطاقات الصفحات تضاف هنا ديناميكياً -->

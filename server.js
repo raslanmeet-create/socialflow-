@@ -264,7 +264,7 @@ async function addAutoReplyLog(entry) {
 // 1. مسار جلب صفحات فيسبوك وحسابات انستجرام المرتبطة باللوجو والاسم (يدعم المفتاح العام أو مفتاح المستخدم)
 app.get('/api/accounts', async (req, res) => {
     try {
-        const token = req.query.metaToken || META_ACCESS_TOKEN;
+        const token = req.query.metaToken;
         if (!token || !token.trim()) {
             return res.json({ success: true, accounts: [] });
         }
@@ -1568,6 +1568,7 @@ function getInstagramSafeImageUrl(cloudUrl, width, height, userRatio) {
 app.post('/api/publish', upload.single('media'), async (req, res) => {
     try {
         const { 
+            userId,
             content, 
             platforms, 
             facebookPlacements,
@@ -1649,6 +1650,7 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
 
         const postData = {
             id: 'post_' + Date.now(),
+            userId: userId || null,
             content: content || '',
             customCaptions: parsedCustomCaptions,
             aspectRatio: aspectRatio || 'auto',
@@ -1717,7 +1719,11 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
 // 3. مسار جلب المنشورات المجدولة وسجل المنشورات (GET /api/scheduled)
 app.get('/api/scheduled', async (req, res) => {
     try {
-        const all = await getScheduledPosts();
+        const userId = req.query.userId;
+        let all = await getScheduledPosts();
+        if (userId) {
+            all = all.filter(p => !p.userId || p.userId === userId);
+        }
         if (req.query.all === 'true') {
             return res.json(all);
         }
