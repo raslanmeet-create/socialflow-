@@ -153,6 +153,7 @@ body {
 .brand-main-title span {
     background: linear-gradient(135deg, #00D4FF 0%, #FFAA00 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 900;
 }
@@ -263,6 +264,7 @@ body {
 .auth-gate-title span {
     background: linear-gradient(135deg, #00D4FF 0%, #FFAA00 100%);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
