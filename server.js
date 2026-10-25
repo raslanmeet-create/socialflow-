@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://gmddkphzgjufnkaoppie.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtZGRrcGh6Z2p1Zm5rYW9wcGllIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mjg5NDY0MCwiZXhwIjoyMTA4NDcwNjQwfQ.A6zscs1ygB3_jQXGfNo0TmzLAOacQGbk73P_uMO_7SI';
 
 let supabaseAdmin = null;
 if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
