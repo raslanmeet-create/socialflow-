@@ -573,8 +573,46 @@ app.get('/api/webhook-info', (req, res) => {
 });
 
 // ========================================================
-// 🤖 مسارات واجهة برمجة تطبيقات الرد التلقائي الذكي (Auto-Reply API)
+// 🛡️ حارس تنشيط Supabase لمنع الإيقاف بسبب الخمول (Keep-Alive Cron / Worker)
 // ========================================================
+async function pingSupabaseKeepAlive() {
+    if (!supabaseAdmin) {
+        return { success: false, message: 'supabaseAdmin غير مهيأ' };
+    }
+    const startTime = Date.now();
+    const { data, count, error } = await supabaseAdmin
+        .from('user_profiles')
+        .select('id, email, updated_at', { count: 'exact' })
+        .limit(1);
+
+    const latency = Date.now() - startTime;
+    if (error) {
+        console.warn('[Keep-Alive Warning]:', error.message);
+        return { success: false, error: error.message, latency: `${latency}ms` };
+    }
+
+    return {
+        success: true,
+        status: 'ACTIVE_AND_AWAKE',
+        message: 'تم إرسال طلب تنشيط لـ Supabase بنجاح لمنع الإيقاف بسبب الخمول 🚀',
+        userCount: count,
+        sampleUser: data?.[0]?.email || 'none',
+        latency: `${latency}ms`,
+        timestamp: new Date().toISOString()
+    };
+}
+
+// مسار Cron اليومي لـ Vercel وأي أداة مراقبة خارجية (Keep-Alive Endpoint)
+app.get(['/api/cron/keep-alive', '/api/keep-alive'], async (req, res) => {
+    try {
+        const result = await pingSupabaseKeepAlive();
+        console.log('[Supabase Keep-Alive Cron Fired]:', JSON.stringify(result));
+        return res.json(result);
+    } catch (err) {
+        console.error('[Supabase Keep-Alive Cron Error]:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 // ========================================================
 // 🤖 مسارات واجهة برمجة تطبيقات الرد التلقائي الذكي (Auto-Reply API)
@@ -2619,6 +2657,20 @@ if (!process.env.VERCEL) {
             console.error('Error in local scheduler interval:', e);
         }
     }, 30000);
+
+    // وركر تنشيط دوري لـ Supabase كل 12 ساعة في بيئة التشغيل المستمر (VPS / Local)
+    if (supabaseAdmin) {
+        const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+        setInterval(async () => {
+            try {
+                console.log('[⏰ Supabase Keep-Alive Worker] تشغيل الفحص الدوري لتنشيط Supabase...');
+                const result = await pingSupabaseKeepAlive();
+                console.log('[⏰ Supabase Keep-Alive Result]:', result.success ? `نشط ومستيقظ (${result.latency})` : result.error);
+            } catch (e) {
+                console.error('Error in Keep-Alive worker:', e);
+            }
+        }, TWELVE_HOURS);
+    }
 }
 
 // تشغيل الخادم محلياً أو تصديره لـ Vercel Serverless

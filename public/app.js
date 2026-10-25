@@ -1961,6 +1961,48 @@ function setupCopyButton(btn, input) {
 setupCopyButton(btnCopyWebhookUrl, webhookCallbackUrl);
 setupCopyButton(btnCopyWebhookToken, webhookVerifyToken);
 
+// إعدادات حارس تنشيط Supabase (Keep-Alive Cron UI)
+const btnCopyKeepAliveUrl = document.getElementById('btnCopyKeepAliveUrl');
+const keepAliveUrl = document.getElementById('keepAliveUrl');
+const btnTestKeepAlive = document.getElementById('btnTestKeepAlive');
+const keepAliveStatusText = document.getElementById('keepAliveStatusText');
+
+if (btnCopyKeepAliveUrl && keepAliveUrl) {
+    setupCopyButton(btnCopyKeepAliveUrl, keepAliveUrl);
+}
+
+if (btnTestKeepAlive) {
+    btnTestKeepAlive.addEventListener('click', async () => {
+        btnTestKeepAlive.disabled = true;
+        btnTestKeepAlive.textContent = '⏳ جاري تنشيط Supabase...';
+        if (keepAliveStatusText) keepAliveStatusText.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/cron/keep-alive');
+            const data = await res.json();
+            if (data.success) {
+                if (keepAliveStatusText) {
+                    keepAliveStatusText.style.display = 'inline-block';
+                    keepAliveStatusText.innerHTML = `✅ <strong>قاعدة البيانات نشطة ومستيقظة!</strong> (زمن الاستجابة: <span style="color: #38bdf8;">${data.latency || 'سريع'}</span> | الحسابات: ${data.userCount || 0})`;
+                }
+            } else {
+                if (keepAliveStatusText) {
+                    keepAliveStatusText.style.display = 'inline-block';
+                    keepAliveStatusText.innerHTML = `⚠️ <span style="color: #ef4444;">${data.error || data.message || 'تعذر التنشيط'}</span>`;
+                }
+            }
+        } catch (err) {
+            if (keepAliveStatusText) {
+                keepAliveStatusText.style.display = 'inline-block';
+                keepAliveStatusText.innerHTML = `❌ <span style="color: #ef4444;">تعذر الاتصال بالخادم: ${err.message}</span>`;
+            }
+        } finally {
+            btnTestKeepAlive.disabled = false;
+            btnTestKeepAlive.textContent = '⚡ اختبار تنشيط Supabase فوراً';
+        }
+    });
+}
+
 // ملء قائمة الاختيار بالصفحات المفعلة لهذا الحساب فقط مع ضمان عدم تكرار أي صفحة
 function populateActiveAccounts() {
     let activePages = [];

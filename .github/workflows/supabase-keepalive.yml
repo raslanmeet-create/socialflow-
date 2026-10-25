@@ -1,0 +1,25 @@
+name: Supabase Daily Keep-Alive Worker
+run-name: 🛡️ Supabase Keep-Alive Ping (${{ github.event_name }})
+
+on:
+  schedule:
+    # يعمل يومياً في تمام الساعة 08:00 صباحاً بتوقيت UTC (11:00 صباحاً بتوقيت مكة المكرمة والقاهرة)
+    - cron: '0 8 * * *'
+  workflow_dispatch: # يتيح تشغيل الفحص يدوياً بنقرة زر من تبويب Actions في GitHub
+
+jobs:
+  keepalive:
+    name: Ping Supabase Keep-Alive API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Keep-Alive Ping
+        run: |
+          echo "Sending Daily Keep-Alive request to Supabase via agent.raslans.net..."
+          RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" "https://agent.raslans.net/api/cron/keep-alive")
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | tr -d '\r' | sed -En 's/^HTTP_STATUS:(.*)/\1/p')
+          if [ "$STATUS" -ne 200 ]; then
+            echo "❌ Failed to ping keep-alive endpoint! HTTP Status: $STATUS"
+            exit 1
+          fi
+          echo "✅ Supabase is active, awake, and successfully refreshed!"

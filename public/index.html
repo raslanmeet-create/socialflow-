@@ -1272,6 +1272,30 @@
                         </div>
                     </details>
                 </div>
+
+                <!-- 4. حارس تنشيط Supabase لمنع الإيقاف بسبب الخمول (Keep-Alive Cron Worker) -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h4>🛡️ حارس تنشيط قاعدة البيانات (Supabase Keep-Alive Cron)</h4>
+                        <span class="badge-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">🟢 مفعّل ويعمل يومياً</span>
+                    </div>
+                    <p class="settings-hint">يقوم نظام Vercel Cron تلقائياً بإرسال استعلام دوري يومي إلى Supabase لمنع دخول قاعدة البيانات في وضع الخمول (Inactivity Sleep) وضمان عمل الموقع والرد التلقائي دون انقطاع:</p>
+
+                    <div class="field-item">
+                        <label>رابط فحص وتنشيط الـ Keep-Alive المباشر:</label>
+                        <div class="input-with-button copy-group">
+                            <input type="text" id="keepAliveUrl" readonly class="settings-input code-font" value="https://agent.raslans.net/api/cron/keep-alive">
+                            <button type="button" class="btn-copy-field" id="btnCopyKeepAliveUrl" title="نسخ الرابط">📋 نسخ</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn-secondary" id="btnTestKeepAlive" style="border-color: rgba(16, 185, 129, 0.4); color: #10b981;">
+                            ⚡ اختبار تنشيط Supabase فوراً
+                        </button>
+                        <span id="keepAliveStatusText" style="font-size: 13px; color: var(--text-secondary); display: none;"></span>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer">
