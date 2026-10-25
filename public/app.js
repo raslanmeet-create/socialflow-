@@ -1841,7 +1841,29 @@ function populateActiveAccounts() {
         updateMockupHeader();
         headerStatusText.textContent = `🟢 متصل: ${currentAccounts.length} صفحة مفعلة`;
     } else {
-        // حالة البداية النظيفة لأي عميل أو زائر جديد للمنصة
+        // محاولة جلب الصفحات المربوطة سحابياً بالسيرفر تلقائياً
+        if (!window._fetchingDefaultAccounts) {
+            window._fetchingDefaultAccounts = true;
+            headerStatusText.textContent = '⏳ جاري مزامنة الصفحات المربوطة...';
+            fetch('/api/accounts')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.accounts && d.accounts.length > 0) {
+                        userConfig.pages = d.accounts;
+                        userConfig.selectedPageIds = d.accounts.map(a => a.id);
+                        localStorage.setItem('socialflow_user_config', JSON.stringify(userConfig));
+                        populateActiveAccounts();
+                    } else {
+                        renderEmptyAccountsState();
+                    }
+                })
+                .catch(() => renderEmptyAccountsState());
+            return;
+        }
+        renderEmptyAccountsState();
+    }
+
+    function renderEmptyAccountsState() {
         currentAccounts = [];
         if (onboardingBanner) onboardingBanner.style.display = 'flex';
         pageSelector.innerHTML = '<option value="">⚠️ لم تقم بربط صفحاتك بعد — اضغط هنا لربط الحساب</option>';
