@@ -632,6 +632,17 @@ postForm.addEventListener('submit', async (e) => {
         return;
     }
 
+    // فحص وسائط Cloudinary: إذا تم رفع وسائط (صورة أو فيديو)، يلزم توفر بيانات Cloudinary الخاصة بالمستخدم
+    const hasMedia = selectedMediaFile || croppedImageBlob;
+    if (hasMedia) {
+        const cConfig = userConfig.cloudinary;
+        if (!cConfig || !cConfig.cloudName || !cConfig.apiKey || !cConfig.apiSecret) {
+            showAlert('⚠️ لرفع الصور والفيديوهات، يرجى إدخال بيانات حساب Cloudinary السحابي المجاني الخاص بك أولاً في نافذة الإعدادات.', 'error');
+            openSettingsModal();
+            return;
+        }
+    }
+
     // تجميع المنصات المختارة
     const selectedPlatforms = [];
     ['facebook', 'instagram', 'twitter', 'linkedin'].forEach(plat => {
@@ -1614,13 +1625,12 @@ async function loadUserSettings() {
                 userConfig.selectedPageIds = userConfig.pages.map(p => p.id);
                 userConfig.groqApiKey = data.groq_api_key || '';
                 userConfig.autoReplyConfig = data.auto_reply_config || null;
-                if (data.cloudinary_config) {
-                    userConfig.cloudinary = data.cloudinary_config;
-                }
+                // جلب بيانات Cloudinary الخاصة بهذا المستخدم من auto_reply_config
+                userConfig.cloudinary = data.auto_reply_config?.cloudinary || { cloudName: '', apiKey: '', apiSecret: '' };
                 localStorage.setItem(userKey, JSON.stringify(userConfig));
             } else if (!error) {
-                // مستخدم جديد نظيف بدون أي صفحات سابقة
-                userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: {} };
+                // مستخدم جديد نظيف بدون أي صفحات أو مفاتيح سابقة
+                userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: { cloudName: '', apiKey: '', apiSecret: '' } };
                 localStorage.setItem(userKey, JSON.stringify(userConfig));
             }
         } catch (err) {
@@ -1839,10 +1849,19 @@ btnSaveSettings.addEventListener('click', async () => {
         btnSaveSettings.disabled = true;
         btnSaveSettings.textContent = 'جاري الحفظ في حسابك...';
         try {
+            // حفظ بيانات Cloudinary داخل auto_reply_config الخاصة بهذا المستخدم
+            let currentAutoReply = userConfig.autoReplyConfig || {};
+            if (typeof currentAutoReply !== 'object') currentAutoReply = {};
+            const updatedAutoReply = {
+                ...currentAutoReply,
+                cloudinary: userConfig.cloudinary
+            };
+            userConfig.autoReplyConfig = updatedAutoReply;
+
             await supabaseClient.from('user_profiles').update({
                 meta_access_token: userConfig.metaToken,
                 selected_pages: activePages,
-                cloudinary_config: userConfig.cloudinary,
+                auto_reply_config: updatedAutoReply,
                 updated_at: new Date().toISOString()
             }).eq('id', currentAuthUser.id);
         } catch (e) {
@@ -2407,6 +2426,13 @@ async function startDeepCrawl() {
         return;
     }
 
+    const crawlApiKey = arGroqApiKey ? arGroqApiKey.value.trim() : (userConfig.groqApiKey || '');
+    if (!crawlApiKey) {
+        showScrapeStatus('⚠️ يرجى إدخال مفتاح Groq API الخاص بك أولاً في الحقل أدناه لبدء فحص وتحليل الموقع.', 'error');
+        if (arGroqApiKey) arGroqApiKey.focus();
+        return;
+    }
+
     isDeepCrawlingActive = true;
     if (btnStartDeepCrawl) btnStartDeepCrawl.disabled = true;
     if (deepCrawlProgressWrapper) deepCrawlProgressWrapper.style.display = 'block';
@@ -2610,7 +2636,12 @@ async function generateCustomPromptUI() {
     const phones = collectPhonesData();
     const email = arEmailInput ? arEmailInput.value.trim() : '';
     const socialLinks = collectSocialData();
-    const groqApiKey = arGroqApiKey ? arGroqApiKey.value.trim() : '';
+    const groqApiKey = arGroqApiKey ? arGroqApiKey.value.trim() : (userConfig.groqApiKey || '');
+    if (!groqApiKey) {
+        showSaveConfigStatus('⚠️ يرجى إدخال مفتاح Groq API الخاص بك أولاً في الحقل أدناه لتوليد البرومبت.', 'error');
+        if (arGroqApiKey) arGroqApiKey.focus();
+        return;
+    }
 
     if (btnGenerateCustomPrompt) {
         btnGenerateCustomPrompt.disabled = true;
@@ -2716,7 +2747,7 @@ async function loadAutoReplyConfigUI(pageId) {
     if (arNiche) arNiche.value = config.niche || '';
     if (arEmailInput) arEmailInput.value = config.email || '';
     if (arCustomSystemPrompt) arCustomSystemPrompt.value = config.customPrompt || '';
-    if (arGroqApiKey) arGroqApiKey.value = config.groqApiKey || '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';
+    if (arGroqApiKey) arGroqApiKey.value = config.groqApiKey || userConfig.groqApiKey || '';
 
     // تعبئة خانتي الاتصال والواتساب المخصصتين
     if (arCallPhoneInput) {
@@ -2797,7 +2828,7 @@ async function saveAutoReplyConfigUI() {
         customPrompt: arCustomSystemPrompt ? arCustomSystemPrompt.value.trim() : '',
         targetAllPosts: isTargetAll,
         targetPostIds: Array.from(currentSelectedTargetPostIds),
-        groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : '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',
+        groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : (userConfig.groqApiKey || ''),
         likeComment: checkLikeComment ? checkLikeComment.checked : true,
         replyComment: checkReplyComment ? checkReplyComment.checked : true,
         sendDm: checkSendDm ? checkSendDm.checked : true
@@ -2828,6 +2859,10 @@ async function saveAutoReplyConfigUI() {
                     userAutoReply.pages[targetPageId] = config;
                 } else {
                     userAutoReply.global = config;
+                }
+                // الحفاظ على بيانات Cloudinary داخل auto_reply_config
+                if (userConfig.cloudinary && userConfig.cloudinary.cloudName) {
+                    userAutoReply.cloudinary = userConfig.cloudinary;
                 }
                 userConfig.autoReplyConfig = userAutoReply;
                 userConfig.groqApiKey = config.groqApiKey || userConfig.groqApiKey || '';
@@ -2888,11 +2923,17 @@ async function runAutoReplySimulation() {
         email: arEmailInput ? arEmailInput.value.trim() : '',
         socialLinks: collectSocialData(),
         customPrompt: arCustomSystemPrompt ? arCustomSystemPrompt.value.trim() : '',
-        groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : '',
+        groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : (userConfig.groqApiKey || ''),
         likeComment: checkLikeComment ? checkLikeComment.checked : true,
         replyComment: checkReplyComment ? checkReplyComment.checked : true,
         sendDm: checkSendDm ? checkSendDm.checked : true
     };
+
+    if (!currentConfig.groqApiKey) {
+        alert('⚠️ يرجى إدخال مفتاح Groq API الخاص بك أولاً في الحقل المخصص لتجربة المحاكاة.');
+        if (arGroqApiKey) arGroqApiKey.focus();
+        return;
+    }
 
     if (btnRunSimulation) {
         btnRunSimulation.disabled = true;

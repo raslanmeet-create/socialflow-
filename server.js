@@ -136,7 +136,7 @@ const DEFAULT_AUTOREPLY_CONFIG = {
     customPrompt: '',
     targetAllPosts: true, // true: جميع المنشورات، false: منشورات محددة فقط
     targetPostIds: [],   // مصفوفة بمعرفات المنشورات المشمولة بالخدمة
-    groqApiKey: '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',
+    groqApiKey: '',
     groqModel: 'openai/gpt-oss-120b',
     likeComment: true,
     replyComment: true,
@@ -184,6 +184,33 @@ function readAutoReplyStore() {
 }
 
 async function getAutoReplyConfig(pageOrIgId) {
+    // 1. فحص سحابي مباشر من Supabase لمعرفة المستخدم المالك لهذه الصفحة وإعداداته ومفتاحه الخاص
+    if (supabaseAdmin && pageOrIgId) {
+        try {
+            const { data: users } = await supabaseAdmin
+                .from('user_profiles')
+                .select('id, email, groq_api_key, auto_reply_config, selected_pages');
+            if (users && users.length > 0) {
+                for (const u of users) {
+                    const ownsPage = Array.isArray(u.selected_pages) && u.selected_pages.some(p => p.id === pageOrIgId || p.instagram?.id === pageOrIgId);
+                    if (ownsPage) {
+                        const uConfig = u.auto_reply_config || {};
+                        let matchedPageConfig = uConfig.pages?.[pageOrIgId] || uConfig.global || null;
+                        if (matchedPageConfig) {
+                            return {
+                                ...DEFAULT_AUTOREPLY_CONFIG,
+                                ...matchedPageConfig,
+                                groqApiKey: matchedPageConfig.groqApiKey || u.groq_api_key || ''
+                            };
+                        }
+                    }
+                }
+            }
+        } catch (dbErr) {
+            console.warn('Error fetching auto reply config from Supabase:', dbErr.message);
+        }
+    }
+
     const store = readAutoReplyStore();
     if (pageOrIgId) {
         // مطابقة مباشرة بالمعرف
@@ -747,7 +774,7 @@ ${servicesFormatted || 'خدمات متنوعة'}
 
 اكتب نص البرومبت النهائي مباشرة باللغة العربية ليكون جاهزاً للاستخدام فوراً كنص برومبت أساسي.`;
 
-        const apiKey = groqApiKey || process.env.GROQ_API_KEY;
+        const apiKey = groqApiKey;
         if (!apiKey || !apiKey.trim()) {
             return res.status(400).json({
                 success: false,
@@ -894,7 +921,7 @@ app.post('/api/autoreply/scrape-page', async (req, res) => {
         if (discoveredSocials.length) footerContext += `- روابط السوشيال ميديا: ${discoveredSocials.map(s => `${s.platform}: ${s.url}`).join(' | ')}\n`;
         cleanText += footerContext;
 
-        const apiKey = groqApiKey || process.env.GROQ_API_KEY;
+        const apiKey = groqApiKey;
         if (!apiKey || !apiKey.trim()) {
             return res.status(400).json({
                 success: false,
@@ -1060,7 +1087,11 @@ app.get('/api/autoreply/logs', async (req, res) => {
 // 🧠 محرك الذكاء الاصطناعي لتوليد الردود (Groq gpt-oss-120b)
 // ========================================================
 async function generateAutoReplyWithGroq({ postCaption, commentText, config, senderName }) {
-    const apiKey = config?.groqApiKey || process.env.GROQ_API_KEY || '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';
+    const apiKey = config?.groqApiKey;
+    if (!apiKey || !apiKey.trim()) {
+        console.warn('[Auto-Reply] No Groq API Key configured for this page/user. Skipping reply.');
+        throw new Error('لم يتم تعيين مفتاح Groq API Key لهذه الصفحة. يرجى إدخال مفتاحك الخاص في إعدادات الرد التلقائي.');
+    }
     const model = 'openai/gpt-oss-120b';
 
     const projectName = (typeof config?.projectName === 'string' ? config.projectName.trim() : '') || 'مشروعنا';
@@ -1666,29 +1697,53 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
         let mediaWidth = null;
         let mediaHeight = null;
 
-        // إذا كان هناك ملف مرفوع (صورة أو فيديو)، نرفعه للسحابة مباشرة من الذاكرة (Memory Buffer) دون كتابة على القرص
+        // إذا كان هناك ملف مرفوع (صورة أو فيديو)، نرفعه لسحابة المستخدم الخاصة حصراً
         if (req.file) {
-            console.log(`[Cloudinary] جاري رفع الميديا للسحابة من الذاكرة: ${req.file.originalname}`);
-            const isVideo = req.file.mimetype.startsWith('video/');
-            
-            const uploadOptions = {
-                resource_type: isVideo ? 'video' : 'image',
-                folder: 'socialflow_uploads'
-            };
-
-            // دعم استخدام بيانات Cloudinary المخصصة للمستخدم إذا وُجدت
+            let customCloudinary = null;
             if (userCloudinary) {
                 try {
-                    const uc = JSON.parse(userCloudinary);
+                    const uc = typeof userCloudinary === 'string' ? JSON.parse(userCloudinary) : userCloudinary;
                     if (uc.cloudName && uc.apiKey && uc.apiSecret) {
-                        uploadOptions.cloud_name = uc.cloudName.trim();
-                        uploadOptions.api_key = uc.apiKey.trim();
-                        uploadOptions.api_secret = uc.apiSecret.trim();
+                        customCloudinary = uc;
                     }
                 } catch (e) {}
             }
 
-            // تحويل البفر في الذاكرة إلى Data URI لرفعه مباشرة لسحابة Cloudinary
+            if (!customCloudinary && userId && supabaseAdmin) {
+                try {
+                    const { data: userRow } = await supabaseAdmin
+                        .from('user_profiles')
+                        .select('auto_reply_config')
+                        .eq('id', userId)
+                        .maybeSingle();
+                    if (userRow?.auto_reply_config?.cloudinary?.cloudName && 
+                        userRow?.auto_reply_config?.cloudinary?.apiKey && 
+                        userRow?.auto_reply_config?.cloudinary?.apiSecret) {
+                        customCloudinary = userRow.auto_reply_config.cloudinary;
+                    }
+                } catch (dbErr) {
+                    console.warn('Error fetching user Cloudinary from DB:', dbErr.message);
+                }
+            }
+
+            if (!customCloudinary || !customCloudinary.cloudName || !customCloudinary.apiKey || !customCloudinary.apiSecret) {
+                return res.status(400).json({
+                    success: false,
+                    message: '⚠️ لرفع الصور والفيديوهات، يرجى إدخال بيانات حساب Cloudinary السحابي المجاني الخاص بك في نافذة الإعدادات أولاً (Cloud Name, API Key, API Secret).'
+                });
+            }
+
+            console.log(`[Cloudinary] جاري رفع الميديا لسحابة المستخدم (${customCloudinary.cloudName}) من الذاكرة: ${req.file.originalname}`);
+            const isVideo = req.file.mimetype.startsWith('video/');
+            
+            const uploadOptions = {
+                resource_type: isVideo ? 'video' : 'image',
+                folder: 'socialflow_uploads',
+                cloud_name: customCloudinary.cloudName.trim(),
+                api_key: customCloudinary.apiKey.trim(),
+                api_secret: customCloudinary.apiSecret.trim()
+            };
+
             const base64Data = req.file.buffer.toString('base64');
             const dataUri = `data:${req.file.mimetype};base64,${base64Data}`;
 
@@ -1696,7 +1751,7 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
             cloudUrl = uploadRes.secure_url;
             mediaWidth = uploadRes.width;
             mediaHeight = uploadRes.height;
-            console.log(`[Cloudinary] تم الرفع بنجاح! الرابط: ${cloudUrl} (أبعاد: ${mediaWidth}x${mediaHeight})`);
+            console.log(`[Cloudinary] تم الرفع بنجاح على سحابة المستخدم! الرابط: ${cloudUrl} (أبعاد: ${mediaWidth}x${mediaHeight})`);
         }
 
         const postData = {

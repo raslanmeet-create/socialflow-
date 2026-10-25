@@ -1,4 +1,4 @@
-const apiKey = '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';
+const apiKey = process.env.GROQ_API_KEY || '';
 const model = 'openai/gpt-oss-120b';
 
 const postCaption = `عايز تزود ثقة العملاء في نشاطك، وتحافظ على استقرار حملاتك الإعلانية على Meta؟
