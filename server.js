@@ -2177,29 +2177,28 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         // بناء الأزرار التفاعلية (Inline Keyboard)
         const inlineKeyboard = [];
 
-        // زر مستقل لكل جروب أساسي
+        // زر مستقل لكل جروب أساسي يفتح الجروب مباشرة
         currentBatch.forEach((g, idx) => {
+            const targetUrl = (g.url && g.url.trim()) ? g.url.trim() : fbShareUrl;
             inlineKeyboard.push([
-                { text: `🚀 نشر في جروب ${idx + 1}: ${g.name || 'المجموعة'}`, url: fbShareUrl }
+                { text: `🚀 نشر مباشر في: ${g.name || 'جروب ' + (idx + 1)}`, url: targetUrl }
             ]);
         });
 
-        if (currentBatch.length === 0) {
-            inlineKeyboard.push([
-                { text: `🚀 مشاركة سريعة في الجروبات الآن`, url: fbShareUrl }
-            ]);
-        }
-
-        // أزرار الجروبات الاحتياطية
+        // أزرار الجروبات الاحتياطية (تفتح الجروب البديل مباشرة)
         if (currentBackups.length > 0) {
-            const backupRow = [];
             currentBackups.forEach((g, idx) => {
-                backupRow.push({ text: `🛡️ بديل ${idx + 1}: ${g.name || 'احتياطي'}`, url: fbShareUrl });
+                const targetUrl = (g.url && g.url.trim()) ? g.url.trim() : fbShareUrl;
+                inlineKeyboard.push([
+                    { text: `🛡️ بديل ${idx + 1}: ${g.name || 'جروب احتياطي'}`, url: targetUrl }
+                ]);
             });
-            inlineKeyboard.push(backupRow);
         }
 
-        // زر فتح المنشور الأصلي على فيسبوك
+        // زر نافذة المشاركة السريعة وزر المنشور الأصلي
+        inlineKeyboard.push([
+            { text: `📲 نافذة المشاركة الفورية للبوست (Facebook Sharer)`, url: fbShareUrl }
+        ]);
         inlineKeyboard.push([
             { text: `🔗 فتح المنشور الأصلي على صفحة رسلان`, url: fbPostUrl }
         ]);
