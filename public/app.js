@@ -4094,7 +4094,7 @@ function renderTargetGroupsTable(groups = []) {
 
     const list = Array.isArray(groups) ? groups : [];
     if (targetPoolCountBadge) {
-        targetPoolCountBadge.textContent = `${list.length} جروبات في الحوض`;
+        targetPoolCountBadge.textContent = `${list.length} جروب في الحوض (تدوير 5 يومياً)`;
     }
 
     if (list.length === 0) {
@@ -4169,7 +4169,7 @@ function reindexGroupsTable() {
         if (firstCol) firstCol.textContent = idx + 1;
     });
     if (targetPoolCountBadge) {
-        targetPoolCountBadge.textContent = `${rows.length} جروبات في الحوض`;
+        targetPoolCountBadge.textContent = `${rows.length} جروب في الحوض (تدوير 5 يومياً)`;
     }
 }
 

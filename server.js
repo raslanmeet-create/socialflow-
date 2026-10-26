@@ -2008,8 +2008,19 @@ app.post('/api/groups/ai-discover', async (req, res) => {
 // 5. جلب قائمة الجروبات المستهدفة والتدوير
 app.get('/api/groups/target-list', async (req, res) => {
     try {
-        const userId = req.query.userId;
+        let userId = req.query.userId;
         let groups = [];
+
+        if (!userId && supabaseAdmin) {
+            try {
+                const { data: adminRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('email', 'raslan.meet@gmail.com')
+                    .maybeSingle();
+                if (adminRow?.id) userId = adminRow.id;
+            } catch (e) {}
+        }
 
         if (userId && supabaseAdmin) {
             try {
@@ -2018,7 +2029,7 @@ app.get('/api/groups/target-list', async (req, res) => {
                     .select('auto_reply_config')
                     .eq('id', userId)
                     .maybeSingle();
-                if (Array.isArray(userRow?.auto_reply_config?.target_groups)) {
+                if (Array.isArray(userRow?.auto_reply_config?.target_groups) && userRow.auto_reply_config.target_groups.length > 6) {
                     groups = userRow.auto_reply_config.target_groups;
                 }
             } catch (e) {}
@@ -2026,22 +2037,41 @@ app.get('/api/groups/target-list', async (req, res) => {
 
         if (groups.length === 0) {
             const localCfg = await getAutoReplyConfig();
-            if (Array.isArray(localCfg?.target_groups)) groups = localCfg.target_groups;
+            if (Array.isArray(localCfg?.target_groups) && localCfg.target_groups.length > 0) {
+                groups = localCfg.target_groups;
+            }
         }
 
-        // إذا كانت القائمة فارغة، نضع 6 مجموعات افتراضية متميزة
+        // إذا كانت القائمة فارغة، نضع المجموعات من clean_groups.json
         if (groups.length === 0) {
-            groups = [
-                { id: 'grp_1', name: 'رواد أعمال وتجارة إلكترونية مصر', url: 'https://www.facebook.com/groups/search/groups/?q=رواد%20أعمال', members: '210k عضو', category: 'رواد أعمال وتجارة', isBackup: false },
-                { id: 'grp_2', name: 'أصحاب الشركات والمشاريع الصغيرة', url: 'https://www.facebook.com/groups/search/groups/?q=أصحاب%20الشركات', members: '165k عضو', category: 'شركات واستثمار', isBackup: false },
-                { id: 'grp_3', name: 'تسويق ومبيعات ومتاجر إلكترونية', url: 'https://www.facebook.com/groups/search/groups/?q=تسويق%20إلكتروني', members: '140k عضو', category: 'تسويق وتجارة', isBackup: false },
-                { id: 'grp_4', name: 'تجار ومستوردي الجملة في مصر', url: 'https://www.facebook.com/groups/search/groups/?q=تجار%20الجملة', members: '180k عضو', category: 'تجارة جملة', isBackup: true },
-                { id: 'grp_5', name: 'ملتقى أصحاب المشروعات والبيزنس', url: 'https://www.facebook.com/groups/search/groups/?q=أصحاب%20المشاريع', members: '125k عضو', category: 'بيزنس واستثمار', isBackup: true },
-                { id: 'grp_6', name: 'أفكار مشاريع وتسويق رقمي', url: 'https://www.facebook.com/groups/search/groups/?q=أفكار%20مشاريع', members: '110k عضو', category: 'أفكار وتسويق', isBackup: true }
-            ];
+            try {
+                const cleanGroups = JSON.parse(fs.readFileSync(path.join(__dirname, 'clean_groups.json'), 'utf8'));
+                if (Array.isArray(cleanGroups) && cleanGroups.length > 0) {
+                    groups = cleanGroups;
+                }
+            } catch (e) {}
         }
 
-        res.json({ success: true, groups });
+        // مزامنة القائمة الكاملة مع سحابة Supabase إذا لم تكن مسجلة بعد
+        if (userId && supabaseAdmin && groups.length > 6) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+                let uConfig = userRow?.auto_reply_config || {};
+                if (!Array.isArray(uConfig.target_groups) || uConfig.target_groups.length <= 6) {
+                    uConfig.target_groups = groups;
+                    await supabaseAdmin
+                        .from('user_profiles')
+                        .update({ auto_reply_config: uConfig, updated_at: new Date().toISOString() })
+                        .eq('id', userId);
+                }
+            } catch (e) {}
+        }
+
+        res.json({ success: true, groups, total: groups.length });
     } catch (err) {
         res.status(500).json({ success: false, message: 'تعذر جلب قائمة الجروبات.' });
     }
@@ -2050,8 +2080,19 @@ app.get('/api/groups/target-list', async (req, res) => {
 // 6. حفظ قائمة الجروبات المستهدفة
 app.post('/api/groups/target-list', async (req, res) => {
     try {
-        const { userId, groups } = req.body;
+        let { userId, groups } = req.body;
         const validGroups = Array.isArray(groups) ? groups : [];
+
+        if (!userId && supabaseAdmin) {
+            try {
+                const { data: adminRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('email', 'raslan.meet@gmail.com')
+                    .maybeSingle();
+                if (adminRow?.id) userId = adminRow.id;
+            } catch (e) {}
+        }
 
         if (userId && supabaseAdmin) {
             try {
@@ -2086,20 +2127,33 @@ app.post('/api/groups/target-list', async (req, res) => {
     }
 });
 
-// 7. دالة إرسال إشعار النشر للتيليجرام مع أزرار الجروبات الذكية
+// 7. دالة إرسال إشعار النشر للتيليجرام مع أزرار الجروبات الذكية والتدوير غير المكرر
 async function sendTelegramGroupNotification(post, publishResults, userId) {
     try {
         let telegramConfig = null;
         let targetGroups = [];
+        let uConfig = {};
+        let targetUserId = userId;
 
-        if (userId && supabaseAdmin) {
+        if (!targetUserId && supabaseAdmin) {
+            try {
+                const { data: adminRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('email', 'raslan.meet@gmail.com')
+                    .maybeSingle();
+                if (adminRow?.id) targetUserId = adminRow.id;
+            } catch (e) {}
+        }
+
+        if (targetUserId && supabaseAdmin) {
             try {
                 const { data: userRow } = await supabaseAdmin
                     .from('user_profiles')
                     .select('auto_reply_config')
-                    .eq('id', userId)
+                    .eq('id', targetUserId)
                     .maybeSingle();
-                const uConfig = userRow?.auto_reply_config || {};
+                uConfig = userRow?.auto_reply_config || {};
                 telegramConfig = uConfig.telegram;
                 targetGroups = uConfig.target_groups || [];
             } catch (e) {
@@ -2107,10 +2161,11 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             }
         }
 
-        if (!telegramConfig) {
+        if (!telegramConfig || targetGroups.length === 0) {
             const localCfg = await getAutoReplyConfig(post.pageId);
-            telegramConfig = localCfg?.telegram;
-            targetGroups = localCfg?.target_groups || [];
+            if (!telegramConfig) telegramConfig = localCfg?.telegram;
+            if (targetGroups.length === 0) targetGroups = localCfg?.target_groups || [];
+            if (!uConfig.last_rotation_index) uConfig.last_rotation_index = localCfg?.last_rotation_index || 0;
         }
 
         if (!telegramConfig || !telegramConfig.enabled || !telegramConfig.botToken || !telegramConfig.chatId) {
@@ -2135,17 +2190,38 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         // رابط المشاركة السريعة الرسمي لفيسبوك
         const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fbPostUrl)}`;
 
-        // تصنيف الجروبات (أساسية واحتياطية)
-        let primaryGroups = targetGroups.filter(g => !g.isBackup);
-        let backupGroups = targetGroups.filter(g => g.isBackup);
+        // خوارزمية تدوير 5 جروبات يومياً بدون أي تكرار لأيام متتالية
+        const BATCH_SIZE = 5;
+        let startIndex = typeof uConfig.last_rotation_index === 'number' ? uConfig.last_rotation_index : 0;
+        if (startIndex >= targetGroups.length) startIndex = 0;
 
-        if (primaryGroups.length === 0 && targetGroups.length > 0) {
-            primaryGroups = targetGroups.slice(0, 3);
-            backupGroups = targetGroups.slice(3, 6);
+        const currentBatch = [];
+        const total = targetGroups.length;
+        const countToPick = Math.min(BATCH_SIZE, total);
+
+        for (let i = 0; i < countToPick; i++) {
+            const pickIndex = (startIndex + i) % total;
+            currentBatch.push(targetGroups[pickIndex]);
         }
 
-        const currentBatch = primaryGroups.slice(0, 3);
-        const currentBackups = backupGroups.slice(0, 3);
+        // تحديث المؤشر للمنشور القادم لضمان عدم التكرار نهائياً
+        const nextIndex = total > 0 ? (startIndex + countToPick) % total : 0;
+        uConfig.last_rotation_index = nextIndex;
+
+        // حفظ المؤشر في السحابة ومحلياً
+        if (targetUserId && supabaseAdmin) {
+            try {
+                await supabaseAdmin
+                    .from('user_profiles')
+                    .update({ auto_reply_config: uConfig, updated_at: new Date().toISOString() })
+                    .eq('id', targetUserId);
+            } catch (e) {}
+        }
+        try {
+            const localCfg = await getAutoReplyConfig(post.pageId);
+            localCfg.last_rotation_index = nextIndex;
+            await saveAutoReplyConfig(localCfg);
+        } catch (e) {}
 
         const postSnippet = (post.content || '').substring(0, 160) + ((post.content && post.content.length > 160) ? '...' : '');
 
@@ -2159,41 +2235,24 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
 
         if (currentBatch.length > 0) {
-            msgText += `🎯 <b>جروبات اليوم المستهدفة (تم تدويرها بالـ AI):</b>\n`;
+            msgText += `🎯 <b>جروبات اليوم الـ 5 (تدوير ذكي غير مكرر من أصل ${total} جروب):</b>\n`;
             currentBatch.forEach((g, idx) => {
-                msgText += `${idx + 1}️⃣ ${g.name || 'مجموعة مستهدفة'} ${g.members ? `(${g.members})` : ''}\n`;
+                msgText += `${idx + 1}️⃣ ${g.name || 'مجموعة مستهدفة'}\n`;
             });
         }
 
-        if (currentBackups.length > 0) {
-            msgText += `\n🛡️ <b>جروبات احتياطية جاهزة كبديل:</b>\n`;
-            currentBackups.forEach((g, idx) => {
-                msgText += `🔹 ${g.name || 'مجموعة احتياطية'} ${g.members ? `(${g.members})` : ''}\n`;
-            });
-        }
-
-        msgText += `\n👇 <b>اضغط على الزر أدناه لمشاركة البوست في كل جروب:</b>`;
+        msgText += `\n👇 <b>اضغط على أي زر أدناه لفتح الجروب والمشاركة فيه مباشرة:</b>`;
 
         // بناء الأزرار التفاعلية (Inline Keyboard)
         const inlineKeyboard = [];
 
-        // زر مستقل لكل جروب أساسي يفتح الجروب مباشرة
+        // زر مستقل لكل جروب من الـ 5 يفتح الجروب مباشرة
         currentBatch.forEach((g, idx) => {
             const targetUrl = (g.url && g.url.trim()) ? g.url.trim() : fbShareUrl;
             inlineKeyboard.push([
                 { text: `🚀 نشر مباشر في: ${g.name || 'جروب ' + (idx + 1)}`, url: targetUrl }
             ]);
         });
-
-        // أزرار الجروبات الاحتياطية (تفتح الجروب البديل مباشرة)
-        if (currentBackups.length > 0) {
-            currentBackups.forEach((g, idx) => {
-                const targetUrl = (g.url && g.url.trim()) ? g.url.trim() : fbShareUrl;
-                inlineKeyboard.push([
-                    { text: `🛡️ بديل ${idx + 1}: ${g.name || 'جروب احتياطي'}`, url: targetUrl }
-                ]);
-            });
-        }
 
         // زر نافذة المشاركة السريعة وزر المنشور الأصلي
         inlineKeyboard.push([
