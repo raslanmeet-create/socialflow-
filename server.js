@@ -1839,7 +1839,12 @@ app.post('/api/telegram/test-rotation', async (req, res) => {
             mediaType: 'image/jpeg'
         };
         const mockResults = customResults || {
-            facebook: { success: true, id: '1036372629556993_122107818044889779', post_id: '122107818044889779' },
+            facebook: { 
+                success: true, 
+                id: '1036372629556993_122107818044889779', 
+                post_id: '122107818044889779',
+                permalink_url: 'https://www.facebook.com/RaslansMarketing/posts/pfbid02Sb3NGJTu4iaivwASRLQ2ry866ydDUeLebu4tzRQiZ9b4neAxQcGu9X7dP16aLcJAl'
+            },
             instagram: { success: true },
             facebook: { firstComment: { success: true } }
         };
@@ -2216,15 +2221,19 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             return { success: false, error: 'لم يتم العثور على توكن أو معرف الدردشة لتيليجرام.' };
         }
 
-        // استخراج معرف ورابط البوست على فيسبوك
+        // استخراج معرف ورابط البوست على فيسبوك بالشكل الرسمي لصفحة رسلان
         const fbFeedResult = publishResults?.facebook?.feed || publishResults?.facebook;
         const fbPostId = fbFeedResult?.post_id || fbFeedResult?.id;
         let fbPostUrl = '';
-        if (fbPostId) {
+        if (fbFeedResult?.permalink_url) {
+            fbPostUrl = fbFeedResult.permalink_url;
+        } else if (post.postUrl) {
+            fbPostUrl = post.postUrl;
+        } else if (fbPostId) {
             const cleanId = String(fbPostId).includes('_') ? String(fbPostId).split('_')[1] : fbPostId;
-            fbPostUrl = `https://www.facebook.com/${post.pageId || ''}/posts/${cleanId}`;
+            fbPostUrl = `https://www.facebook.com/RaslansMarketing/posts/${cleanId}`;
         } else {
-            fbPostUrl = `https://www.facebook.com/${post.pageId || ''}`;
+            fbPostUrl = `https://www.facebook.com/RaslansMarketing`;
         }
 
         // رابط المشاركة السريعة الرسمي لفيسبوك
