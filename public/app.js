@@ -3941,6 +3941,44 @@ if (btnTestTelegram) {
     btnTestTelegram.addEventListener('click', testTelegramUI);
 }
 
+// 5.5 تجربة إشعار تدوير الجروبات الخمسة والعنوان اليومي
+const btnSimulatePostNotification = document.getElementById('btnSimulatePostNotification');
+
+async function simulatePostNotificationUI() {
+    if (!btnSimulatePostNotification) return;
+    if (btnSimulatePostNotification.dataset.loading === 'true') return;
+
+    try {
+        btnSimulatePostNotification.dataset.loading = 'true';
+        btnSimulatePostNotification.disabled = true;
+        btnSimulatePostNotification.innerHTML = '<span>⏳ جاري إرسال إشعار الـ 5 جروبات للتيليجرام...</span>';
+
+        const userId = currentAuthUser ? currentAuthUser.id : '';
+        const res = await fetch('/api/telegram/test-rotation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showTgFeedback(tgStatusFeedback, data.message || 'تم إرسال إشعار تدوير الـ 5 جروبات والعنوان الذكي إلى هاتفك! تفقد تيليجرام الآن 🚀', 'success');
+        } else {
+            showTgFeedback(tgStatusFeedback, data.message || 'تعذر إرسال إشعار التجربة.', 'error');
+        }
+    } catch (err) {
+        showTgFeedback(tgStatusFeedback, 'خطأ أثناء الاتصال بالخادم: ' + err.message, 'error');
+    } finally {
+        btnSimulatePostNotification.disabled = false;
+        btnSimulatePostNotification.dataset.loading = 'false';
+        btnSimulatePostNotification.innerHTML = '<span>🧪 تجربة وصول إشعار النشر وتدوير الـ 5 جروبات الآن</span>';
+    }
+}
+
+if (btnSimulatePostNotification) {
+    btnSimulatePostNotification.addEventListener('click', simulatePostNotificationUI);
+}
+
 function showTgFeedback(el, message, type = 'success') {
     if (!el) return;
     el.textContent = message;
@@ -4305,6 +4343,7 @@ window.adoptCandidatesUI = adoptCandidatesUI;
 window.addNewGroupRowUI = addNewGroupRowUI;
 window.saveGroupsPoolUI = saveGroupsPoolUI;
 window.toggleTgTokenVisibility = toggleTgTokenVisibility;
+window.simulatePostNotificationUI = simulatePostNotificationUI;
 
 
 

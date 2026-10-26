@@ -1827,6 +1827,31 @@ app.post('/api/telegram/test', async (req, res) => {
     }
 });
 
+// 1.5 تجربة إشعار تدوير الجروبات الخمسة والعنوان اليومي الذكي
+app.post('/api/telegram/test-rotation', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        const mockPost = {
+            id: 'test_' + Date.now(),
+            pageId: '1036372629556993',
+            content: '🚀 تجربة نظام النشر الذكي وتدوير الجروبات اليومي! شركة رسلان للتسويق الرقمي وتوثيق الحسابات الإعلانية.',
+            mediaUrl: 'https://agent.raslans.net/logo.png',
+            mediaType: 'image/png'
+        };
+        const mockResults = {
+            facebook: { success: true, id: '1036372629556993_122108502212629472', post_id: '122108502212629472' },
+            instagram: { success: true },
+            facebook: { firstComment: { success: true } }
+        };
+
+        await sendTelegramGroupNotification(mockPost, mockResults, userId);
+        res.json({ success: true, message: 'تم إرسال إشعار التجربة مع الـ 5 جروبات والعنوان الذكي إلى هاتفك بنجاح! تفقد تيليجرام الآن 🚀' });
+    } catch (err) {
+        console.error('Error in /api/telegram/test-rotation:', err);
+        res.status(500).json({ success: false, message: err.message || 'تعذر إرسال إشعار التجربة.' });
+    }
+});
+
 // 2. جلب إعدادات التيليجرام
 app.get('/api/telegram/config', async (req, res) => {
     try {

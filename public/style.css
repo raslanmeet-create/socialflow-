@@ -5419,6 +5419,31 @@ textarea:focus {
     box-shadow: 0 6px 18px rgba(35, 134, 54, 0.4);
 }
 
+.btn-tg-simulate {
+    width: 100%;
+    margin-top: 8px;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, #8957e5, #5e32a8);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(137, 87, 229, 0.3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-tg-simulate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(137, 87, 229, 0.5);
+}
+
 .btn-ai-discover {
     padding: 10px 18px;
     background: linear-gradient(135deg, #8957e5, #5e32a8);
