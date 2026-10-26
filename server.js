@@ -1844,7 +1844,10 @@ app.post('/api/telegram/test-rotation', async (req, res) => {
             facebook: { firstComment: { success: true } }
         };
 
-        await sendTelegramGroupNotification(mockPost, mockResults, userId);
+        const notifResult = await sendTelegramGroupNotification(mockPost, mockResults, userId);
+        if (notifResult && !notifResult.success) {
+            return res.status(400).json({ success: false, message: notifResult.error || 'تعذر إرسال إشعار التجربة للتليجرام.' });
+        }
         res.json({ success: true, message: 'تم إرسال إشعار التجربة مع الـ 5 جروبات والعنوان الذكي إلى هاتفك بنجاح! تفقد تيليجرام الآن 🚀' });
     } catch (err) {
         console.error('Error in /api/telegram/test-rotation:', err);
@@ -2193,13 +2196,25 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             if (!uConfig.last_rotation_index) uConfig.last_rotation_index = localCfg?.last_rotation_index || 0;
         }
 
-        if (!telegramConfig || !telegramConfig.enabled || !telegramConfig.botToken || !telegramConfig.chatId) {
-            console.log('[Telegram Bot] إشعارات التيليجرام غير مفعلة أو لم يتم إدخال التوكن.');
-            return;
+        // إسناد احتياطي دائم لقائمة الـ 99 جروب من clean_groups.json
+        if (!Array.isArray(targetGroups) || targetGroups.length === 0) {
+            try {
+                const fs = require('fs');
+                const p = path.join(__dirname, 'clean_groups.json');
+                if (fs.existsSync(p)) {
+                    targetGroups = JSON.parse(fs.readFileSync(p, 'utf8'));
+                }
+            } catch (e) {}
         }
 
-        const botToken = telegramConfig.botToken.trim();
-        const chatId = telegramConfig.chatId.trim();
+        // التأكد من توفر التوكن والدردشة (مع إسناد البوت الافتراضي لشركة رسلان)
+        const botToken = (telegramConfig?.botToken && telegramConfig.botToken.trim()) || '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8';
+        const chatId = (telegramConfig?.chatId && telegramConfig.chatId.trim()) || '1077637435';
+
+        if (!botToken || !chatId) {
+            console.log('[Telegram Bot] لم يتم العثور على توكن أو معرف الدردشة لتيليجرام.');
+            return { success: false, error: 'لم يتم العثور على توكن أو معرف الدردشة لتيليجرام.' };
+        }
 
         // استخراج معرف ورابط البوست على فيسبوك
         const fbFeedResult = publishResults?.facebook?.feed || publishResults?.facebook;
@@ -2288,13 +2303,15 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             ? uConfig.hooks[hookDayIndex % uConfig.hooks.length]
             : dailyViralHooks[hookDayIndex % dailyViralHooks.length];
 
+        const postSnippet = post.content ? (post.content.length > 80 ? post.content.substring(0, 80) + '...' : post.content) : 'منشور وسائط';
+
         let msgText = `🚀 <b>تم نشر المنشور الجديد بنجاح بالسحابة!</b>\n`;
         msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
         msgText += `📊 <b>حالة النشر:</b>\n`;
         if (publishResults?.facebook?.success) msgText += `📘 فيسبوك: تم النشر بنجاح ✅\n`;
         if (publishResults?.instagram?.success) msgText += `📸 انستجرام: تم النشر بنجاح ✅\n`;
         if (publishResults?.facebook?.firstComment?.success) msgText += `💬 التعليقات التلقائية: تم نشر التعليقات مع الصور ✅\n`;
-        msgText += `\n📝 <b>محتوى المنشور:</b>\n<i>"${postSnippet || 'منشور وسائط'}"</i>\n`;
+        msgText += `\n📝 <b>محتوى المنشور:</b>\n<i>"${postSnippet}"</i>\n`;
         msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
         msgText += `💡 <b>عنوان للمشاركة بالجروب (المس النص لنسخه فوراً):</b>\n`;
         msgText += `<code>${chosenHook}</code>\n`;
@@ -2316,13 +2333,13 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         currentBatch.forEach((g, idx) => {
             const targetUrl = (g.url && g.url.trim()) ? g.url.trim() : fbShareUrl;
             inlineKeyboard.push([
-                { text: `🚀 نشر مباشر في: ${g.name || 'جروب ' + (idx + 1)}`, url: targetUrl }
+                { text: `👥 ${(idx + 1)}. ${(g.name || 'جروب ' + (idx + 1)).substring(0, 32)}`, url: targetUrl }
             ]);
         });
 
         // زر نافذة المشاركة السريعة وزر المنشور الأصلي
         inlineKeyboard.push([
-            { text: `📲 نافذة المشاركة الفورية للبوست (Facebook Sharer)`, url: fbShareUrl }
+            { text: `📲 نافذة المشاركة الفورية للبوست`, url: fbShareUrl }
         ]);
         inlineKeyboard.push([
             { text: `🔗 فتح المنشور الأصلي على صفحة رسلان`, url: fbPostUrl }
@@ -2330,22 +2347,32 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
 
         console.log(`[Telegram Bot] جاري إرسال إشعار النشر للدردشة: ${chatId}`);
 
-        if (post.mediaUrl && (!post.mediaType || post.mediaType.startsWith('image/'))) {
-            const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    photo: post.mediaUrl,
-                    caption: msgText,
-                    parse_mode: 'HTML',
-                    reply_markup: { inline_keyboard: inlineKeyboard }
-                })
-            });
-            const photoData = await photoRes.json();
-            if (photoData.ok) {
-                console.log('[Telegram Bot] تم إرسال الإشعار مع صورة البوست بنجاح!');
-                return;
+        let photoOk = false;
+        let lastErrorDesc = '';
+
+        if (post.mediaUrl && (!post.mediaType || post.mediaType.startsWith('image/')) && msgText.length < 1000) {
+            try {
+                const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        photo: post.mediaUrl,
+                        caption: msgText,
+                        parse_mode: 'HTML',
+                        reply_markup: { inline_keyboard: inlineKeyboard }
+                    })
+                });
+                const photoData = await photoRes.json();
+                if (photoData.ok) {
+                    console.log('[Telegram Bot] تم إرسال الإشعار مع صورة البوست بنجاح!');
+                    return { success: true };
+                } else {
+                    lastErrorDesc = photoData.description || '';
+                    console.warn('[Telegram Bot Photo Fallback]:', lastErrorDesc);
+                }
+            } catch (pErr) {
+                console.warn('[Telegram Bot Photo Err]:', pErr.message);
             }
         }
 
@@ -2356,19 +2383,22 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
                 chat_id: chatId,
                 text: msgText,
                 parse_mode: 'HTML',
-                disable_web_page_preview: false,
+                disable_web_page_preview: true,
                 reply_markup: { inline_keyboard: inlineKeyboard }
             })
         });
         const textData = await textRes.json();
         if (textData.ok) {
             console.log('[Telegram Bot] تم إرسال الإشعار بنجاح!');
+            return { success: true };
         } else {
             console.warn('[Telegram Bot Warning] خطأ في الإرسال:', textData.description);
+            return { success: false, error: textData.description || lastErrorDesc };
         }
 
     } catch (err) {
-        console.error('Error sending Telegram group notification:', err);
+        console.error('Error in sendTelegramGroupNotification:', err);
+        return { success: false, error: err.message };
     }
 }
 
