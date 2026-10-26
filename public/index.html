@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="vendor/cropper.min.css">
-    <link rel="stylesheet" href="style.css?v=20261026_1523">
+    <link rel="stylesheet" href="style.css?v=20261026_1535">
     <!-- مكتبة Supabase للواجهة الأمامية -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1148,16 +1148,16 @@
                                 <label for="tgChatId">🆔 معرف المحادثة (Your Chat ID):</label>
                                 <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" class="tg-helper-link">احصل عليه من @userinfobot ↗</a>
                             </div>
-                            <input type="text" id="tgChatId" class="settings-input" placeholder="مثال: 987654321">
+                            <input type="text" id="tgChatId" class="settings-input" placeholder="مثال: 1077637435" value="1077637435">
                             <small class="tg-hint">تحدث مع <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> واضغط Start لمعرفة الـ ID الخاص بحسابك والصقه هنا.</small>
                         </div>
 
                         <!-- أزرار الإجراءات -->
                         <div class="tg-actions-row">
-                            <button type="button" class="btn-tg-test" id="btnTestTelegram" onclick="testTelegramUI()">
+                            <button type="button" class="btn-tg-test" id="btnTestTelegram">
                                 <span>📱 اختبار البوت وإرسال رسالة تجريبية</span>
                             </button>
-                            <button type="button" class="btn-tg-save" id="btnSaveTelegramConfig" onclick="saveTelegramConfigUI()">
+                            <button type="button" class="btn-tg-save" id="btnSaveTelegramConfig">
                                 <span>💾 حفظ إعدادات التيليجرام</span>
                             </button>
                         </div>
@@ -1196,7 +1196,7 @@
                             <label for="tgNicheInput">🏢 مجال ونشاط الصفحة المستهدف:</label>
                             <div class="input-with-button-inline">
                                 <input type="text" id="tgNicheInput" class="settings-input" placeholder="مثال: تسويق رقمي، إدارة صفحات، تصميم مواقع، إعلانات ممولة" value="تسويق رقمي، إدارة صفحات سوشيال ميديا، إعلانات ممولة، وتصميم مواقع">
-                                <button type="button" class="btn-ai-discover" id="btnAiDiscoverGroups" onclick="aiDiscoverGroupsUI()">
+                                <button type="button" class="btn-ai-discover" id="btnAiDiscoverGroups">
                                     <span class="ai-spark-icon">✨</span>
                                     <span>صيد وتحليل الجروبات بالـ AI</span>
                                 </button>
@@ -1222,7 +1222,7 @@
                                     <h4>👥 الجروبات الـ 6 المرشحة من الذكاء الاصطناعي:</h4>
                                     <span class="hint-inline">3 مجموعات أساسية + 3 مجموعات احتياطية</span>
                                 </div>
-                                <button type="button" class="btn-adopt-candidates" id="btnAdoptCandidates" onclick="adoptCandidatesUI()" style="display: none;">
+                                <button type="button" class="btn-adopt-candidates" id="btnAdoptCandidates" style="display: none;">
                                     <span>📥 اعتماد هذه المجموعات كحوض النشر</span>
                                 </button>
                             </div>
@@ -1291,10 +1291,10 @@
 
                         <!-- أزرار الإجراءات لجدول الجروبات -->
                         <div class="groups-actions-row">
-                            <button type="button" class="btn-add-group-row" id="btnAddGroupRow" onclick="addNewGroupRowUI()">
+                            <button type="button" class="btn-add-group-row" id="btnAddGroupRow">
                                 <span>➕ إضافة جروب إضافي</span>
                             </button>
-                            <button type="button" class="btn-save-groups-pool" id="btnSaveGroupsPool" onclick="saveGroupsPoolUI()">
+                            <button type="button" class="btn-save-groups-pool" id="btnSaveGroupsPool">
                                 <span>💾 حفظ قائمة الجروبات بالسحابة (Supabase)</span>
                             </button>
                         </div>
@@ -1671,6 +1671,6 @@
     </div> <!-- /#appDashboard -->
 
     <script src="vendor/cropper.min.js"></script>
-    <script src="app.js?v=20261026_1523"></script>
+    <script src="app.js?v=20261026_1535"></script>
 </body>
 </html>

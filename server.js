@@ -1830,8 +1830,19 @@ app.post('/api/telegram/test', async (req, res) => {
 // 2. جلب إعدادات التيليجرام
 app.get('/api/telegram/config', async (req, res) => {
     try {
-        const userId = req.query.userId;
-        let telegramConfig = { enabled: false, botToken: '', chatId: '' };
+        let userId = req.query.userId;
+        let telegramConfig = { enabled: true, botToken: '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8', chatId: '1077637435' };
+
+        if (!userId && supabaseAdmin) {
+            try {
+                const { data: adminRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('email', 'raslan.meet@gmail.com')
+                    .maybeSingle();
+                if (adminRow?.id) userId = adminRow.id;
+            } catch (e) {}
+        }
 
         if (userId && supabaseAdmin) {
             try {
@@ -1841,14 +1852,14 @@ app.get('/api/telegram/config', async (req, res) => {
                     .eq('id', userId)
                     .maybeSingle();
                 if (userRow?.auto_reply_config?.telegram) {
-                    telegramConfig = userRow.auto_reply_config.telegram;
+                    telegramConfig = { ...telegramConfig, ...userRow.auto_reply_config.telegram };
                 }
             } catch (e) {}
         }
 
-        if (!telegramConfig.botToken) {
+        if (!telegramConfig.botToken || !telegramConfig.chatId) {
             const localCfg = await getAutoReplyConfig();
-            if (localCfg?.telegram) telegramConfig = localCfg.telegram;
+            if (localCfg?.telegram) telegramConfig = { ...telegramConfig, ...localCfg.telegram };
         }
 
         res.json({ success: true, telegram: telegramConfig });
@@ -1860,12 +1871,23 @@ app.get('/api/telegram/config', async (req, res) => {
 // 3. حفظ إعدادات التيليجرام
 app.post('/api/telegram/config', async (req, res) => {
     try {
-        const { userId, botToken, chatId, enabled } = req.body;
+        let { userId, botToken, chatId, enabled } = req.body;
         const newTelegramConfig = {
-            botToken: (botToken || '').trim(),
-            chatId: (chatId || '').trim(),
-            enabled: !!enabled
+            botToken: (botToken || '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8').trim(),
+            chatId: (chatId || '1077637435').trim(),
+            enabled: enabled !== false
         };
+
+        if (!userId && supabaseAdmin) {
+            try {
+                const { data: adminRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('email', 'raslan.meet@gmail.com')
+                    .maybeSingle();
+                if (adminRow?.id) userId = adminRow.id;
+            } catch (e) {}
+        }
 
         if (userId && supabaseAdmin) {
             try {

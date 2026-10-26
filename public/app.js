@@ -3830,14 +3830,15 @@ async function loadTelegramConfigUI() {
 
         if (data.success && data.telegram) {
             const cfg = data.telegram;
-            if (tgBotToken) tgBotToken.value = cfg.botToken || '';
-            if (tgChatId) tgChatId.value = cfg.chatId || '';
+            if (tgBotToken) tgBotToken.value = cfg.botToken || '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8';
+            if (tgChatId) tgChatId.value = cfg.chatId || '1077637435';
             if (tgBotEnabled) {
                 tgBotEnabled.checked = cfg.enabled !== false;
                 if (tgEnabledStatusText) tgEnabledStatusText.textContent = tgBotEnabled.checked ? 'مفعّل' : 'معطّل';
             }
 
-            updateTgStatusIndicator(Boolean(cfg.botToken && cfg.chatId && cfg.enabled !== false));
+            const isReady = Boolean((cfg.botToken || tgBotToken?.value) && (cfg.chatId || tgChatId?.value) && cfg.enabled !== false);
+            updateTgStatusIndicator(isReady);
         }
     } catch (err) {
         console.warn('Error loading telegram config:', err);
@@ -3858,8 +3859,10 @@ function updateTgStatusIndicator(isActive) {
 // 4. حفظ إعدادات التيليجرام
 async function saveTelegramConfigUI() {
     if (!btnSaveTelegramConfig) return;
-    const origText = btnSaveTelegramConfig.innerHTML;
+    if (btnSaveTelegramConfig.dataset.loading === 'true') return;
+
     try {
+        btnSaveTelegramConfig.dataset.loading = 'true';
         btnSaveTelegramConfig.disabled = true;
         btnSaveTelegramConfig.innerHTML = '<span>⏳ جاري الحفظ...</span>';
 
@@ -3885,7 +3888,8 @@ async function saveTelegramConfigUI() {
         showTgFeedback(tgStatusFeedback, 'تعذر الاتصال بالخادم لحفظ الإعدادات: ' + err.message, 'error');
     } finally {
         btnSaveTelegramConfig.disabled = false;
-        btnSaveTelegramConfig.innerHTML = origText;
+        btnSaveTelegramConfig.dataset.loading = 'false';
+        btnSaveTelegramConfig.innerHTML = '<span>💾 حفظ إعدادات التيليجرام</span>';
     }
 }
 
@@ -3896,6 +3900,8 @@ if (btnSaveTelegramConfig) {
 // 5. اختبار اتصال بوت التيليجرام الفوري
 async function testTelegramUI() {
     if (!btnTestTelegram) return;
+    if (btnTestTelegram.dataset.loading === 'true') return;
+
     const botToken = tgBotToken ? tgBotToken.value.trim() : '';
     const chatId = tgChatId ? tgChatId.value.trim() : '';
 
@@ -3904,8 +3910,8 @@ async function testTelegramUI() {
         return;
     }
 
-    const origText = btnTestTelegram.innerHTML;
     try {
+        btnTestTelegram.dataset.loading = 'true';
         btnTestTelegram.disabled = true;
         btnTestTelegram.innerHTML = '<span>⏳ جاري إرسال الرسالة التجريبية...</span>';
 
@@ -3926,7 +3932,8 @@ async function testTelegramUI() {
         showTgFeedback(tgStatusFeedback, 'خطأ أثناء الاتصال بالتيليجرام: ' + err.message, 'error');
     } finally {
         btnTestTelegram.disabled = false;
-        btnTestTelegram.innerHTML = origText;
+        btnTestTelegram.dataset.loading = 'false';
+        btnTestTelegram.innerHTML = '<span>📱 اختبار البوت وإرسال رسالة تجريبية</span>';
     }
 }
 
@@ -3947,9 +3954,10 @@ function showTgFeedback(el, message, type = 'success') {
 // 6. صياد الكلمات والجروبات بالذكاء الاصطناعي (AI Group Hunter)
 async function aiDiscoverGroupsUI() {
     if (!btnAiDiscoverGroups) return;
-    const origText = btnAiDiscoverGroups.innerHTML;
+    if (btnAiDiscoverGroups.dataset.loading === 'true') return;
 
     try {
+        btnAiDiscoverGroups.dataset.loading = 'true';
         btnAiDiscoverGroups.disabled = true;
         btnAiDiscoverGroups.innerHTML = '<span class="ai-spark-icon">⏳</span><span>جاري التحليل واستخراج الجروبات...</span>';
 
@@ -4038,7 +4046,8 @@ async function aiDiscoverGroupsUI() {
         alert('حدث خطأ أثناء الاتصال بالـ AI: ' + err.message);
     } finally {
         btnAiDiscoverGroups.disabled = false;
-        btnAiDiscoverGroups.innerHTML = origText;
+        btnAiDiscoverGroups.dataset.loading = 'false';
+        btnAiDiscoverGroups.innerHTML = '<span class="ai-spark-icon">✨</span><span>صيد وتحليل الجروبات بالـ AI</span>';
     }
 }
 
@@ -4227,9 +4236,10 @@ function collectGroupsFromTable() {
 // 10. حفظ قائمة الجروبات بالسحابة (Supabase)
 async function saveGroupsPoolUI() {
     if (!btnSaveGroupsPool) return;
-    const origText = btnSaveGroupsPool.innerHTML;
+    if (btnSaveGroupsPool.dataset.loading === 'true') return;
 
     try {
+        btnSaveGroupsPool.dataset.loading = 'true';
         btnSaveGroupsPool.disabled = true;
         btnSaveGroupsPool.innerHTML = '<span>⏳ جاري الحفظ بالسحابة...</span>';
 
@@ -4252,7 +4262,8 @@ async function saveGroupsPoolUI() {
         showTgFeedback(groupsStatusFeedback, 'خطأ أثناء الاتصال بالخادم: ' + err.message, 'error');
     } finally {
         btnSaveGroupsPool.disabled = false;
-        btnSaveGroupsPool.innerHTML = origText;
+        btnSaveGroupsPool.dataset.loading = 'false';
+        btnSaveGroupsPool.innerHTML = '<span>💾 حفظ قائمة الجروبات بالسحابة (Supabase)</span>';
     }
 }
 
