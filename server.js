@@ -2377,39 +2377,74 @@ async function publishToInstagram(igUserId, token, post, caption) {
     if (containerData.error) throw new Error(containerData.error.message);
 
     const creationId = containerData.id;
+    console.log(`[Instagram Container Created] تم إنشاء الحاوية: ${creationId} (نوع: ${isVideo ? 'فيديو' : 'صورة'})`);
 
-    // إذا كان فيديو، ننتظر بضع ثوانٍ لمعالجة الفيديو من قِبل سيرفرات انستجرام
-    if (isVideo) {
-        console.log(`[Instagram] جاري انتظار معالجة الفيديو في انستجرام... الحاوية: ${creationId}`);
-        let ready = false;
-        for (let i = 0; i < 15; i++) {
-            await new Promise(r => setTimeout(r, 2000));
+    // الخطوة 2: فحص وتأكيد جهوزية انستجرام للوسائط (سواء صورة أو فيديو) لتجنب خطأ Media ID is not available
+    const maxRetries = isVideo ? 25 : 12; // 50 ثانية للفيديو، 24 ثانية للصور
+    let ready = false;
+    for (let i = 0; i < maxRetries; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
             const statusRes = await fetch(`https://graph.facebook.com/v21.0/${creationId}?fields=status_code&access_token=${token}`);
             const statusData = await statusRes.json();
+            console.log(`[Instagram Container Status] فحص ${i + 1}/${maxRetries} للحاوية ${creationId} - الحالة: ${statusData.status_code || 'جاري المعالجة'}`);
             if (statusData.status_code === 'FINISHED') {
                 ready = true;
                 break;
             }
             if (statusData.status_code === 'ERROR') {
-                throw new Error('تعذر على انستجرام معالجة صيغة الفيديو.');
+                throw new Error('تعذر على انستجرام معالجة الوسائط (أبعاد أو صيغة غير مدعومة).');
             }
-        }
-        if (!ready) {
-            throw new Error('استغرق انستجرام وقتاً أطول من المعتاد لمعالجة الفيديو.');
+        } catch (err) {
+            if (err.message && err.message.includes('تعذر على انستجرام معالجة الوسائط')) {
+                throw err;
+            }
+            console.warn(`[Instagram Status Warning] محاولة ${i + 1}:`, err.message);
         }
     }
 
-    // الخطوة 2: نشر الحاوية (Publish)
-    const pubParams = new URLSearchParams({
-        creation_id: creationId,
-        access_token: token
-    });
-    const pubRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media_publish`, {
-        method: 'POST',
-        body: pubParams
-    });
-    const pubData = await pubRes.json();
-    if (pubData.error) throw new Error(pubData.error.message);
+    // الخطوة 3: نشر الحاوية (Publish) مع إعادة المحاولة الذكية لتفادي أي تأخير لحظي في شبكة Meta
+    let pubData = null;
+    let publishError = null;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+            const pubParams = new URLSearchParams({
+                creation_id: creationId,
+                access_token: token
+            });
+            const pubRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media_publish`, {
+                method: 'POST',
+                body: pubParams
+            });
+            pubData = await pubRes.json();
+            
+            if (pubData.error) {
+                const errMsg = pubData.error.message || '';
+                // إذا كان الخطأ أن Media ID غير متاح بعد، ننتظر 3 ثوانٍ ونعيد المحاولة
+                if (errMsg.includes('Media ID is not available') || errMsg.includes('Please wait') || pubData.error.code === 9007) {
+                    console.warn(`[Instagram Publish Lag] محاولة ${attempt}/4: ${errMsg}. جاري الانتظار 3 ثوانٍ لإعادة المحاولة...`);
+                    await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                }
+                throw new Error(errMsg);
+            }
+
+            // تم النشر بنجاح
+            console.log(`[Instagram Published Successfully] تم نشر بوست انستجرام بنجاح! ID: ${pubData.id}`);
+            break;
+        } catch (err) {
+            publishError = err;
+            if (err.message && (err.message.includes('Media ID is not available') || err.message.includes('Please wait')) && attempt < 4) {
+                await new Promise(r => setTimeout(r, 3000));
+                continue;
+            }
+            throw err;
+        }
+    }
+
+    if (!pubData || !pubData.id) {
+        throw publishError || new Error('تعذر نشر البوست على انستجرام.');
+    }
 
     return { success: true, id: pubData.id };
 }
@@ -2566,16 +2601,43 @@ async function publishToInstagramStory(igUserId, token, post) {
         throw new Error('استغرق انستجرام وقتاً أطول من المعتاد لتجهيز الستوري.');
     }
 
-    const pubParams = new URLSearchParams({
-        creation_id: creationId,
-        access_token: token
-    });
-    const pubRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media_publish`, {
-        method: 'POST',
-        body: pubParams
-    });
-    const pubData = await pubRes.json();
-    if (pubData.error) throw new Error(pubData.error.message);
+    // نشر ستوري انستجرام مع إعادة المحاولة لتجنب التأخير
+    let pubData = null;
+    let publishError = null;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+            const pubParams = new URLSearchParams({
+                creation_id: creationId,
+                access_token: token
+            });
+            const pubRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media_publish`, {
+                method: 'POST',
+                body: pubParams
+            });
+            pubData = await pubRes.json();
+            if (pubData.error) {
+                const errMsg = pubData.error.message || '';
+                if ((errMsg.includes('Media ID is not available') || errMsg.includes('Please wait')) && attempt < 4) {
+                    console.warn(`[Instagram Story Lag] محاولة ${attempt}/4: ${errMsg}. جاري الانتظار 3 ثوانٍ...`);
+                    await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                }
+                throw new Error(errMsg);
+            }
+            break;
+        } catch (err) {
+            publishError = err;
+            if (err.message && (err.message.includes('Media ID is not available') || err.message.includes('Please wait')) && attempt < 4) {
+                await new Promise(r => setTimeout(r, 3000));
+                continue;
+            }
+            throw err;
+        }
+    }
+
+    if (!pubData || !pubData.id) {
+        throw publishError || new Error('تعذر نشر ستوري انستجرام.');
+    }
 
     return { success: true, id: pubData.id };
 }
@@ -2604,26 +2666,49 @@ async function postFacebookComment(targetId, message, token) {
     }
 }
 
-// دالة التعليق الأول على منشور انستجرام
+// دالة التعليق الأول على منشور انستجرام مع تأخير ذكي وإعادة المحاولة التلقائية
 async function postInstagramComment(mediaId, message, token) {
-    try {
-        console.log(`[Instagram Comment] جاري إضافة التعليق الأول على: ${mediaId}`);
-        const res = await fetch(`https://graph.facebook.com/v21.0/${mediaId}/comments`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: message,
-                access_token: token
-            })
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        console.log(`[Instagram Comment] تم إضافة التعليق بنجاح! ID: ${data.id}`);
-        return { success: true, id: data.id };
-    } catch (err) {
-        console.error('Error in Instagram first comment:', err);
-        return { success: false, error: err.message };
+    if (!mediaId || !message) {
+        return { success: false, error: 'معرف المنشور أو نص التعليق غير موجود' };
     }
+
+    // ننتظر 3 ثوانٍ للسماح لسيرفرات انستجرام بتسجيل المنشور على شبكتها قبل كتابة التعليق الأول
+    console.log(`[Instagram Comment] انتظار 3 ثوانٍ لتأكيد جهوزية المنشور (${mediaId}) لاستقبال التعليق الأول...`);
+    await new Promise(r => setTimeout(r, 3000));
+
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            console.log(`[Instagram Comment] محاولة ${attempt}/3 لإضافة التعليق الأول على المنشور: ${mediaId}`);
+            const res = await fetch(`https://graph.facebook.com/v21.0/${mediaId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: message,
+                    access_token: token
+                })
+            });
+            const data = await res.json();
+            if (data.error) {
+                const errMsg = data.error.message || 'خطأ غير معروف في تعليق انستجرام';
+                console.warn(`[Instagram Comment Warning] محاولة ${attempt}/3 فشلت: ${errMsg}`);
+                lastError = new Error(errMsg);
+                if (attempt < 3) {
+                    await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                }
+                throw lastError;
+            }
+            console.log(`[Instagram Comment] تم إضافة التعليق بنجاح على انستجرام! ID: ${data.id}`);
+            return { success: true, id: data.id };
+        } catch (err) {
+            lastError = err;
+            if (attempt < 3) {
+                await new Promise(r => setTimeout(r, 3000));
+            }
+        }
+    }
+    return { success: false, error: lastError?.message || 'تعذر إضافة التعليق الأول على انستجرام بعد 3 محاولات' };
 }
 
 
