@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="vendor/cropper.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261026_1523">
     <!-- مكتبة Supabase للواجهة الأمامية -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -132,21 +132,21 @@
 
         <!-- شريط التبويبات الرئيسي للتبديل بين الإنشاء ومخطط ميتا للجدولة -->
         <nav class="main-nav-tabs">
-            <button type="button" class="nav-tab-btn active" id="tabBtnComposer" data-tab="composer">
+            <button type="button" class="nav-tab-btn active" id="tabBtnComposer" data-tab="composer" onclick="switchTab('composer')">
                 <span class="tab-icon">✍️</span>
                 <span class="tab-label">إنشاء ونشر منشور جديد</span>
             </button>
-            <button type="button" class="nav-tab-btn" id="tabBtnPlanner" data-tab="planner">
+            <button type="button" class="nav-tab-btn" id="tabBtnPlanner" data-tab="planner" onclick="switchTab('planner')">
                 <span class="tab-icon">📅</span>
                 <span class="tab-label">مخطط وجدول المحتوى (Meta Planner)</span>
                 <span class="tab-badge" id="plannerBadgeCount">0</span>
             </button>
-            <button type="button" class="nav-tab-btn" id="tabBtnAutoReply" data-tab="autoreply">
+            <button type="button" class="nav-tab-btn" id="tabBtnAutoReply" data-tab="autoreply" onclick="switchTab('autoreply')">
                 <span class="tab-icon">🤖</span>
                 <span class="tab-label">الرد التلقائي الذكي (AI Bot)</span>
                 <span class="tab-badge" id="autoReplyBadge">Groq</span>
             </button>
-            <button type="button" class="nav-tab-btn" id="tabBtnTelegramGroups" data-tab="telegram-groups">
+            <button type="button" class="nav-tab-btn" id="tabBtnTelegramGroups" data-tab="telegram-groups" onclick="switchTab('telegram-groups')">
                 <span class="tab-icon">📢</span>
                 <span class="tab-label">بوت التيليجرام ونشر الجروبات (AI Hunter)</span>
                 <span class="tab-badge" id="telegramGroupsBadge">6 جروبات</span>
@@ -1119,11 +1119,13 @@
                                 <p>يستقبل إشعار النشر السحابي وأزرار مشاركة الجروبات على هاتفك</p>
                             </div>
                         </div>
-                        <label class="switch-label-tg">
-                            <input type="checkbox" id="tgBotEnabled" class="toggle-checkbox" checked>
-                            <span class="toggle-slider"></span>
-                            <span class="toggle-text" id="tgEnabledStatusText">مفعّل</span>
-                        </label>
+                        <div class="autoreply-toggle-group">
+                            <span class="toggle-status-label" id="tgEnabledStatusText">الحالة: <strong>مفعل</strong></span>
+                            <label class="switch">
+                                <input type="checkbox" id="tgBotEnabled" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="tg-card-body">
@@ -1134,10 +1136,10 @@
                                 <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" class="tg-helper-link">احصل عليه من @BotFather ↗</a>
                             </div>
                             <div class="input-with-action">
-                                <input type="password" id="tgBotToken" class="settings-input" placeholder="مثال: 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
-                                <button type="button" class="btn-toggle-view" id="btnToggleTgToken" title="إظهار / إخفاء التوكن">👁️</button>
+                                <input type="text" id="tgBotToken" class="settings-input" placeholder="مثال: 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" value="8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8">
+                                <button type="button" class="btn-toggle-view" id="btnToggleTgToken" onclick="toggleTgTokenVisibility()" title="إظهار / إخفاء التوكن">👁️</button>
                             </div>
-                            <small class="tg-hint">تحدث مع <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>، أرسل <code>/newbot</code> وانسخ التوكن الناتج.</small>
+                            <small class="tg-hint">تم ربط البوت <b>Raslan Marketing bot</b> بنجاح عبر التوكن الخاص بك.</small>
                         </div>
 
                         <!-- Chat ID -->
@@ -1147,15 +1149,15 @@
                                 <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" class="tg-helper-link">احصل عليه من @userinfobot ↗</a>
                             </div>
                             <input type="text" id="tgChatId" class="settings-input" placeholder="مثال: 987654321">
-                            <small class="tg-hint">تحدث مع <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> واضغط Start لمعرفة الـ ID الخاص بحسابك.</small>
+                            <small class="tg-hint">تحدث مع <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> واضغط Start لمعرفة الـ ID الخاص بحسابك والصقه هنا.</small>
                         </div>
 
                         <!-- أزرار الإجراءات -->
                         <div class="tg-actions-row">
-                            <button type="button" class="btn-tg-test" id="btnTestTelegram">
+                            <button type="button" class="btn-tg-test" id="btnTestTelegram" onclick="testTelegramUI()">
                                 <span>📱 اختبار البوت وإرسال رسالة تجريبية</span>
                             </button>
-                            <button type="button" class="btn-tg-save" id="btnSaveTelegramConfig">
+                            <button type="button" class="btn-tg-save" id="btnSaveTelegramConfig" onclick="saveTelegramConfigUI()">
                                 <span>💾 حفظ إعدادات التيليجرام</span>
                             </button>
                         </div>
@@ -1176,7 +1178,7 @@
                     </div>
                 </div>
 
-                <!-- كارت 2: صياد الجروبات الذكي وصياغة الـ Hooks -->
+                <!-- كارت 2: صياد الجروبات والـ Hooks بالذكاء الاصطناعي (AI Group Hunter) -->
                 <div class="tg-card">
                     <div class="tg-card-header">
                         <div class="tg-card-title">
@@ -1186,7 +1188,7 @@
                                 <p>يستخرج 10 كلمات بحث نشطة، 6 جروبات مستهدفة كبرى، و3 صيغ مشاركة تفاعلية</p>
                             </div>
                         </div>
-                        <span class="badge badge-ai-groq">⚡ Llama 3.3 70B</span>
+                        <span class="badge badge-ai-groq">⚡ Groq • openai/gpt-oss-120b</span>
                     </div>
 
                     <div class="tg-card-body">
@@ -1194,12 +1196,12 @@
                             <label for="tgNicheInput">🏢 مجال ونشاط الصفحة المستهدف:</label>
                             <div class="input-with-button-inline">
                                 <input type="text" id="tgNicheInput" class="settings-input" placeholder="مثال: تسويق رقمي، إدارة صفحات، تصميم مواقع، إعلانات ممولة" value="تسويق رقمي، إدارة صفحات سوشيال ميديا، إعلانات ممولة، وتصميم مواقع">
-                                <button type="button" class="btn-ai-discover" id="btnAiDiscoverGroups">
+                                <button type="button" class="btn-ai-discover" id="btnAiDiscoverGroups" onclick="aiDiscoverGroupsUI()">
                                     <span class="ai-spark-icon">✨</span>
                                     <span>صيد وتحليل الجروبات بالـ AI</span>
                                 </button>
                             </div>
-                            <small class="tg-hint">يقوم الذكاء الاصطناعي بتحليل جمهور هذا المجال واستخراج كلمات البحث الأكثر تفاعلاً وروابط البحث المباشرة في فيسبوك.</small>
+                            <small class="tg-hint">يقوم الذكاء الاصطناعي (Groq • openai/gpt-oss-120b) بتحليل جمهور هذا المجال واستخراج كلمات البحث الأكثر تفاعلاً وروابط البحث المباشرة في فيسبوك.</small>
                         </div>
 
                         <!-- سحابة الكلمات المفتاحية الذكية -->
@@ -1220,7 +1222,7 @@
                                     <h4>👥 الجروبات الـ 6 المرشحة من الذكاء الاصطناعي:</h4>
                                     <span class="hint-inline">3 مجموعات أساسية + 3 مجموعات احتياطية</span>
                                 </div>
-                                <button type="button" class="btn-adopt-candidates" id="btnAdoptCandidates" style="display: none;">
+                                <button type="button" class="btn-adopt-candidates" id="btnAdoptCandidates" onclick="adoptCandidatesUI()" style="display: none;">
                                     <span>📥 اعتماد هذه المجموعات كحوض النشر</span>
                                 </button>
                             </div>
@@ -1289,10 +1291,10 @@
 
                         <!-- أزرار الإجراءات لجدول الجروبات -->
                         <div class="groups-actions-row">
-                            <button type="button" class="btn-add-group-row" id="btnAddGroupRow">
+                            <button type="button" class="btn-add-group-row" id="btnAddGroupRow" onclick="addNewGroupRowUI()">
                                 <span>➕ إضافة جروب إضافي</span>
                             </button>
-                            <button type="button" class="btn-save-groups-pool" id="btnSaveGroupsPool">
+                            <button type="button" class="btn-save-groups-pool" id="btnSaveGroupsPool" onclick="saveGroupsPoolUI()">
                                 <span>💾 حفظ قائمة الجروبات بالسحابة (Supabase)</span>
                             </button>
                         </div>
@@ -1669,6 +1671,6 @@
     </div> <!-- /#appDashboard -->
 
     <script src="vendor/cropper.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=20261026_1523"></script>
 </body>
 </html>

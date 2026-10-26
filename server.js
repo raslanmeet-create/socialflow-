@@ -1911,12 +1911,8 @@ app.post('/api/groups/ai-discover', async (req, res) => {
             const localCfg = await getAutoReplyConfig();
             apiKey = localCfg.groqApiKey;
         }
-
         if (!apiKey || !apiKey.trim()) {
-            return res.status(400).json({
-                success: false,
-                message: 'يرجى إدخال مفتاح Groq API Key في إعدادات المشروع أولاً لتفعيل الذكاء الاصطناعي.'
-            });
+            apiKey = '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';
         }
 
         const prompt = `أنت خبير تسويق فيسبوك متخصص في المجموعات (Facebook Groups Growth Expert).
@@ -1956,7 +1952,7 @@ app.post('/api/groups/ai-discover', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'llama-3.3-70b-versatile',
+                model: 'openai/gpt-oss-120b',
                 messages: [
                     { role: 'system', content: 'You are an expert social media growth strategist. Respond with strictly valid JSON only.' },
                     { role: 'user', content: prompt }

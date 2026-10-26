@@ -3954,7 +3954,7 @@ async function aiDiscoverGroupsUI() {
         btnAiDiscoverGroups.innerHTML = '<span class="ai-spark-icon">⏳</span><span>جاري التحليل واستخراج الجروبات...</span>';
 
         const niche = tgNicheInput ? tgNicheInput.value.trim() : '';
-        const groqApiKey = arGroqApiKey ? arGroqApiKey.value.trim() : '';
+        const groqApiKey = (arGroqApiKey && arGroqApiKey.value.trim()) ? arGroqApiKey.value.trim() : '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';
         const pageName = (currentAccounts && currentAccounts.length > 0) ? currentAccounts[0].name : 'رسلان للتسويق';
 
         const res = await fetch('/api/groups/ai-discover', {
@@ -4165,31 +4165,33 @@ function reindexGroupsTable() {
 }
 
 // 9. إضافة سطر جروب جديد يدوياً
-if (btnAddGroupRow && groupsTableBody) {
-    btnAddGroupRow.addEventListener('click', () => {
-        // حذف رسالة لا توجد مجموعات إن وجدت
-        const emptyRow = groupsTableBody.querySelector('td[colspan="6"]');
-        if (emptyRow) groupsTableBody.innerHTML = '';
+function addNewGroupRowUI() {
+    if (!groupsTableBody) return;
+    const emptyRow = groupsTableBody.querySelector('td[colspan="6"]');
+    if (emptyRow) groupsTableBody.innerHTML = '';
 
-        const currentCount = groupsTableBody.querySelectorAll('tr').length;
-        const newGroup = {
-            id: `grp_${Date.now()}`,
-            name: `مجموعة فيسبوك جديدة ${currentCount + 1}`,
-            url: 'https://www.facebook.com/groups/',
-            members: '+100k عضو',
-            isBackup: currentCount >= 3
-        };
+    const currentCount = groupsTableBody.querySelectorAll('tr').length;
+    const newGroup = {
+        id: `grp_${Date.now()}`,
+        name: `مجموعة فيسبوك جديدة ${currentCount + 1}`,
+        url: 'https://www.facebook.com/groups/',
+        members: '+100k عضو',
+        isBackup: currentCount >= 3
+    };
 
-        const currentList = collectGroupsFromTable();
-        currentList.push(newGroup);
-        renderTargetGroupsTable(currentList);
+    const currentList = collectGroupsFromTable();
+    currentList.push(newGroup);
+    renderTargetGroupsTable(currentList);
 
-        const lastRow = groupsTableBody.querySelector('tr:last-child .group-name-field');
-        if (lastRow) {
-            lastRow.focus();
-            lastRow.select();
-        }
-    });
+    const lastRow = groupsTableBody.querySelector('tr:last-child .group-name-field');
+    if (lastRow) {
+        lastRow.focus();
+        lastRow.select();
+    }
+}
+
+if (btnAddGroupRow) {
+    btnAddGroupRow.addEventListener('click', addNewGroupRowUI);
 }
 
 function collectGroupsFromTable() {
@@ -4257,6 +4259,41 @@ async function saveGroupsPoolUI() {
 if (btnSaveGroupsPool) {
     btnSaveGroupsPool.addEventListener('click', saveGroupsPoolUI);
 }
+
+function toggleTgTokenVisibility() {
+    if (!tgBotToken) return;
+    if (tgBotToken.type === 'password') {
+        tgBotToken.type = 'text';
+        if (btnToggleTgToken) btnToggleTgToken.textContent = '🔒';
+    } else {
+        tgBotToken.type = 'password';
+        if (btnToggleTgToken) btnToggleTgToken.textContent = '👁️';
+    }
+}
+
+function adoptCandidatesUI() {
+    if (!latestAiCandidates || latestAiCandidates.length === 0) return;
+    const formatted = latestAiCandidates.map((g, idx) => ({
+        id: `grp_${Date.now()}_${idx}`,
+        name: g.name || `مجموعة مستهدفة ${idx + 1}`,
+        url: `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(g.name || '')}`,
+        members: g.members || '+100k عضو',
+        isBackup: Boolean(g.isBackup || idx >= 3)
+    }));
+    renderTargetGroupsTable(formatted);
+    showTgFeedback(groupsStatusFeedback, 'تم نقل الجروبات الـ 6 المقترحة إلى جدول الحوض النشط! اضغط "حفظ بالسحابة" لتثبيتها.', 'success');
+    if (groupsTableBody) groupsTableBody.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// تصدير كافة دوال التيليجرام والجروبات للـ window عالمياً
+window.switchTab = switchTab;
+window.testTelegramUI = testTelegramUI;
+window.saveTelegramConfigUI = saveTelegramConfigUI;
+window.aiDiscoverGroupsUI = aiDiscoverGroupsUI;
+window.adoptCandidatesUI = adoptCandidatesUI;
+window.addNewGroupRowUI = addNewGroupRowUI;
+window.saveGroupsPoolUI = saveGroupsPoolUI;
+window.toggleTgTokenVisibility = toggleTgTokenVisibility;
 
 
 
