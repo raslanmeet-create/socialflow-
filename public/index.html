@@ -146,6 +146,11 @@
                 <span class="tab-label">الرد التلقائي الذكي (AI Bot)</span>
                 <span class="tab-badge" id="autoReplyBadge">Groq</span>
             </button>
+            <button type="button" class="nav-tab-btn" id="tabBtnTelegramGroups" data-tab="telegram-groups">
+                <span class="tab-icon">📢</span>
+                <span class="tab-label">بوت التيليجرام ونشر الجروبات (AI Hunter)</span>
+                <span class="tab-badge" id="telegramGroupsBadge">6 جروبات</span>
+            </button>
         </nav>
 
         <!-- المحتوى الرئيسي (شبكة عمودين: استوديو الإنشاء والمعاينة) -->
@@ -1074,6 +1079,225 @@
                                 <span>لا توجد تعليقات جديدة حتى الآن. النظام بانتظار أحداث الويبهوك من فيسبوك وانستجرام!</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- قسم بوت التيليجرام وصياد الجروبات بالذكاء الاصطناعي (Telegram Bot & AI Group Hunter) -->
+        <section class="card telegram-groups-card" id="telegramGroupsSection" style="display: none;">
+            <div class="tg-section-header">
+                <div class="tg-title-group">
+                    <div class="tg-icon-badge">📢</div>
+                    <div>
+                        <div class="title-with-pill">
+                            <h2>نظام إشعارات التيليجرام والنشر الذكي بالجروبات (Telegram Bot & Group Hunter)</h2>
+                            <span class="tg-badge-free">💎 مجاني 100% بدون تكلفة</span>
+                            <span class="tg-badge-rotation">🔄 تدوير 6 جروبات</span>
+                        </div>
+                        <p class="tg-subtitle">أتمتة النشر السحابي حتى أثناء إغلاق الكمبيوتر بالكامل — إشعار فوري على هاتفك عبر التيليجرام يحتوي على زر مخصص لكل جروب لنشر البوست في ثوانٍ معدودة من التطبيق مباشرة!</p>
+                    </div>
+                </div>
+
+                <div class="tg-header-status-box">
+                    <div class="tg-status-indicator" id="tgLiveStatusIndicator">
+                        <span class="status-dot"></span>
+                        <span id="tgStatusText">جاري التحقق...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- شبكة التخطيط الرئيسية لقسم التيليجرام والجروبات -->
+            <div class="tg-dashboard-grid">
+                <!-- كارت 1: ربط وإعداد بوت التيليجرام -->
+                <div class="tg-card">
+                    <div class="tg-card-header">
+                        <div class="tg-card-title">
+                            <span class="card-icon">🤖</span>
+                            <div>
+                                <h3>1. ربط بوت التيليجرام (Telegram Bot Setup)</h3>
+                                <p>يستقبل إشعار النشر السحابي وأزرار مشاركة الجروبات على هاتفك</p>
+                            </div>
+                        </div>
+                        <label class="switch-label-tg">
+                            <input type="checkbox" id="tgBotEnabled" class="toggle-checkbox" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text" id="tgEnabledStatusText">مفعّل</span>
+                        </label>
+                    </div>
+
+                    <div class="tg-card-body">
+                        <!-- Bot Token -->
+                        <div class="tg-form-group">
+                            <div class="tg-label-row">
+                                <label for="tgBotToken">🔑 توكن البوت (Bot Token):</label>
+                                <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" class="tg-helper-link">احصل عليه من @BotFather ↗</a>
+                            </div>
+                            <div class="input-with-action">
+                                <input type="password" id="tgBotToken" class="settings-input" placeholder="مثال: 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                                <button type="button" class="btn-toggle-view" id="btnToggleTgToken" title="إظهار / إخفاء التوكن">👁️</button>
+                            </div>
+                            <small class="tg-hint">تحدث مع <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>، أرسل <code>/newbot</code> وانسخ التوكن الناتج.</small>
+                        </div>
+
+                        <!-- Chat ID -->
+                        <div class="tg-form-group">
+                            <div class="tg-label-row">
+                                <label for="tgChatId">🆔 معرف المحادثة (Your Chat ID):</label>
+                                <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" class="tg-helper-link">احصل عليه من @userinfobot ↗</a>
+                            </div>
+                            <input type="text" id="tgChatId" class="settings-input" placeholder="مثال: 987654321">
+                            <small class="tg-hint">تحدث مع <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> واضغط Start لمعرفة الـ ID الخاص بحسابك.</small>
+                        </div>
+
+                        <!-- أزرار الإجراءات -->
+                        <div class="tg-actions-row">
+                            <button type="button" class="btn-tg-test" id="btnTestTelegram">
+                                <span>📱 اختبار البوت وإرسال رسالة تجريبية</span>
+                            </button>
+                            <button type="button" class="btn-tg-save" id="btnSaveTelegramConfig">
+                                <span>💾 حفظ إعدادات التيليجرام</span>
+                            </button>
+                        </div>
+
+                        <div class="tg-status-feedback" id="tgStatusFeedback" style="display: none;"></div>
+
+                        <!-- خطوات سريعة للتهيئة -->
+                        <div class="tg-quick-steps">
+                            <h4>⚡ خطوات تفعيل البوت في دقيقة واحدة:</h4>
+                            <ol>
+                                <li>افتح تطبيق تيليجرام وابحث عن <b>@BotFather</b> وأرسل <code>/newbot</code> واختر اسماً للبوت.</li>
+                                <li>انسخ <b>HTTP API Token</b> والصقه في حقل توكن البوت أعلاه.</li>
+                                <li><b>هام:</b> افتح رابط البوت الجديد واضغط <b>Start</b> لفتح المحادثة معه.</li>
+                                <li>ابحث عن <b>@userinfobot</b> واضغط Start، وانسخ الـ <b>Id</b> والصقه في حقل Chat ID.</li>
+                                <li>اضغط <b>اختبار البوت</b> للتأكد من وصول الرسالة لهاتفك فوراً!</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- كارت 2: صياد الجروبات الذكي وصياغة الـ Hooks -->
+                <div class="tg-card">
+                    <div class="tg-card-header">
+                        <div class="tg-card-title">
+                            <span class="card-icon">🎯</span>
+                            <div>
+                                <h3>2. صياد الجروبات والـ Hooks بالذكاء الاصطناعي (AI Group Hunter)</h3>
+                                <p>يستخرج 10 كلمات بحث نشطة، 6 جروبات مستهدفة كبرى، و3 صيغ مشاركة تفاعلية</p>
+                            </div>
+                        </div>
+                        <span class="badge badge-ai-groq">⚡ Llama 3.3 70B</span>
+                    </div>
+
+                    <div class="tg-card-body">
+                        <div class="tg-form-group">
+                            <label for="tgNicheInput">🏢 مجال ونشاط الصفحة المستهدف:</label>
+                            <div class="input-with-button-inline">
+                                <input type="text" id="tgNicheInput" class="settings-input" placeholder="مثال: تسويق رقمي، إدارة صفحات، تصميم مواقع، إعلانات ممولة" value="تسويق رقمي، إدارة صفحات سوشيال ميديا، إعلانات ممولة، وتصميم مواقع">
+                                <button type="button" class="btn-ai-discover" id="btnAiDiscoverGroups">
+                                    <span class="ai-spark-icon">✨</span>
+                                    <span>صيد وتحليل الجروبات بالـ AI</span>
+                                </button>
+                            </div>
+                            <small class="tg-hint">يقوم الذكاء الاصطناعي بتحليل جمهور هذا المجال واستخراج كلمات البحث الأكثر تفاعلاً وروابط البحث المباشرة في فيسبوك.</small>
+                        </div>
+
+                        <!-- سحابة الكلمات المفتاحية الذكية -->
+                        <div class="tg-ai-results-block" id="tgAiKeywordsBlock">
+                            <div class="block-header">
+                                <h4>🔍 كلمات البحث المباشرة في جروبات فيسبوك (+100k عضو):</h4>
+                                <span class="hint-inline">اضغط أي كلمة لفتح صفحة البحث في فيسبوك مباشرة</span>
+                            </div>
+                            <div class="keywords-tags-cloud" id="keywordsCloudContainer">
+                                <span class="tag-placeholder">اضغط "صيد وتحليل الجروبات" بالأعلى لتوليد أفضل 10 كلمات بحث...</span>
+                            </div>
+                        </div>
+
+                        <!-- شبكة الجروبات المرشحة المقترحة -->
+                        <div class="tg-ai-results-block" id="tgAiCandidatesBlock">
+                            <div class="block-header space-between">
+                                <div>
+                                    <h4>👥 الجروبات الـ 6 المرشحة من الذكاء الاصطناعي:</h4>
+                                    <span class="hint-inline">3 مجموعات أساسية + 3 مجموعات احتياطية</span>
+                                </div>
+                                <button type="button" class="btn-adopt-candidates" id="btnAdoptCandidates" style="display: none;">
+                                    <span>📥 اعتماد هذه المجموعات كحوض النشر</span>
+                                </button>
+                            </div>
+                            <div class="candidate-cards-grid" id="candidateGroupsGrid">
+                                <div class="candidate-empty-msg">ستظهر هنا المجموعات الكبرى المقترحة فور انتهاء التحليل.</div>
+                            </div>
+                        </div>
+
+                        <!-- نماذج الهوك / صيغ المشاركة غير المزعجة -->
+                        <div class="tg-ai-results-block" id="tgAiHooksBlock">
+                            <div class="block-header">
+                                <h4>💡 صيغ مشاركة ذكية غير سبام (Viral Non-Spammy Hooks):</h4>
+                                <span class="hint-inline">اضغط على أي صيغة لنسخها واستخدامها في رأس المنشور داخل الجروب</span>
+                            </div>
+                            <div class="hooks-list-container" id="aiHooksContainer">
+                                <div class="hook-placeholder">ستظهر هنا 3 صيغ تفاعلية تناسب مديري الجروبات...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- كارت 3: حوض الجروبات المستهدفة النشطة (6 جروبات: 3 أساسية + 3 احتياطية) -->
+                <div class="tg-card tg-card-fullwidth">
+                    <div class="tg-card-header">
+                        <div class="tg-card-title">
+                            <span class="card-icon">🛡️</span>
+                            <div>
+                                <h3>3. حوض الجروبات المستهدفة النشطة والتدوير الذكي (Active Groups Pool - 6 Groups)</h3>
+                                <p>يتم تدوير 3 جروبات أساسية لكل بوست بالتناوب مع الـ 3 الاحتياطية لضمان أقصى وصول وحماية الحساب من الحظر</p>
+                            </div>
+                        </div>
+                        <div class="tg-badge-pool-count" id="targetPoolCountBadge">6 / 6 جروبات</div>
+                    </div>
+
+                    <div class="tg-card-body">
+                        <!-- تلميح توجيهي عن الانضمام والنشر -->
+                        <div class="tg-info-banner">
+                            <div class="info-icon">ℹ️</div>
+                            <div class="info-text">
+                                <strong>كيف يعمل نظام النشر في الجروبات؟</strong>
+                                <ul>
+                                    <li><b>الانضمام:</b> تنضم للجروبات <b>مرة واحدة فقط</b> من صفحتك أو حسابك عبر الضغط على أزرار "انضمام للجروب ↗".</li>
+                                    <li><b>النشر اليومي:</b> بعد نشر البوست تلقائياً في موعده، يرسل التيليجرام إشعاراً بهاتفك يحتوي على <b>زر لكل جروب</b>. ضغطة واحدة تفتح نافذة المشاركة فوراً بالبوست، وبضغطة زر ينشر البوست في الجروب بصفحتك أو حسابك دون عناء!</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- جدول / مكرر الجروبات -->
+                        <div class="groups-table-wrapper">
+                            <table class="groups-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th style="width: 25%;">اسم المجموعة</th>
+                                        <th style="width: 35%;">رابط المجموعة على فيسبوك</th>
+                                        <th style="width: 15%;">الدور والتدوير</th>
+                                        <th style="width: 10%;">الأعضاء</th>
+                                        <th style="width: 15%;">الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="groupsTableBody">
+                                    <!-- يتم بناؤها وتوليدها ديناميكياً عبر JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- أزرار الإجراءات لجدول الجروبات -->
+                        <div class="groups-actions-row">
+                            <button type="button" class="btn-add-group-row" id="btnAddGroupRow">
+                                <span>➕ إضافة جروب إضافي</span>
+                            </button>
+                            <button type="button" class="btn-save-groups-pool" id="btnSaveGroupsPool">
+                                <span>💾 حفظ قائمة الجروبات بالسحابة (Supabase)</span>
+                            </button>
+                        </div>
+
+                        <div class="tg-status-feedback" id="groupsStatusFeedback" style="display: none;"></div>
                     </div>
                 </div>
             </div>

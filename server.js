@@ -1778,6 +1778,458 @@ function getInstagramSafeImageUrl(cloudUrl, width, height, userRatio) {
     return transformation ? cloudUrl.replace('/image/upload/', `/image/upload/${transformation}`) : cloudUrl;
 }
 
+// ========================================================
+// 📢 نظام إشعارات التيليجرام الذكي ومستكشف الجروبات (Telegram & AI Group Hunter)
+// ========================================================
+
+// 1. اختبار اتصال بوت التيليجرام
+app.post('/api/telegram/test', async (req, res) => {
+    try {
+        const { botToken, chatId } = req.body;
+        if (!botToken || !chatId) {
+            return res.status(400).json({ success: false, message: 'يرجى إدخال توكن البوت ومعرف المحادثة (Chat ID).' });
+        }
+
+        const testMsg = `🎉 <b>تم ربط بوت التيليجرام بنجاح!</b>\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `🚀 <b>الوكيل الذكي لشركة رسلان للتسويق</b>\n` +
+            `✅ نظام الإشعارات السحابية وأزرار النشر في الجروبات نشط وجاهز الآن.\n` +
+            `📱 ستصلك إشعارات فورية مع أزرار المشاركة الذكية فور نشر أو جدولة أي منشور فيسبوك وانستجرام!`;
+
+        const testKeyboard = [
+            [
+                { text: '🌐 زيارة لوحة التحكم (agent.raslans.net)', url: 'https://agent.raslans.net' }
+            ],
+            [
+                { text: '📘 صفحة رسلان للتسويق', url: 'https://www.facebook.com/RaslansMarketing' }
+            ]
+        ];
+
+        const teleRes = await fetch(`https://api.telegram.org/bot${botToken.trim()}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId.trim(),
+                text: testMsg,
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: testKeyboard }
+            })
+        });
+
+        const teleData = await teleRes.json();
+        if (!teleData.ok) {
+            return res.status(400).json({ success: false, message: `فشل التحقق من تيليجرام: ${teleData.description || 'تأكد من صحة التوكن وChat ID'}` });
+        }
+
+        res.json({ success: true, message: 'تم إرسال الرسالة التجريبية بنجاح إلى التيليجرام! تفقد هاتفك الآن 🚀' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message || 'حدث خطأ أثناء اختبار التيليجرام.' });
+    }
+});
+
+// 2. جلب إعدادات التيليجرام
+app.get('/api/telegram/config', async (req, res) => {
+    try {
+        const userId = req.query.userId;
+        let telegramConfig = { enabled: false, botToken: '', chatId: '' };
+
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+                if (userRow?.auto_reply_config?.telegram) {
+                    telegramConfig = userRow.auto_reply_config.telegram;
+                }
+            } catch (e) {}
+        }
+
+        if (!telegramConfig.botToken) {
+            const localCfg = await getAutoReplyConfig();
+            if (localCfg?.telegram) telegramConfig = localCfg.telegram;
+        }
+
+        res.json({ success: true, telegram: telegramConfig });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'تعذر جلب إعدادات التيليجرام.' });
+    }
+});
+
+// 3. حفظ إعدادات التيليجرام
+app.post('/api/telegram/config', async (req, res) => {
+    try {
+        const { userId, botToken, chatId, enabled } = req.body;
+        const newTelegramConfig = {
+            botToken: (botToken || '').trim(),
+            chatId: (chatId || '').trim(),
+            enabled: !!enabled
+        };
+
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                let uConfig = userRow?.auto_reply_config || {};
+                if (typeof uConfig !== 'object') uConfig = {};
+                uConfig.telegram = newTelegramConfig;
+
+                await supabaseAdmin
+                    .from('user_profiles')
+                    .update({ auto_reply_config: uConfig, updated_at: new Date().toISOString() })
+                    .eq('id', userId);
+            } catch (e) {
+                console.warn('Error saving telegram config to Supabase:', e.message);
+            }
+        }
+
+        try {
+            const localCfg = await getAutoReplyConfig();
+            localCfg.telegram = newTelegramConfig;
+            await saveAutoReplyConfig(localCfg);
+        } catch (e) {}
+
+        res.json({ success: true, message: 'تم حفظ إعدادات التيليجرام بنجاح!' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'تعذر حفظ إعدادات التيليجرام.' });
+    }
+});
+
+// 4. مستكشف الكلمات المفتاحية والجروبات الكبرى بالذكاء الاصطناعي (AI Group Hunter)
+app.post('/api/groups/ai-discover', async (req, res) => {
+    try {
+        const { niche, pageName, groqApiKey } = req.body;
+        const targetNiche = niche || 'تسويق رقمي، إدارة صفحات سوشيال ميديا، إعلانات ممولة، وتصميم مواقع';
+
+        let apiKey = groqApiKey;
+        if (!apiKey) {
+            const localCfg = await getAutoReplyConfig();
+            apiKey = localCfg.groqApiKey;
+        }
+
+        if (!apiKey || !apiKey.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'يرجى إدخال مفتاح Groq API Key في إعدادات المشروع أولاً لتفعيل الذكاء الاصطناعي.'
+            });
+        }
+
+        const prompt = `أنت خبير تسويق فيسبوك متخصص في المجموعات (Facebook Groups Growth Expert).
+المجال والنشاط المستهدف: "${targetNiche}".
+اسم النشاط: "${pageName || 'رسلان للتسويق'}".
+
+المطلوب:
+1. استخراج أفضل 10 كلمات مفتاحية دقيقة وشائعة يبحث بها رواد الأعمال وأصحاب المجموعات الكبرى على فيسبوك وتجذب عملاء محتملين مهتمين بهذا المجال.
+2. ترشيح 6 جروبات افتراضية كبرى (+100 ألف عضو) ذات اهتمام حقيقي بالخدمة (3 مجموعات أساسية و 3 مجموعات احتياطية).
+3. صياغة 3 مقدمات/صيغ مشاركة تفاعلية ذكية (Hooks) لا تُرفض من مشرفي الجروبات (تبدأ بفائدة أو استفسار أو قصة نجاح).
+
+أخرج النتيجة كـ JSON صالح ومضبوط 100% فقط بالهيكل التالي بدون أي مقدمات أو كلام خارجي:
+{
+  "keywords": [
+    { "keyword": "كلمة البحث 1" },
+    { "keyword": "كلمة البحث 2" }
+  ],
+  "candidateGroups": [
+    { "id": "grp_1", "name": "اسم الجروب المقترح", "members": "180k عضو", "category": "رواد أعمال وتجارة", "isBackup": false },
+    { "id": "grp_2", "name": "اسم الجروب المقترح", "members": "150k عضو", "category": "أصحاب شركات ومشاريع", "isBackup": false },
+    { "id": "grp_3", "name": "اسم الجروب المقترح", "members": "210k عضو", "category": "تسويق ومبيعات إلكترونية", "isBackup": false },
+    { "id": "grp_4", "name": "اسم الجروب الاحتياطي", "members": "140k عضو", "category": "تجارة جملة واستيراد", "isBackup": true },
+    { "id": "grp_5", "name": "اسم الجروب الاحتياطي", "members": "120k عضو", "category": "شركات ناشئة مصر والخليج", "isBackup": true },
+    { "id": "grp_6", "name": "اسم الجروب الاحتياطي", "members": "165k عضو", "category": "أصحاب المتاجر والمشاريع", "isBackup": true }
+  ],
+  "hooks": [
+    "صيغة مشاركة تفاعلية 1 تبدأ بسؤال لأصحاب المشاريع...",
+    "صيغة مشاركة تفاعلية 2 تبدأ بنصيحة وتجربة عملية...",
+    "صيغة مشاركة تفاعلية 3 تبدأ بدراسة حالة سريعة..."
+  ]
+}`;
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey.trim()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    { role: 'system', content: 'You are an expert social media growth strategist. Respond with strictly valid JSON only.' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.3,
+                response_format: { type: 'json_object' }
+            })
+        });
+
+        const groqData = await groqRes.json();
+        if (groqData.error) throw new Error(groqData.error.message);
+
+        const content = groqData.choices?.[0]?.message?.content || '{}';
+        const parsed = JSON.parse(content);
+
+        // إضافة روابط البحث المباشرة بفيسبوك لكل كلمة مفتاحية
+        if (Array.isArray(parsed.keywords)) {
+            parsed.keywords = parsed.keywords.map(k => ({
+                keyword: k.keyword,
+                searchUrl: `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(k.keyword)}`
+            }));
+        }
+
+        res.json({ success: true, data: parsed });
+    } catch (err) {
+        console.error('Error in /api/groups/ai-discover:', err);
+        res.status(500).json({ success: false, message: err.message || 'تعذر استخراج الكلمات والجروبات بالذكاء الاصطناعي.' });
+    }
+});
+
+// 5. جلب قائمة الجروبات المستهدفة والتدوير
+app.get('/api/groups/target-list', async (req, res) => {
+    try {
+        const userId = req.query.userId;
+        let groups = [];
+
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+                if (Array.isArray(userRow?.auto_reply_config?.target_groups)) {
+                    groups = userRow.auto_reply_config.target_groups;
+                }
+            } catch (e) {}
+        }
+
+        if (groups.length === 0) {
+            const localCfg = await getAutoReplyConfig();
+            if (Array.isArray(localCfg?.target_groups)) groups = localCfg.target_groups;
+        }
+
+        // إذا كانت القائمة فارغة، نضع 6 مجموعات افتراضية متميزة
+        if (groups.length === 0) {
+            groups = [
+                { id: 'grp_1', name: 'رواد أعمال وتجارة إلكترونية مصر', url: 'https://www.facebook.com/groups/search/groups/?q=رواد%20أعمال', members: '210k عضو', category: 'رواد أعمال وتجارة', isBackup: false },
+                { id: 'grp_2', name: 'أصحاب الشركات والمشاريع الصغيرة', url: 'https://www.facebook.com/groups/search/groups/?q=أصحاب%20الشركات', members: '165k عضو', category: 'شركات واستثمار', isBackup: false },
+                { id: 'grp_3', name: 'تسويق ومبيعات ومتاجر إلكترونية', url: 'https://www.facebook.com/groups/search/groups/?q=تسويق%20إلكتروني', members: '140k عضو', category: 'تسويق وتجارة', isBackup: false },
+                { id: 'grp_4', name: 'تجار ومستوردي الجملة في مصر', url: 'https://www.facebook.com/groups/search/groups/?q=تجار%20الجملة', members: '180k عضو', category: 'تجارة جملة', isBackup: true },
+                { id: 'grp_5', name: 'ملتقى أصحاب المشروعات والبيزنس', url: 'https://www.facebook.com/groups/search/groups/?q=أصحاب%20المشاريع', members: '125k عضو', category: 'بيزنس واستثمار', isBackup: true },
+                { id: 'grp_6', name: 'أفكار مشاريع وتسويق رقمي', url: 'https://www.facebook.com/groups/search/groups/?q=أفكار%20مشاريع', members: '110k عضو', category: 'أفكار وتسويق', isBackup: true }
+            ];
+        }
+
+        res.json({ success: true, groups });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'تعذر جلب قائمة الجروبات.' });
+    }
+});
+
+// 6. حفظ قائمة الجروبات المستهدفة
+app.post('/api/groups/target-list', async (req, res) => {
+    try {
+        const { userId, groups } = req.body;
+        const validGroups = Array.isArray(groups) ? groups : [];
+
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                let uConfig = userRow?.auto_reply_config || {};
+                if (typeof uConfig !== 'object') uConfig = {};
+                uConfig.target_groups = validGroups;
+
+                await supabaseAdmin
+                    .from('user_profiles')
+                    .update({ auto_reply_config: uConfig, updated_at: new Date().toISOString() })
+                    .eq('id', userId);
+            } catch (e) {
+                console.warn('Error saving target groups to Supabase:', e.message);
+            }
+        }
+
+        try {
+            const localCfg = await getAutoReplyConfig();
+            localCfg.target_groups = validGroups;
+            await saveAutoReplyConfig(localCfg);
+        } catch (e) {}
+
+        res.json({ success: true, message: 'تم حفظ وتحديث قائمة الجروبات بنجاح!' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'تعذر حفظ قائمة الجروبات.' });
+    }
+});
+
+// 7. دالة إرسال إشعار النشر للتيليجرام مع أزرار الجروبات الذكية
+async function sendTelegramGroupNotification(post, publishResults, userId) {
+    try {
+        let telegramConfig = null;
+        let targetGroups = [];
+
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+                const uConfig = userRow?.auto_reply_config || {};
+                telegramConfig = uConfig.telegram;
+                targetGroups = uConfig.target_groups || [];
+            } catch (e) {
+                console.warn('Error fetching telegramConfig from Supabase:', e.message);
+            }
+        }
+
+        if (!telegramConfig) {
+            const localCfg = await getAutoReplyConfig(post.pageId);
+            telegramConfig = localCfg?.telegram;
+            targetGroups = localCfg?.target_groups || [];
+        }
+
+        if (!telegramConfig || !telegramConfig.enabled || !telegramConfig.botToken || !telegramConfig.chatId) {
+            console.log('[Telegram Bot] إشعارات التيليجرام غير مفعلة أو لم يتم إدخال التوكن.');
+            return;
+        }
+
+        const botToken = telegramConfig.botToken.trim();
+        const chatId = telegramConfig.chatId.trim();
+
+        // استخراج معرف ورابط البوست على فيسبوك
+        const fbFeedResult = publishResults?.facebook?.feed || publishResults?.facebook;
+        const fbPostId = fbFeedResult?.post_id || fbFeedResult?.id;
+        let fbPostUrl = '';
+        if (fbPostId) {
+            const cleanId = String(fbPostId).includes('_') ? String(fbPostId).split('_')[1] : fbPostId;
+            fbPostUrl = `https://www.facebook.com/${post.pageId || ''}/posts/${cleanId}`;
+        } else {
+            fbPostUrl = `https://www.facebook.com/${post.pageId || ''}`;
+        }
+
+        // رابط المشاركة السريعة الرسمي لفيسبوك
+        const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fbPostUrl)}`;
+
+        // تصنيف الجروبات (أساسية واحتياطية)
+        let primaryGroups = targetGroups.filter(g => !g.isBackup);
+        let backupGroups = targetGroups.filter(g => g.isBackup);
+
+        if (primaryGroups.length === 0 && targetGroups.length > 0) {
+            primaryGroups = targetGroups.slice(0, 3);
+            backupGroups = targetGroups.slice(3, 6);
+        }
+
+        const currentBatch = primaryGroups.slice(0, 3);
+        const currentBackups = backupGroups.slice(0, 3);
+
+        const postSnippet = (post.content || '').substring(0, 160) + ((post.content && post.content.length > 160) ? '...' : '');
+
+        let msgText = `🚀 <b>تم نشر المنشور الجديد بنجاح بالسحابة!</b>\n`;
+        msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        msgText += `📊 <b>حالة النشر:</b>\n`;
+        if (publishResults?.facebook?.success) msgText += `📘 فيسبوك: تم النشر بنجاح ✅\n`;
+        if (publishResults?.instagram?.success) msgText += `📸 انستجرام: تم النشر بنجاح ✅\n`;
+        if (publishResults?.facebook?.firstComment?.success) msgText += `💬 التعليقات التلقائية: تم نشر التعليقات مع الصور ✅\n`;
+        msgText += `\n📝 <b>محتوى المنشور:</b>\n<i>"${postSnippet || 'منشور وسائط'}"</i>\n`;
+        msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
+
+        if (currentBatch.length > 0) {
+            msgText += `🎯 <b>جروبات اليوم المستهدفة (تم تدويرها بالـ AI):</b>\n`;
+            currentBatch.forEach((g, idx) => {
+                msgText += `${idx + 1}️⃣ ${g.name || 'مجموعة مستهدفة'} ${g.members ? `(${g.members})` : ''}\n`;
+            });
+        }
+
+        if (currentBackups.length > 0) {
+            msgText += `\n🛡️ <b>جروبات احتياطية جاهزة كبديل:</b>\n`;
+            currentBackups.forEach((g, idx) => {
+                msgText += `🔹 ${g.name || 'مجموعة احتياطية'} ${g.members ? `(${g.members})` : ''}\n`;
+            });
+        }
+
+        msgText += `\n👇 <b>اضغط على الزر أدناه لمشاركة البوست في كل جروب:</b>`;
+
+        // بناء الأزرار التفاعلية (Inline Keyboard)
+        const inlineKeyboard = [];
+
+        // زر مستقل لكل جروب أساسي
+        currentBatch.forEach((g, idx) => {
+            inlineKeyboard.push([
+                { text: `🚀 نشر في جروب ${idx + 1}: ${g.name || 'المجموعة'}`, url: fbShareUrl }
+            ]);
+        });
+
+        if (currentBatch.length === 0) {
+            inlineKeyboard.push([
+                { text: `🚀 مشاركة سريعة في الجروبات الآن`, url: fbShareUrl }
+            ]);
+        }
+
+        // أزرار الجروبات الاحتياطية
+        if (currentBackups.length > 0) {
+            const backupRow = [];
+            currentBackups.forEach((g, idx) => {
+                backupRow.push({ text: `🛡️ بديل ${idx + 1}: ${g.name || 'احتياطي'}`, url: fbShareUrl });
+            });
+            inlineKeyboard.push(backupRow);
+        }
+
+        // زر فتح المنشور الأصلي على فيسبوك
+        inlineKeyboard.push([
+            { text: `🔗 فتح المنشور الأصلي على صفحة رسلان`, url: fbPostUrl }
+        ]);
+
+        console.log(`[Telegram Bot] جاري إرسال إشعار النشر للدردشة: ${chatId}`);
+
+        if (post.mediaUrl && (!post.mediaType || post.mediaType.startsWith('image/'))) {
+            const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    photo: post.mediaUrl,
+                    caption: msgText,
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: inlineKeyboard }
+                })
+            });
+            const photoData = await photoRes.json();
+            if (photoData.ok) {
+                console.log('[Telegram Bot] تم إرسال الإشعار مع صورة البوست بنجاح!');
+                return;
+            }
+        }
+
+        const textRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: msgText,
+                parse_mode: 'HTML',
+                disable_web_page_preview: false,
+                reply_markup: { inline_keyboard: inlineKeyboard }
+            })
+        });
+        const textData = await textRes.json();
+        if (textData.ok) {
+            console.log('[Telegram Bot] تم إرسال الإشعار بنجاح!');
+        } else {
+            console.warn('[Telegram Bot Warning] خطأ في الإرسال:', textData.description);
+        }
+
+    } catch (err) {
+        console.error('Error sending Telegram group notification:', err);
+    }
+}
+
 // 2. مسار النشر والجدولة (POST /api/publish)
 app.post('/api/publish', upload.any(), async (req, res) => {
     try {
@@ -2344,6 +2796,11 @@ async function executePublish(post) {
         if (results.facebook?.post_id) postCaptionsCache.set(results.facebook.post_id, fullCaption);
         if (results.instagram?.id) postCaptionsCache.set(results.instagram.id, fullCaption);
     }
+
+    // إرسال إشعار التيليجرام الفوري مع أزرار النشر في الجروبات
+    sendTelegramGroupNotification(post, results, post.userId).catch(e => {
+        console.warn('[Telegram Dispatch Warning]:', e.message);
+    });
 
     return results;
 }

@@ -90,10 +90,12 @@ const btnBannerConnect = document.getElementById('btnBannerConnect');
 const tabBtnComposer = document.getElementById('tabBtnComposer');
 const tabBtnPlanner = document.getElementById('tabBtnPlanner');
 const tabBtnAutoReply = document.getElementById('tabBtnAutoReply');
+const tabBtnTelegramGroups = document.getElementById('tabBtnTelegramGroups');
 const plannerBadgeCount = document.getElementById('plannerBadgeCount');
 const composerSection = document.getElementById('composerSection');
 const plannerSection = document.getElementById('plannerSection');
 const autoReplySection = document.getElementById('autoReplySection');
+const telegramGroupsSection = document.getElementById('telegramGroupsSection');
 
 // عناصر الرد التلقائي الذكي (AI Auto-Reply Bot)
 const autoReplyMasterToggle = document.getElementById('toggleAutoReplyMaster') || document.getElementById('autoReplyMasterToggle');
@@ -1211,15 +1213,17 @@ async function loadScheduledPosts() {
 // نظام التبويبات والمخطط الأسبوعي التفاعلي (Meta Planner)
 // ========================================================
 
-// 1. دالة التبديل بين التبويبات الثلاثة
+// 1. دالة التبديل بين التبويبات الأربعة
 function switchTab(tabName) {
     if (tabBtnComposer) tabBtnComposer.classList.remove('active');
     if (tabBtnPlanner) tabBtnPlanner.classList.remove('active');
     if (tabBtnAutoReply) tabBtnAutoReply.classList.remove('active');
+    if (tabBtnTelegramGroups) tabBtnTelegramGroups.classList.remove('active');
 
     if (composerSection) composerSection.style.display = 'none';
     if (plannerSection) plannerSection.style.display = 'none';
     if (autoReplySection) autoReplySection.style.display = 'none';
+    if (telegramGroupsSection) telegramGroupsSection.style.display = 'none';
 
     if (tabName === 'planner') {
         if (tabBtnPlanner) tabBtnPlanner.classList.add('active');
@@ -1236,6 +1240,14 @@ function switchTab(tabName) {
         }
         loadAutoReplyConfigUI();
         loadAutoReplyLogsUI();
+    } else if (tabName === 'telegram-groups') {
+        if (tabBtnTelegramGroups) tabBtnTelegramGroups.classList.add('active');
+        if (telegramGroupsSection) {
+            telegramGroupsSection.style.display = 'block';
+            telegramGroupsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        loadTelegramConfigUI();
+        loadTargetGroupsUI();
     } else {
         if (tabBtnComposer) tabBtnComposer.classList.add('active');
         if (composerSection) {
@@ -1249,6 +1261,7 @@ function switchTab(tabName) {
 if (tabBtnComposer) tabBtnComposer.addEventListener('click', () => switchTab('composer'));
 if (tabBtnPlanner) tabBtnPlanner.addEventListener('click', () => switchTab('planner'));
 if (tabBtnAutoReply) tabBtnAutoReply.addEventListener('click', () => switchTab('autoreply'));
+if (tabBtnTelegramGroups) tabBtnTelegramGroups.addEventListener('click', () => switchTab('telegram-groups'));
 if (btnOpenPlannerCta) btnOpenPlannerCta.addEventListener('click', () => switchTab('planner'));
 
 // زر إضافة سريعة من رأس المخطط
@@ -3726,6 +3739,8 @@ async function initSupabaseAuth() {
             if (arTargetPageSelector && pageToLoad) arTargetPageSelector.value = pageToLoad;
             await loadAutoReplyConfigUI(pageToLoad);
             await loadScheduledPosts();
+            await loadTelegramConfigUI();
+            await loadTargetGroupsUI();
         } else {
             currentAuthUser = null;
             userConfig = { pages: [], selectedPageIds: [], metaToken: '', cloudinary: {} };
@@ -3753,6 +3768,496 @@ if (document.readyState === 'loading') {
 } else {
     initSupabaseAuth();
 }
+
+// ========================================================
+// نظام بوت التيليجرام وصياد الجروبات بالـ AI (Telegram Bot & Groups Hunter)
+// ========================================================
+
+// عناصر التحكم الرئيسية
+const tgBotEnabled = document.getElementById('tgBotEnabled');
+const tgEnabledStatusText = document.getElementById('tgEnabledStatusText');
+const tgBotToken = document.getElementById('tgBotToken');
+const btnToggleTgToken = document.getElementById('btnToggleTgToken');
+const tgChatId = document.getElementById('tgChatId');
+const btnTestTelegram = document.getElementById('btnTestTelegram');
+const btnSaveTelegramConfig = document.getElementById('btnSaveTelegramConfig');
+const tgStatusFeedback = document.getElementById('tgStatusFeedback');
+const tgLiveStatusIndicator = document.getElementById('tgLiveStatusIndicator');
+const tgStatusText = document.getElementById('tgStatusText');
+
+const tgNicheInput = document.getElementById('tgNicheInput');
+const btnAiDiscoverGroups = document.getElementById('btnAiDiscoverGroups');
+const keywordsCloudContainer = document.getElementById('keywordsCloudContainer');
+const candidateGroupsGrid = document.getElementById('candidateGroupsGrid');
+const btnAdoptCandidates = document.getElementById('btnAdoptCandidates');
+const aiHooksContainer = document.getElementById('aiHooksContainer');
+
+const groupsTableBody = document.getElementById('groupsTableBody');
+const targetPoolCountBadge = document.getElementById('targetPoolCountBadge');
+const btnAddGroupRow = document.getElementById('btnAddGroupRow');
+const btnSaveGroupsPool = document.getElementById('btnSaveGroupsPool');
+const groupsStatusFeedback = document.getElementById('groupsStatusFeedback');
+
+// ذاكرة الجروبات المقترحة مؤقتاً
+let latestAiCandidates = [];
+
+// 1. تبديل إظهار / إخفاء توكن التيليجرام
+if (btnToggleTgToken && tgBotToken) {
+    btnToggleTgToken.addEventListener('click', () => {
+        if (tgBotToken.type === 'password') {
+            tgBotToken.type = 'text';
+            btnToggleTgToken.textContent = '🔒';
+        } else {
+            tgBotToken.type = 'password';
+            btnToggleTgToken.textContent = '👁️';
+        }
+    });
+}
+
+// 2. تحديث نص السويتش
+if (tgBotEnabled && tgEnabledStatusText) {
+    tgBotEnabled.addEventListener('change', () => {
+        tgEnabledStatusText.textContent = tgBotEnabled.checked ? 'مفعّل' : 'معطّل';
+    });
+}
+
+// 3. جلب إعدادات التيليجرام من الخادم
+async function loadTelegramConfigUI() {
+    try {
+        const userId = currentAuthUser ? currentAuthUser.id : '';
+        const res = await fetch(`/api/telegram/config?userId=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+
+        if (data.success && data.telegram) {
+            const cfg = data.telegram;
+            if (tgBotToken) tgBotToken.value = cfg.botToken || '';
+            if (tgChatId) tgChatId.value = cfg.chatId || '';
+            if (tgBotEnabled) {
+                tgBotEnabled.checked = cfg.enabled !== false;
+                if (tgEnabledStatusText) tgEnabledStatusText.textContent = tgBotEnabled.checked ? 'مفعّل' : 'معطّل';
+            }
+
+            updateTgStatusIndicator(Boolean(cfg.botToken && cfg.chatId && cfg.enabled !== false));
+        }
+    } catch (err) {
+        console.warn('Error loading telegram config:', err);
+    }
+}
+
+function updateTgStatusIndicator(isActive) {
+    if (!tgLiveStatusIndicator || !tgStatusText) return;
+    if (isActive) {
+        tgLiveStatusIndicator.className = 'tg-status-indicator active';
+        tgStatusText.textContent = 'البوت نشط وجاهز للإشعارات ✅';
+    } else {
+        tgLiveStatusIndicator.className = 'tg-status-indicator';
+        tgStatusText.textContent = 'البوت غير مفعل أو بحاجة للتهيئة ⚠️';
+    }
+}
+
+// 4. حفظ إعدادات التيليجرام
+async function saveTelegramConfigUI() {
+    if (!btnSaveTelegramConfig) return;
+    const origText = btnSaveTelegramConfig.innerHTML;
+    try {
+        btnSaveTelegramConfig.disabled = true;
+        btnSaveTelegramConfig.innerHTML = '<span>⏳ جاري الحفظ...</span>';
+
+        const userId = currentAuthUser ? currentAuthUser.id : '';
+        const botToken = tgBotToken ? tgBotToken.value.trim() : '';
+        const chatId = tgChatId ? tgChatId.value.trim() : '';
+        const enabled = tgBotEnabled ? tgBotEnabled.checked : true;
+
+        const res = await fetch('/api/telegram/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, botToken, chatId, enabled })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showTgFeedback(tgStatusFeedback, 'تم حفظ إعدادات بوت التيليجرام في السحابة بنجاح! 🎉', 'success');
+            updateTgStatusIndicator(Boolean(botToken && chatId && enabled));
+        } else {
+            showTgFeedback(tgStatusFeedback, data.message || 'حدث خطأ أثناء حفظ إعدادات التيليجرام.', 'error');
+        }
+    } catch (err) {
+        showTgFeedback(tgStatusFeedback, 'تعذر الاتصال بالخادم لحفظ الإعدادات: ' + err.message, 'error');
+    } finally {
+        btnSaveTelegramConfig.disabled = false;
+        btnSaveTelegramConfig.innerHTML = origText;
+    }
+}
+
+if (btnSaveTelegramConfig) {
+    btnSaveTelegramConfig.addEventListener('click', saveTelegramConfigUI);
+}
+
+// 5. اختبار اتصال بوت التيليجرام الفوري
+async function testTelegramUI() {
+    if (!btnTestTelegram) return;
+    const botToken = tgBotToken ? tgBotToken.value.trim() : '';
+    const chatId = tgChatId ? tgChatId.value.trim() : '';
+
+    if (!botToken || !chatId) {
+        showTgFeedback(tgStatusFeedback, 'يرجى إدخال توكن البوت ومعرف المحادثة (Chat ID) أولاً قبل الاختبار.', 'error');
+        return;
+    }
+
+    const origText = btnTestTelegram.innerHTML;
+    try {
+        btnTestTelegram.disabled = true;
+        btnTestTelegram.innerHTML = '<span>⏳ جاري إرسال الرسالة التجريبية...</span>';
+
+        const res = await fetch('/api/telegram/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ botToken, chatId })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showTgFeedback(tgStatusFeedback, data.message || 'تم إرسال الرسالة التجريبية بنجاح! تفقد تطبيق تيليجرام على هاتفك الآن 🚀', 'success');
+            updateTgStatusIndicator(true);
+        } else {
+            showTgFeedback(tgStatusFeedback, data.message || 'فشل إرسال الرسالة التجريبية.', 'error');
+        }
+    } catch (err) {
+        showTgFeedback(tgStatusFeedback, 'خطأ أثناء الاتصال بالتيليجرام: ' + err.message, 'error');
+    } finally {
+        btnTestTelegram.disabled = false;
+        btnTestTelegram.innerHTML = origText;
+    }
+}
+
+if (btnTestTelegram) {
+    btnTestTelegram.addEventListener('click', testTelegramUI);
+}
+
+function showTgFeedback(el, message, type = 'success') {
+    if (!el) return;
+    el.textContent = message;
+    el.className = `tg-status-feedback ${type}`;
+    el.style.display = 'block';
+    setTimeout(() => {
+        el.style.display = 'none';
+    }, 6000);
+}
+
+// 6. صياد الكلمات والجروبات بالذكاء الاصطناعي (AI Group Hunter)
+async function aiDiscoverGroupsUI() {
+    if (!btnAiDiscoverGroups) return;
+    const origText = btnAiDiscoverGroups.innerHTML;
+
+    try {
+        btnAiDiscoverGroups.disabled = true;
+        btnAiDiscoverGroups.innerHTML = '<span class="ai-spark-icon">⏳</span><span>جاري التحليل واستخراج الجروبات...</span>';
+
+        const niche = tgNicheInput ? tgNicheInput.value.trim() : '';
+        const groqApiKey = arGroqApiKey ? arGroqApiKey.value.trim() : '';
+        const pageName = (currentAccounts && currentAccounts.length > 0) ? currentAccounts[0].name : 'رسلان للتسويق';
+
+        const res = await fetch('/api/groups/ai-discover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ niche, groqApiKey, pageName })
+        });
+
+        const result = await res.json();
+        if (!result.success || !result.data) {
+            alert(result.message || 'تعذر صيد الجروبات بالذكاء الاصطناعي. تأكد من إدخال مفتاح Groq API Key.');
+            return;
+        }
+
+        const data = result.data;
+
+        // عرض الكلمات المفتاحية
+        if (keywordsCloudContainer && Array.isArray(data.keywords)) {
+            keywordsCloudContainer.innerHTML = '';
+            data.keywords.forEach(k => {
+                const a = document.createElement('a');
+                a.className = 'keyword-tag-btn';
+                a.href = k.searchUrl || `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(k.keyword)}`;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.title = 'افتح صفحة البحث في فيسبوك لهذا الجمهور';
+                a.innerHTML = `<span>🔍</span><span>${escapeHtml(k.keyword)}</span><span style="font-size: 10px; opacity: 0.7;">↗</span>`;
+                keywordsCloudContainer.appendChild(a);
+            });
+        }
+
+        // عرض الجروبات الـ 6 المقترحة
+        latestAiCandidates = Array.isArray(data.candidateGroups) ? data.candidateGroups : [];
+        if (candidateGroupsGrid && latestAiCandidates.length > 0) {
+            candidateGroupsGrid.innerHTML = '';
+            latestAiCandidates.forEach((g, idx) => {
+                const card = document.createElement('div');
+                card.className = 'candidate-group-card';
+                const isBackup = g.isBackup || idx >= 3;
+                card.innerHTML = `
+                    <div class="candidate-card-top">
+                        <span class="candidate-group-name" title="${escapeHtml(g.name || '')}">👥 ${escapeHtml(g.name || 'مجموعة مقترحة')}</span>
+                        <span class="candidate-badge-role ${isBackup ? 'backup' : 'primary'}">${isBackup ? 'بديل احتياطي' : 'أساسي'}</span>
+                    </div>
+                    <div class="candidate-card-bottom">
+                        <span>📊 ${escapeHtml(g.members || '+100k عضو')}</span>
+                        <a href="https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(g.name || '')}" target="_blank" rel="noopener">بحث وانضمام ↗</a>
+                    </div>
+                `;
+                candidateGroupsGrid.appendChild(card);
+            });
+
+            if (btnAdoptCandidates) btnAdoptCandidates.style.display = 'inline-flex';
+        }
+
+        // عرض الـ Hooks
+        if (aiHooksContainer && Array.isArray(data.hooks)) {
+            aiHooksContainer.innerHTML = '';
+            data.hooks.forEach((hook, idx) => {
+                const item = document.createElement('div');
+                item.className = 'hook-card-item';
+                item.title = 'اضغط لنسخ هذه الصيغة';
+                item.innerHTML = `
+                    <span class="hook-card-text">💡 <strong>صيغة ${idx + 1}:</strong> "${escapeHtml(hook)}"</span>
+                    <span class="hook-copy-badge">📋 نسخ</span>
+                `;
+                item.addEventListener('click', () => {
+                    navigator.clipboard.writeText(hook).then(() => {
+                        const badge = item.querySelector('.hook-copy-badge');
+                        if (badge) {
+                            badge.textContent = '✅ تم النسخ!';
+                            setTimeout(() => { badge.textContent = '📋 نسخ'; }, 2000);
+                        }
+                    });
+                });
+                aiHooksContainer.appendChild(item);
+            });
+        }
+
+    } catch (err) {
+        alert('حدث خطأ أثناء الاتصال بالـ AI: ' + err.message);
+    } finally {
+        btnAiDiscoverGroups.disabled = false;
+        btnAiDiscoverGroups.innerHTML = origText;
+    }
+}
+
+if (btnAiDiscoverGroups) {
+    btnAiDiscoverGroups.addEventListener('click', aiDiscoverGroupsUI);
+}
+
+// 7. اعتماد المرشحين كحوض نشر مباشر
+if (btnAdoptCandidates) {
+    btnAdoptCandidates.addEventListener('click', () => {
+        if (!latestAiCandidates || latestAiCandidates.length === 0) return;
+
+        const formatted = latestAiCandidates.map((g, idx) => ({
+            id: `grp_${Date.now()}_${idx}`,
+            name: g.name || `مجموعة مستهدفة ${idx + 1}`,
+            url: `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(g.name || '')}`,
+            members: g.members || '+100k عضو',
+            isBackup: Boolean(g.isBackup || idx >= 3)
+        }));
+
+        renderTargetGroupsTable(formatted);
+        showTgFeedback(groupsStatusFeedback, 'تم نقل الجروبات الـ 6 المقترحة إلى جدول الحوض النشط! اضغط "حفظ بالسحابة" لتثبيتها.', 'success');
+        if (groupsTableBody) groupsTableBody.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+}
+
+// 8. جلب حوض الجروبات المستهدفة النشطة
+async function loadTargetGroupsUI() {
+    try {
+        const userId = currentAuthUser ? currentAuthUser.id : '';
+        const res = await fetch(`/api/groups/target-list?userId=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.groups)) {
+            renderTargetGroupsTable(data.groups);
+        }
+    } catch (err) {
+        console.warn('Error loading target groups:', err);
+    }
+}
+
+function renderTargetGroupsTable(groups = []) {
+    if (!groupsTableBody) return;
+    groupsTableBody.innerHTML = '';
+
+    const list = Array.isArray(groups) ? groups : [];
+    if (targetPoolCountBadge) {
+        targetPoolCountBadge.textContent = `${list.length} جروبات في الحوض`;
+    }
+
+    if (list.length === 0) {
+        groupsTableBody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 24px;">
+                    لا توجد مجموعات مضافة حالياً. اضغط "صيد الجروبات بالـ AI" بالأعلى أو "إضافة جروب إضافي"!
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    list.forEach((g, idx) => {
+        const tr = document.createElement('tr');
+        tr.dataset.groupId = g.id || `grp_${idx + 1}`;
+        const isBackup = Boolean(g.isBackup);
+        const groupUrl = g.url || `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(g.name || '')}`;
+
+        tr.innerHTML = `
+            <td style="color: var(--text-secondary); font-weight: 700;">${idx + 1}</td>
+            <td>
+                <input type="text" class="group-input-text group-name-field" value="${escapeHtml(g.name || '')}" placeholder="اسم الجروب">
+            </td>
+            <td>
+                <input type="url" class="group-input-text group-url-field" value="${escapeHtml(groupUrl)}" placeholder="رابط الجروب في فيسبوك">
+            </td>
+            <td>
+                <select class="group-role-select">
+                    <option value="primary" ${!isBackup ? 'selected' : ''}>🎯 أساسي (نشر رئيسي)</option>
+                    <option value="backup" ${isBackup ? 'selected' : ''}>🛡️ احتياطي (بديل تدوير)</option>
+                </select>
+            </td>
+            <td>
+                <span class="group-members-badge">${escapeHtml(g.members || '+100k')}</span>
+            </td>
+            <td>
+                <div class="group-actions-cell">
+                    <a href="${escapeHtml(groupUrl)}" target="_blank" rel="noopener noreferrer" class="btn-visit-group" title="فتح الجروب في فيسبوك للانضمام">انضمام ↗</a>
+                    <button type="button" class="btn-del-group-row" title="حذف الجروب">🗑️</button>
+                </div>
+            </td>
+        `;
+
+        // زر الحذف
+        const btnDel = tr.querySelector('.btn-del-group-row');
+        if (btnDel) {
+            btnDel.addEventListener('click', () => {
+                tr.remove();
+                reindexGroupsTable();
+            });
+        }
+
+        // تحديث رابط الانضمام عند تعديل الرابط
+        const urlInput = tr.querySelector('.group-url-field');
+        const visitLink = tr.querySelector('.btn-visit-group');
+        if (urlInput && visitLink) {
+            urlInput.addEventListener('input', () => {
+                visitLink.href = urlInput.value.trim() || '#';
+            });
+        }
+
+        groupsTableBody.appendChild(tr);
+    });
+}
+
+function reindexGroupsTable() {
+    if (!groupsTableBody) return;
+    const rows = groupsTableBody.querySelectorAll('tr');
+    rows.forEach((r, idx) => {
+        const firstCol = r.querySelector('td:first-child');
+        if (firstCol) firstCol.textContent = idx + 1;
+    });
+    if (targetPoolCountBadge) {
+        targetPoolCountBadge.textContent = `${rows.length} جروبات في الحوض`;
+    }
+}
+
+// 9. إضافة سطر جروب جديد يدوياً
+if (btnAddGroupRow && groupsTableBody) {
+    btnAddGroupRow.addEventListener('click', () => {
+        // حذف رسالة لا توجد مجموعات إن وجدت
+        const emptyRow = groupsTableBody.querySelector('td[colspan="6"]');
+        if (emptyRow) groupsTableBody.innerHTML = '';
+
+        const currentCount = groupsTableBody.querySelectorAll('tr').length;
+        const newGroup = {
+            id: `grp_${Date.now()}`,
+            name: `مجموعة فيسبوك جديدة ${currentCount + 1}`,
+            url: 'https://www.facebook.com/groups/',
+            members: '+100k عضو',
+            isBackup: currentCount >= 3
+        };
+
+        const currentList = collectGroupsFromTable();
+        currentList.push(newGroup);
+        renderTargetGroupsTable(currentList);
+
+        const lastRow = groupsTableBody.querySelector('tr:last-child .group-name-field');
+        if (lastRow) {
+            lastRow.focus();
+            lastRow.select();
+        }
+    });
+}
+
+function collectGroupsFromTable() {
+    if (!groupsTableBody) return [];
+    const rows = groupsTableBody.querySelectorAll('tr');
+    const list = [];
+    rows.forEach((r, idx) => {
+        const nameInput = r.querySelector('.group-name-field');
+        const urlInput = r.querySelector('.group-url-field');
+        const roleSelect = r.querySelector('.group-role-select');
+        const membersBadge = r.querySelector('.group-members-badge');
+
+        if (nameInput && urlInput) {
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+            const isBackup = roleSelect ? roleSelect.value === 'backup' : idx >= 3;
+            const members = membersBadge ? membersBadge.textContent.trim() : '+100k عضو';
+
+            if (name || url) {
+                list.push({
+                    id: r.dataset.groupId || `grp_${idx + 1}`,
+                    name: name || `مجموعة ${idx + 1}`,
+                    url: url || `https://www.facebook.com/groups/search/groups/?q=${encodeURIComponent(name || '')}`,
+                    members: members,
+                    isBackup: isBackup
+                });
+            }
+        }
+    });
+    return list;
+}
+
+// 10. حفظ قائمة الجروبات بالسحابة (Supabase)
+async function saveGroupsPoolUI() {
+    if (!btnSaveGroupsPool) return;
+    const origText = btnSaveGroupsPool.innerHTML;
+
+    try {
+        btnSaveGroupsPool.disabled = true;
+        btnSaveGroupsPool.innerHTML = '<span>⏳ جاري الحفظ بالسحابة...</span>';
+
+        const groups = collectGroupsFromTable();
+        const userId = currentAuthUser ? currentAuthUser.id : '';
+
+        const res = await fetch('/api/groups/target-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, groups })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showTgFeedback(groupsStatusFeedback, `تم حفظ ${groups.length} مجموعات بنجاح في السحابة! سيتم تدوير النشر عليها تلقائياً عبر التيليجرام 🎯`, 'success');
+        } else {
+            showTgFeedback(groupsStatusFeedback, data.message || 'فشل حفظ قائمة المجموعات.', 'error');
+        }
+    } catch (err) {
+        showTgFeedback(groupsStatusFeedback, 'خطأ أثناء الاتصال بالخادم: ' + err.message, 'error');
+    } finally {
+        btnSaveGroupsPool.disabled = false;
+        btnSaveGroupsPool.innerHTML = origText;
+    }
+}
+
+if (btnSaveGroupsPool) {
+    btnSaveGroupsPool.addEventListener('click', saveGroupsPoolUI);
+}
+
 
 
 

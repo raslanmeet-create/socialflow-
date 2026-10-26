@@ -5086,5 +5086,826 @@ textarea:focus {
     border: 1px solid rgba(210, 153, 34, 0.2);
 }
 
+/* ========================================================
+   قسم بوت التيليجرام وصياد الجروبات (Telegram Bot & Group Hunter)
+   ======================================================== */
+.telegram-groups-card {
+    background: rgba(13, 17, 23, 0.85);
+    border: 1px solid rgba(56, 139, 253, 0.25);
+    border-radius: var(--radius-lg, 16px);
+    padding: 28px;
+    margin-bottom: 30px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+.tg-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 26px;
+    flex-wrap: wrap;
+}
+
+.tg-title-group {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.tg-icon-badge {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(34, 158, 217, 0.25), rgba(0, 136, 204, 0.5));
+    border: 1px solid rgba(0, 136, 204, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 6px 20px rgba(0, 136, 204, 0.3);
+}
+
+.tg-title-group h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary, #f0f6fc);
+    margin: 0;
+}
+
+.title-with-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.tg-badge-free {
+    background: linear-gradient(90deg, rgba(35, 134, 54, 0.2), rgba(46, 160, 67, 0.35));
+    color: #3fb950;
+    border: 1px solid rgba(63, 185, 80, 0.4);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.tg-badge-rotation {
+    background: linear-gradient(90deg, rgba(31, 111, 235, 0.2), rgba(88, 166, 255, 0.35));
+    color: #58a6ff;
+    border: 1px solid rgba(88, 166, 255, 0.4);
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.tg-subtitle {
+    font-size: 13.5px;
+    color: var(--text-secondary, #8b949e);
+    margin: 0;
+    max-width: 850px;
+    line-height: 1.6;
+}
+
+.tg-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: rgba(22, 27, 34, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary, #8b949e);
+}
+
+.tg-status-indicator .status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #8b949e;
+}
+
+.tg-status-indicator.active {
+    background: rgba(35, 134, 54, 0.15);
+    border-color: rgba(63, 185, 80, 0.4);
+    color: #3fb950;
+}
+
+.tg-status-indicator.active .status-dot {
+    background: #3fb950;
+    box-shadow: 0 0 8px #3fb950;
+}
+
+/* شبكة الكروت الرئيسية */
+.tg-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.tg-card {
+    background: rgba(22, 27, 34, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.tg-card:hover {
+    border-color: rgba(56, 139, 253, 0.35);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.tg-card-fullwidth {
+    grid-column: 1 / -1;
+}
+
+.tg-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tg-card-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tg-card-title .card-icon {
+    font-size: 24px;
+}
+
+.tg-card-title h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary, #f0f6fc);
+    margin: 0 0 4px 0;
+}
+
+.tg-card-title p {
+    font-size: 12px;
+    color: var(--text-secondary, #8b949e);
+    margin: 0;
+}
+
+.badge-ai-groq {
+    background: linear-gradient(90deg, rgba(163, 113, 247, 0.2), rgba(188, 140, 255, 0.35));
+    color: #d2a8ff;
+    border: 1px solid rgba(188, 140, 255, 0.4);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+.tg-badge-pool-count {
+    background: rgba(31, 111, 235, 0.15);
+    color: #58a6ff;
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 12px;
+}
+
+/* النماذج والحقول */
+.tg-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 14px;
+}
+
+.tg-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tg-label-row label, .tg-form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #f0f6fc);
+}
+
+.tg-helper-link {
+    font-size: 11.5px;
+    color: #58a6ff;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.tg-helper-link:hover {
+    color: #79c0ff;
+    text-decoration: underline;
+}
+
+.tg-hint {
+    font-size: 11.5px;
+    color: var(--text-secondary, #8b949e);
+    line-height: 1.5;
+}
+
+.tg-hint code {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #58a6ff;
+    font-family: monospace;
+}
+
+.input-with-action {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.input-with-button-inline {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.input-with-button-inline input {
+    flex: 1;
+    min-width: 240px;
+}
+
+.btn-toggle-view {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary, #f0f6fc);
+    padding: 9px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s ease;
+}
+
+.btn-toggle-view:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* الأزرار التفاعلية */
+.tg-actions-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-tg-test {
+    flex: 1;
+    min-width: 180px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #0088cc, #005580);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(0, 136, 204, 0.25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-tg-test:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 136, 204, 0.4);
+}
+
+.btn-tg-save {
+    flex: 1;
+    min-width: 160px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #238636, #196127);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(35, 134, 54, 0.25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-tg-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(35, 134, 54, 0.4);
+}
+
+.btn-ai-discover {
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #8957e5, #5e32a8);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(137, 87, 229, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.btn-ai-discover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(137, 87, 229, 0.45);
+}
+
+.tg-quick-steps {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 14px;
+}
+
+.tg-quick-steps h4 {
+    font-size: 12.5px;
+    color: #58a6ff;
+    margin: 0 0 8px 0;
+}
+
+.tg-quick-steps ol {
+    margin: 0;
+    padding-right: 20px;
+    font-size: 11.5px;
+    color: var(--text-secondary, #8b949e);
+    line-height: 1.7;
+}
+
+.tg-quick-steps li b {
+    color: var(--text-primary, #f0f6fc);
+}
+
+.tg-quick-steps code {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 5px;
+    border-radius: 4px;
+    color: #3fb950;
+    font-family: monospace;
+}
+
+/* نتائج الذكاء الاصطناعي */
+.tg-ai-results-block {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 12px;
+}
+
+.block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.block-header h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary, #f0f6fc);
+    margin: 0;
+}
+
+.block-header .hint-inline {
+    font-size: 11px;
+    color: var(--text-secondary, #8b949e);
+}
+
+.keywords-tags-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.keyword-tag-btn {
+    background: rgba(56, 139, 253, 0.12);
+    border: 1px solid rgba(56, 139, 253, 0.3);
+    color: #79c0ff;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.keyword-tag-btn:hover {
+    background: rgba(56, 139, 253, 0.25);
+    border-color: #58a6ff;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(56, 139, 253, 0.25);
+}
+
+.tag-placeholder, .candidate-empty-msg, .hook-placeholder {
+    font-size: 12px;
+    color: var(--text-secondary, #8b949e);
+    font-style: italic;
+    padding: 8px 4px;
+}
+
+/* شبكة الجروبات المرشحة */
+.candidate-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
+}
+
+.candidate-group-card {
+    background: rgba(22, 27, 34, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.candidate-group-card:hover {
+    border-color: rgba(56, 139, 253, 0.4);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.candidate-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+
+.candidate-group-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary, #f0f6fc);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.candidate-badge-role {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.candidate-badge-role.primary {
+    background: rgba(35, 134, 54, 0.2);
+    color: #3fb950;
+    border: 1px solid rgba(63, 185, 80, 0.3);
+}
+
+.candidate-badge-role.backup {
+    background: rgba(210, 153, 34, 0.2);
+    color: #e3b341;
+    border: 1px solid rgba(210, 153, 34, 0.3);
+}
+
+.candidate-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--text-secondary, #8b949e);
+}
+
+.candidate-card-bottom a {
+    color: #58a6ff;
+    text-decoration: none;
+}
+
+.candidate-card-bottom a:hover {
+    text-decoration: underline;
+}
+
+.btn-adopt-candidates {
+    background: rgba(35, 134, 54, 0.15);
+    border: 1px solid rgba(63, 185, 80, 0.4);
+    color: #3fb950;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.btn-adopt-candidates:hover {
+    background: rgba(35, 134, 54, 0.3);
+    border-color: #3fb950;
+}
+
+/* صيغ الهوك التفاعلية */
+.hooks-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hook-card-item {
+    background: rgba(22, 27, 34, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.hook-card-item:hover {
+    border-color: rgba(188, 140, 255, 0.4);
+    background: rgba(30, 41, 59, 0.8);
+}
+
+.hook-card-text {
+    font-size: 12.5px;
+    color: var(--text-primary, #f0f6fc);
+    line-height: 1.5;
+    flex: 1;
+}
+
+.hook-copy-badge {
+    font-size: 11px;
+    color: #a371f7;
+    background: rgba(163, 113, 247, 0.1);
+    border: 1px solid rgba(163, 113, 247, 0.3);
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+/* حوض الجروبات النشطة والجدول */
+.tg-info-banner {
+    display: flex;
+    gap: 14px;
+    background: rgba(31, 111, 235, 0.1);
+    border: 1px solid rgba(56, 139, 253, 0.25);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    align-items: flex-start;
+}
+
+.tg-info-banner .info-icon {
+    font-size: 20px;
+}
+
+.tg-info-banner .info-text {
+    font-size: 12.5px;
+    color: var(--text-primary, #f0f6fc);
+    line-height: 1.6;
+}
+
+.tg-info-banner .info-text ul {
+    margin: 6px 0 0 0;
+    padding-right: 18px;
+    color: var(--text-secondary, #8b949e);
+}
+
+.tg-info-banner .info-text li {
+    margin-bottom: 4px;
+}
+
+.groups-table-wrapper {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(13, 17, 23, 0.6);
+    margin-bottom: 16px;
+}
+
+.groups-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: right;
+}
+
+.groups-table th {
+    background: rgba(22, 27, 34, 0.95);
+    padding: 12px 14px;
+    font-weight: 700;
+    color: var(--text-primary, #f0f6fc);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12.5px;
+}
+
+.groups-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+}
+
+.groups-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.group-input-text {
+    width: 100%;
+    padding: 7px 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: var(--text-primary, #f0f6fc);
+    font-size: 12.5px;
+    font-family: inherit;
+    transition: border-color 0.2s ease;
+}
+
+.group-input-text:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+.group-role-select {
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: var(--text-primary, #f0f6fc);
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.group-members-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary, #8b949e);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.group-actions-cell {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-visit-group {
+    padding: 6px 10px;
+    background: rgba(56, 139, 253, 0.12);
+    border: 1px solid rgba(56, 139, 253, 0.3);
+    color: #58a6ff;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.btn-visit-group:hover {
+    background: rgba(56, 139, 253, 0.25);
+    border-color: #58a6ff;
+    color: #fff;
+}
+
+.btn-del-group-row {
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid rgba(248, 81, 73, 0.25);
+    color: #f85149;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.btn-del-group-row:hover {
+    background: rgba(248, 81, 73, 0.25);
+    border-color: #f85149;
+}
+
+.groups-actions-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn-add-group-row {
+    padding: 10px 18px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    color: var(--text-primary, #f0f6fc);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-add-group-row:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: #58a6ff;
+    color: #58a6ff;
+}
+
+.btn-save-groups-pool {
+    padding: 10px 22px;
+    background: linear-gradient(135deg, #1f6feb, #238636);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 14px rgba(31, 111, 235, 0.3);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-save-groups-pool:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(35, 134, 54, 0.45);
+}
+
+.tg-status-feedback {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+.tg-status-feedback.success {
+    background: rgba(35, 134, 54, 0.15);
+    border: 1px solid rgba(63, 185, 80, 0.4);
+    color: #3fb950;
+}
+
+.tg-status-feedback.error {
+    background: rgba(248, 81, 73, 0.15);
+    border: 1px solid rgba(248, 81, 73, 0.4);
+    color: #f85149;
+}
+
+@media (max-width: 900px) {
+    .tg-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
 
 
