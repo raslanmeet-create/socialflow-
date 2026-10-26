@@ -1834,6 +1834,7 @@ app.post('/api/telegram/test-rotation', async (req, res) => {
         const mockPost = customPost || {
             id: '1036372629556993_122107818044889779',
             pageId: '1036372629556993',
+            postUrl: 'https://www.facebook.com/RaslansMarketing/posts/pfbid02Sb3NGJTu4iaivwASRLQ2ry866ydDUeLebu4tzRQiZ9b4neAxQcGu9X7dP16aLcJAl',
             content: 'عايز نشاطك التجاري يظهر بشكل أقوى على خرائط جوجل؟ السر مش بس إنك تعمل Google Business Profile… السر إنك تعمله صح.\n\nفي رسلان للتسويق بنساعدك تجهز ملف نشاطك التجاري على جوجل بشكل احترافي علشان تزود فرص الظهور على Google Maps، وتكسب ثقة العملاء.',
             mediaUrl: 'https://scontent-hbe1-2.xx.fbcdn.net/v/t39.30808-6/662656561_122102597150889779_3903172382890224914_n.jpg?stp=dst-jpg_s720x720_tt6&_nc_cat=101&ccb=1-7&_nc_sid=127cfc&_nc_ohc=hy3vUZHUO30Q7kNvwHJs7o_&_nc_oc=AdpIuOlAhhO9uezzgUEE9HgMs0d9LYBrIiEGHBYNSMiElbANIEnl8R-KZTfi5x1PVus&_nc_zt=23&_nc_ht=scontent-hbe1-2.xx&edm=APyxFHYEAAAA&_nc_gid=M-Rs_7zEQ_l4pmTMiFdSfQ&_nc_tpa=Q5bMBQLhl4xx92ypGj0rt6esZReK2Lw40xY6ph54Zkc9FtrOXrLr-Fr6oSYzEskgqlzVDFczIn93CwFE&oh=00_AQOfjENmvlwPS0oVKJcgTWPSJdZ4SoVLCfnzr4DpU5YxGw&oe=6AE52A81',
             mediaType: 'image/jpeg'
@@ -1843,10 +1844,10 @@ app.post('/api/telegram/test-rotation', async (req, res) => {
                 success: true, 
                 id: '1036372629556993_122107818044889779', 
                 post_id: '122107818044889779',
-                permalink_url: 'https://www.facebook.com/RaslansMarketing/posts/pfbid02Sb3NGJTu4iaivwASRLQ2ry866ydDUeLebu4tzRQiZ9b4neAxQcGu9X7dP16aLcJAl'
+                permalink_url: 'https://www.facebook.com/RaslansMarketing/posts/pfbid02Sb3NGJTu4iaivwASRLQ2ry866ydDUeLebu4tzRQiZ9b4neAxQcGu9X7dP16aLcJAl',
+                firstComment: { success: true }
             },
-            instagram: { success: true },
-            facebook: { firstComment: { success: true } }
+            instagram: { success: true }
         };
 
         const notifResult = await sendTelegramGroupNotification(mockPost, mockResults, userId);
