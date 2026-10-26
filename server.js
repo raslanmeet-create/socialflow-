@@ -2336,9 +2336,8 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         msgText += `📊 <b>حالة النشر:</b>\n`;
         if (publishResults?.facebook?.success) msgText += `📘 فيسبوك: تم النشر بنجاح ✅\n`;
         if (publishResults?.instagram?.success) msgText += `📸 انستجرام: تم النشر بنجاح ✅\n`;
-        if (publishResults?.facebook?.firstComment?.success) msgText += `💬 التعليقات التلقائية: تم نشر التعليقات مع الصور ✅\n`;
-        msgText += `💡 <b>نص ورابط المشاركة بالجروب (المس لنسخه فوراً):</b>\n`;
-        msgText += `<code>${chosenHook}\n\n${fbPostUrl}</code>\n`;
+        msgText += `💡 <b>عنوان وجملة المشاركة (المس لنسخها نظيفة فوراً):</b>\n`;
+        msgText += `<code>${chosenHook}</code>\n`;
         msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
 
         if (currentBatch.length > 0) {
@@ -2348,7 +2347,8 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             });
         }
 
-        msgText += `\n👇 <b>اضغط على أي زر أدناه لفتح الجروب مباشرة ولصق النص والرابط:</b>`;
+        msgText += `\n👇 <b>طريقة المشاركة الاحترافية النظيفة (بدون روابط):</b>\n`;
+        msgText += `اضغط على الزر بالأسفل لفتح المنشور، ثم اضغط <b>مشاركة ⬅️ مشاركة في مجموعة</b>، والمس العنوان أعلاه والصقه!`;
 
         // بناء الأزرار التفاعلية (Inline Keyboard)
         const inlineKeyboard = [];
