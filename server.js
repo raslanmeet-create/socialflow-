@@ -2297,11 +2297,37 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             'تحدي الأسبوع: طبق هذه النصيحة التسويقية في صفحتك اليوم وراقب التفاعل خلال 48 ساعة! 🚀'
         ];
 
-        // اختيار عنوان مختلف يومياً بالتناوب (30 يوماً متتالياً دون أي تكرار)
-        const hookDayIndex = Math.floor(startIndex / 5);
-        const chosenHook = (Array.isArray(uConfig.hooks) && uConfig.hooks.length > 0)
-            ? uConfig.hooks[hookDayIndex % uConfig.hooks.length]
-            : dailyViralHooks[hookDayIndex % dailyViralHooks.length];
+        // استخراج عنوان تفاعلي ذكي مرتبط مباشرة بكابشن المنشور الحالي
+        let chosenHook = '';
+        if (post.groupHook && post.groupHook.trim()) {
+            chosenHook = post.groupHook.trim();
+        } else if (post.content && post.content.trim().length > 15) {
+            // استخراج أول جملة أو أول سؤال جذاب من صلب كابشن المنشور
+            const rawLines = post.content.split('\n').map(l => l.trim()).filter(Boolean);
+            const firstLine = rawLines[0] || '';
+            const secondLine = rawLines[1] || '';
+            
+            let combined = firstLine;
+            if (firstLine.length < 50 && secondLine && !secondLine.startsWith('http') && !secondLine.startsWith('#')) {
+                combined = `${firstLine} ${secondLine}`;
+            }
+            // تنظيف الهاشتاجات والروابط من جملة الخطاف
+            combined = combined.replace(/#\S+/g, '').replace(/https?:\/\/\S+/g, '').replace(/[\\*\\_]/g, '').trim();
+            if (combined.length > 130) combined = combined.substring(0, 127) + '...';
+
+            if (combined.length >= 15) {
+                // إلحاق رقم التواصل والدعوة لاتخاذ إجراء تلقائياً
+                chosenHook = `${combined} 📍 تواصل معنا: 01008169824 🚀`;
+            }
+        }
+
+        // إذا لم يكن هناك كابشن كافٍ، نلجأ تلقائياً لبنك العناوين اليومية بالتناوب
+        if (!chosenHook) {
+            const hookDayIndex = Math.floor(startIndex / 5);
+            chosenHook = (Array.isArray(uConfig.hooks) && uConfig.hooks.length > 0)
+                ? uConfig.hooks[hookDayIndex % uConfig.hooks.length]
+                : dailyViralHooks[hookDayIndex % dailyViralHooks.length];
+        }
 
         const postSnippet = post.content ? (post.content.length > 80 ? post.content.substring(0, 80) + '...' : post.content) : 'منشور وسائط';
 
