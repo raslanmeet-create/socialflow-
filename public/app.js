@@ -255,11 +255,11 @@ let cropperInstance = null;
 let croppedImageBlob = null;
 let currentAspectRatio = 1; // الافتراضي مربع 1:1
 
-// عناصر التعليق الأول التلقائي (First Comment)
+// عناصر نظام التعليقات التلقائية المتعددة وإرفاق الصور
 const enableFirstComment = document.getElementById('enableFirstComment');
 const firstCommentContainer = document.getElementById('firstCommentContainer');
-const firstCommentContent = document.getElementById('firstCommentContent');
-const counterFc = document.getElementById('counterFc');
+const commentsRepeaterList = document.getElementById('commentsRepeaterList');
+const btnAddCommentRow = document.getElementById('btnAddCommentRow');
 const mockupFirstComment = document.getElementById('mockupFirstComment');
 const mockupCommentText = document.getElementById('mockupCommentText');
 
@@ -301,24 +301,233 @@ toggleCustomCaptions.addEventListener('change', () => {
     updateMockupText();
 });
 
-// التعامل مع تفعيل وكتابة التعليق الأول التلقائي
-enableFirstComment.addEventListener('change', () => {
-    firstCommentContainer.style.display = enableFirstComment.checked ? 'block' : 'none';
-    updateMockupFirstComment();
-});
+// ==========================================================
+// إدارة نظام التعليقات التلقائية المتعددة (Smart Auto-Comments Manager)
+// ==========================================================
+function createCommentCard(index, defaultText = '') {
+    const card = document.createElement('div');
+    card.className = 'comment-card-item';
+    const isFirst = index === 0;
 
-firstCommentContent.addEventListener('input', () => {
-    counterFc.textContent = `${firstCommentContent.value.length} حرف`;
-    updateMockupFirstComment();
-});
+    card.innerHTML = `
+        <div class="comment-card-header">
+            <span class="comment-num-badge">
+                💬 <span class="badge-title">${isFirst ? 'التعليق الأول (#1)' : `تعليق إضافي (#${index + 1})`}</span>
+            </span>
+            <div class="comment-card-actions">
+                <span class="comment-char-counter">0 حرف</span>
+                ${!isFirst ? `<button type="button" class="btn-del-comment" title="حذف هذا التعليق">🗑️ حذف</button>` : ''}
+            </div>
+        </div>
+        <textarea class="comment-textarea" rows="2" placeholder="${isFirst ? 'اكتب التعليق الأول هنا... (الهاشتاجات تعمل 100% كنصوص تفاعلية)' : `اكتب التعليق الإضافي #${index + 1}...`}">${defaultText}</textarea>
+        
+        <input type="file" class="comment-file-input" accept="image/png, image/jpeg, image/webp" style="display: none;">
+        
+        <div class="comment-tools-bar">
+            <div class="comment-quick-helpers">
+                <button type="button" class="btn-comment-tool btn-insert-hash" title="إضافة هاشتاج سريع">#️⃣ هاشتاج</button>
+                <button type="button" class="btn-comment-tool btn-insert-link" title="إضافة رابط">🔗 رابط</button>
+            </div>
+            <div>
+                <button type="button" class="btn-upload-comment-img" title="إرفاق صورة تظهر داخل التعليق في فيسبوك">
+                    <span>📸 إرفاق صورة (فيسبوك)</span>
+                </button>
+            </div>
+        </div>
 
-function updateMockupFirstComment() {
-    if (enableFirstComment.checked && firstCommentContent.value.trim()) {
-        mockupCommentText.textContent = firstCommentContent.value.trim();
+        <div class="comment-img-preview-box" style="display: none;">
+            <img class="comment-img-thumb" src="" alt="Comment Attachment">
+            <div class="comment-img-info">
+                <span class="comment-img-name"></span>
+                <span class="comment-img-badge">📘 مرفقة مع تعليق فيسبوك</span>
+            </div>
+            <button type="button" class="btn-remove-comment-img" title="إزالة الصورة">✕</button>
+        </div>
+    `;
+
+    // العناصر الداخلية للكارت
+    const textarea = card.querySelector('.comment-textarea');
+    const counter = card.querySelector('.comment-char-counter');
+    const fileInput = card.querySelector('.comment-file-input');
+    const btnUpload = card.querySelector('.btn-upload-comment-img');
+    const previewBox = card.querySelector('.comment-img-preview-box');
+    const imgThumb = card.querySelector('.comment-img-thumb');
+    const imgName = card.querySelector('.comment-img-name');
+    const btnRemoveImg = card.querySelector('.btn-remove-comment-img');
+    const btnDel = card.querySelector('.btn-del-comment');
+    const btnHash = card.querySelector('.btn-insert-hash');
+    const btnLink = card.querySelector('.btn-insert-link');
+
+    // تحديث العداد الحي والمعاينة
+    textarea.addEventListener('input', () => {
+        counter.textContent = `${textarea.value.length} حرف`;
+        updateCommentsMockup();
+    });
+
+    // إدراج نص عند موضع المؤشر
+    function insertAtCursor(val) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        textarea.value = text.substring(0, start) + val + text.substring(end);
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + val.length;
+        textarea.dispatchEvent(new Event('input'));
+    }
+
+    if (btnHash) {
+        btnHash.addEventListener('click', () => {
+            insertAtCursor('#');
+        });
+    }
+
+    if (btnLink) {
+        btnLink.addEventListener('click', () => {
+            const url = prompt('أدخل الرابط المراد إضافته في التعليق:', 'https://');
+            if (url) insertAtCursor(' ' + url + ' ');
+        });
+    }
+
+    // إرفاق صورة بالتعليق
+    if (btnUpload && fileInput) {
+        btnUpload.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imgThumb.src = e.target.result;
+                    imgName.textContent = file.name;
+                    previewBox.style.display = 'inline-flex';
+                    btnUpload.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (btnRemoveImg && fileInput) {
+        btnRemoveImg.addEventListener('click', () => {
+            fileInput.value = '';
+            previewBox.style.display = 'none';
+            btnUpload.style.display = 'inline-flex';
+        });
+    }
+
+    // زر حذف التعليق (للتعليقات بعد الأول)
+    if (btnDel) {
+        btnDel.addEventListener('click', () => {
+            card.remove();
+            reindexCommentCards();
+            updateCommentsMockup();
+        });
+    }
+
+    return card;
+}
+
+function reindexCommentCards() {
+    if (!commentsRepeaterList) return;
+    const cards = commentsRepeaterList.querySelectorAll('.comment-card-item');
+    cards.forEach((card, idx) => {
+        const badgeTitle = card.querySelector('.badge-title');
+        const textarea = card.querySelector('.comment-textarea');
+        const actions = card.querySelector('.comment-card-actions');
+        let btnDel = card.querySelector('.btn-del-comment');
+
+        if (idx === 0) {
+            if (badgeTitle) badgeTitle.textContent = 'التعليق الأول (#1)';
+            if (textarea && !textarea.value) textarea.placeholder = 'اكتب التعليق الأول هنا... (الهاشتاجات تعمل 100% كنصوص تفاعلية)';
+            if (btnDel) btnDel.remove();
+        } else {
+            if (badgeTitle) badgeTitle.textContent = `تعليق إضافي (#${idx + 1})`;
+            if (textarea && !textarea.value) textarea.placeholder = `اكتب التعليق الإضافي #${idx + 1}...`;
+            if (!btnDel && actions) {
+                const newDelBtn = document.createElement('button');
+                newDelBtn.type = 'button';
+                newDelBtn.className = 'btn-del-comment';
+                newDelBtn.title = 'حذف هذا التعليق';
+                newDelBtn.textContent = '🗑️ حذف';
+                newDelBtn.addEventListener('click', () => {
+                    card.remove();
+                    reindexCommentCards();
+                    updateCommentsMockup();
+                });
+                actions.appendChild(newDelBtn);
+            }
+        }
+    });
+}
+
+function updateCommentsMockup() {
+    if (!mockupFirstComment || !mockupCommentText) return;
+    if (!enableFirstComment || !enableFirstComment.checked) {
+        mockupFirstComment.style.display = 'none';
+        return;
+    }
+    const firstTextarea = commentsRepeaterList?.querySelector('.comment-card-item:first-child .comment-textarea');
+    const firstVal = firstTextarea ? firstTextarea.value.trim() : '';
+    if (firstVal) {
+        mockupCommentText.textContent = firstVal;
         mockupFirstComment.style.display = 'flex';
     } else {
         mockupFirstComment.style.display = 'none';
     }
+}
+
+function collectAllComments() {
+    if (!enableFirstComment || !enableFirstComment.checked || !commentsRepeaterList) {
+        return [];
+    }
+    const cards = commentsRepeaterList.querySelectorAll('.comment-card-item');
+    const list = [];
+    cards.forEach((card, idx) => {
+        const textarea = card.querySelector('.comment-textarea');
+        const fileInput = card.querySelector('.comment-file-input');
+        const text = textarea ? textarea.value.trim() : '';
+        const file = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
+
+        if (text || file) {
+            list.push({
+                index: idx,
+                text: text,
+                file: file
+            });
+        }
+    });
+    return list;
+}
+
+// تهيئة نظام التعليقات التلقائية
+if (enableFirstComment) {
+    enableFirstComment.addEventListener('change', () => {
+        if (firstCommentContainer) {
+            firstCommentContainer.style.display = enableFirstComment.checked ? 'block' : 'none';
+        }
+        if (enableFirstComment.checked && commentsRepeaterList && commentsRepeaterList.children.length === 0) {
+            commentsRepeaterList.appendChild(createCommentCard(0));
+        }
+        updateCommentsMockup();
+    });
+}
+
+if (btnAddCommentRow && commentsRepeaterList) {
+    btnAddCommentRow.addEventListener('click', () => {
+        const currentCount = commentsRepeaterList.querySelectorAll('.comment-card-item').length;
+        const newCard = createCommentCard(currentCount);
+        commentsRepeaterList.appendChild(newCard);
+        reindexCommentCards();
+        const txt = newCard.querySelector('.comment-textarea');
+        if (txt) txt.focus();
+    });
+}
+
+// إنشاء الكارت الافتراضي للتعليق الأول
+if (commentsRepeaterList && commentsRepeaterList.children.length === 0) {
+    commentsRepeaterList.appendChild(createCommentCard(0));
 }
 
 
@@ -702,9 +911,20 @@ postForm.addEventListener('submit', async (e) => {
 
     const selectedRatio = document.querySelector('input[name="aspectRatio"]:checked')?.value || 'auto';
 
-    // استخراج التعليق الأول إذا تم تفعيله
-    const isFcEnabled = enableFirstComment.checked;
-    const fcVal = firstCommentContent.value.trim();
+    // استخراج التعليقات التلقائية المتعددة إذا تم تفعيلها
+    const collectedComments = collectAllComments();
+    const isFcEnabled = enableFirstComment && enableFirstComment.checked && collectedComments.length > 0;
+
+    // إذا كانت هناك صور مرفقة بالتعليقات، يلزم توفر بيانات Cloudinary
+    const hasCommentImages = collectedComments.some(c => c.file);
+    if (hasCommentImages) {
+        const cConfig = userConfig.cloudinary;
+        if (!cConfig || !cConfig.cloudName || !cConfig.apiKey || !cConfig.apiSecret) {
+            showAlert('⚠️ لإرفاق صور داخل التعليقات، يرجى إدخال بيانات حساب Cloudinary السحابي المجاني الخاص بك أولاً في نافذة الإعدادات.', 'error');
+            openSettingsModal();
+            return;
+        }
+    }
 
     // استخراج بيانات الصفحة المحددة حالياً
     const targetAccount = currentAccounts.find(a => a.id === selectedPageId);
@@ -735,8 +955,17 @@ postForm.addEventListener('submit', async (e) => {
     formData.append('isCustomCaptions', isCustom);
     formData.append('customCaptions', JSON.stringify(customCaptions));
     formData.append('aspectRatio', selectedRatio);
-    if (isFcEnabled && fcVal) {
-        formData.append('firstComment', fcVal);
+    if (isFcEnabled) {
+        const commentsJson = collectedComments.map(c => ({ text: c.text }));
+        formData.append('comments', JSON.stringify(commentsJson));
+        if (collectedComments[0]?.text) {
+            formData.append('firstComment', collectedComments[0].text);
+        }
+        collectedComments.forEach(c => {
+            if (c.file) {
+                formData.append(`comment_image_${c.index}`, c.file, c.file.name);
+            }
+        });
     }
     if (isScheduled) {
         formData.append('scheduledTime', scheduleTime);
@@ -790,15 +1019,32 @@ postForm.addEventListener('submit', async (e) => {
                         }
                     }
 
-                    // تنبيهات التعليق الأول التلقائي
-                    if (result.results.facebook?.firstComment) {
+                    // تنبيهات التعليقات التلقائية
+                    if (result.results.facebook?.comments && Array.isArray(result.results.facebook.comments)) {
+                        const fbCount = result.results.facebook.comments.length;
+                        const fbSuccess = result.results.facebook.comments.filter(c => c.success).length;
+                        if (fbSuccess === fbCount) {
+                            details.push(`💬 <strong>فيسبوك (التعليقات التلقائية):</strong> تم نشر ${fbCount} تعليق بنجاح بالتتابع مع الصور المرفقة!`);
+                        } else {
+                            details.push(`⚠️ <strong>فيسبوك (التعليقات التلقائية):</strong> تم نشر ${fbSuccess} من أصل ${fbCount} تعليق.`);
+                        }
+                    } else if (result.results.facebook?.firstComment) {
                         if (result.results.facebook.firstComment.success) {
                             details.push(`💬 <strong>فيسبوك (التعليق الأول):</strong> تم إضافة التعليق بنجاح!`);
                         } else {
                             details.push(`⚠️ <strong>فيسبوك (التعليق الأول):</strong> ${result.results.facebook.firstComment.error}`);
                         }
                     }
-                    if (result.results.instagram?.firstComment) {
+
+                    if (result.results.instagram?.comments && Array.isArray(result.results.instagram.comments)) {
+                        const igCount = result.results.instagram.comments.length;
+                        const igSuccess = result.results.instagram.comments.filter(c => c.success).length;
+                        if (igSuccess === igCount) {
+                            details.push(`💬 <strong>انستجرام (التعليقات التلقائية):</strong> تم نشر ${igCount} تعليق بنجاح بالتتابع!`);
+                        } else {
+                            details.push(`⚠️ <strong>انستجرام (التعليقات التلقائية):</strong> تم نشر ${igSuccess} من أصل ${igCount} تعليق.`);
+                        }
+                    } else if (result.results.instagram?.firstComment) {
                         if (result.results.instagram.firstComment.success) {
                             details.push(`💬 <strong>انستجرام (التعليق الأول):</strong> تم إضافة التعليق بنجاح!`);
                         } else {
@@ -811,13 +1057,17 @@ postForm.addEventListener('submit', async (e) => {
 
             showAlert(msg, alertType);
 
-            // تصفير النموذج
+            // تصفير النموذج والتعليقات
             postContent.value = '';
             charCounter.textContent = '0 حرف';
-            firstCommentContent.value = '';
-            counterFc.textContent = '0 حرف';
-            enableFirstComment.checked = false;
-            enableFirstComment.dispatchEvent(new Event('change'));
+            if (commentsRepeaterList) {
+                commentsRepeaterList.innerHTML = '';
+                commentsRepeaterList.appendChild(createCommentCard(0));
+            }
+            if (enableFirstComment) {
+                enableFirstComment.checked = false;
+                enableFirstComment.dispatchEvent(new Event('change'));
+            }
             btnRemoveMedia.click();
             timingNow.checked = true;
             timingNow.dispatchEvent(new Event('change'));
@@ -1373,11 +1623,29 @@ function openPostPreviewModal(post) {
     }
 
     let firstCommentHtml = '';
-    if (post.firstComment) {
+    if (Array.isArray(post.comments) && post.comments.length > 0) {
         firstCommentHtml = `
-            <div class="preview-first-comment-box">
-                <strong>💬 التعليق الأول التلقائي:</strong>
-                <p style="margin:0;color:var(--text-primary);font-size:13px;">${post.firstComment}</p>
+            <div class="preview-first-comment-box" style="margin-top:14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;padding:12px;">
+                <strong style="color:var(--accent);display:block;margin-bottom:8px;">💬 التعليقات التلقائية المتتابعة (${post.comments.length}):</strong>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    ${post.comments.map((c, i) => `
+                        <div style="background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:13px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                                <span style="color:#58a6ff;font-weight:700;font-size:12px;">تعليق #${i + 1}</span>
+                                ${c.imageUrl ? '<span style="font-size:11px;color:#3fb950;">📸 صورة مرفقة (فيسبوك)</span>' : ''}
+                            </div>
+                            ${c.text ? `<p style="margin:0;color:var(--text-primary);line-height:1.4;">${c.text}</p>` : ''}
+                            ${c.imageUrl ? `<div style="margin-top:6px;"><img src="${c.imageUrl}" style="max-height:90px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    } else if (post.firstComment) {
+        firstCommentHtml = `
+            <div class="preview-first-comment-box" style="margin-top:14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;padding:12px;">
+                <strong style="color:var(--accent);display:block;margin-bottom:4px;">💬 التعليق الأول التلقائي:</strong>
+                <p style="margin:0;color:var(--text-primary);font-size:13px;line-height:1.4;">${post.firstComment}</p>
             </div>
         `;
     }

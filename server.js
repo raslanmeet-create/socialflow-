@@ -1779,7 +1779,7 @@ function getInstagramSafeImageUrl(cloudUrl, width, height, userRatio) {
 }
 
 // 2. مسار النشر والجدولة (POST /api/publish)
-app.post('/api/publish', upload.single('media'), async (req, res) => {
+app.post('/api/publish', upload.any(), async (req, res) => {
     try {
         const { 
             userId,
@@ -1796,6 +1796,7 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
             customCaptions, 
             aspectRatio, 
             firstComment,
+            comments,
             userCloudinary
         } = req.body;
 
@@ -1829,8 +1830,32 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
         let mediaWidth = null;
         let mediaHeight = null;
 
-        // إذا كان هناك ملف مرفوع (صورة أو فيديو)، نرفعه لسحابة المستخدم الخاصة حصراً
-        if (req.file) {
+        // استخراج ملف الميديا الرئيسي للبوست إن وجد
+        const mainMediaFile = (req.files && Array.isArray(req.files))
+            ? req.files.find(f => f.fieldname === 'media')
+            : req.file;
+
+        // استخراج ملفات صور التعليقات إن وجدت
+        const commentFiles = (req.files && Array.isArray(req.files))
+            ? req.files.filter(f => f.fieldname && f.fieldname.startsWith('comment_image_'))
+            : [];
+
+        // تحليل مصفوفة التعليقات المتعددة
+        let parsedComments = [];
+        if (comments) {
+            try {
+                parsedComments = typeof comments === 'string' ? JSON.parse(comments) : comments;
+            } catch (e) {
+                console.warn('Could not parse comments JSON:', e);
+            }
+        }
+        if (!Array.isArray(parsedComments)) parsedComments = [];
+        if (parsedComments.length === 0 && firstComment && firstComment.trim()) {
+            parsedComments = [{ text: firstComment.trim() }];
+        }
+
+        // إذا كان هناك ملف ميديا رئيسي أو صور تعليقات، نحتاج بيانات Cloudinary الخاصة بالمستخدم
+        if (mainMediaFile || commentFiles.length > 0) {
             let customCloudinary = null;
             if (userCloudinary) {
                 try {
@@ -1861,29 +1886,58 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
             if (!customCloudinary || !customCloudinary.cloudName || !customCloudinary.apiKey || !customCloudinary.apiSecret) {
                 return res.status(400).json({
                     success: false,
-                    message: '⚠️ لرفع الصور والفيديوهات، يرجى إدخال بيانات حساب Cloudinary السحابي المجاني الخاص بك في نافذة الإعدادات أولاً (Cloud Name, API Key, API Secret).'
+                    message: '⚠️ لرفع الصور والفيديوهات أو إرفاق صور في التعليقات، يرجى إدخال بيانات حساب Cloudinary السحابي المجاني الخاص بك في نافذة الإعدادات أولاً (Cloud Name, API Key, API Secret).'
                 });
             }
 
-            console.log(`[Cloudinary] جاري رفع الميديا لسحابة المستخدم (${customCloudinary.cloudName}) من الذاكرة: ${req.file.originalname}`);
-            const isVideo = req.file.mimetype.startsWith('video/');
-            
-            const uploadOptions = {
-                resource_type: isVideo ? 'video' : 'image',
-                folder: 'socialflow_uploads',
-                cloud_name: customCloudinary.cloudName.trim(),
-                api_key: customCloudinary.apiKey.trim(),
-                api_secret: customCloudinary.apiSecret.trim()
-            };
+            // رفع الميديا الرئيسية للبوست
+            if (mainMediaFile) {
+                console.log(`[Cloudinary] جاري رفع الميديا لسحابة المستخدم (${customCloudinary.cloudName}) من الذاكرة: ${mainMediaFile.originalname}`);
+                const isVideo = mainMediaFile.mimetype.startsWith('video/');
+                
+                const uploadOptions = {
+                    resource_type: isVideo ? 'video' : 'image',
+                    folder: 'socialflow_uploads',
+                    cloud_name: customCloudinary.cloudName.trim(),
+                    api_key: customCloudinary.apiKey.trim(),
+                    api_secret: customCloudinary.apiSecret.trim()
+                };
 
-            const base64Data = req.file.buffer.toString('base64');
-            const dataUri = `data:${req.file.mimetype};base64,${base64Data}`;
+                const base64Data = mainMediaFile.buffer.toString('base64');
+                const dataUri = `data:${mainMediaFile.mimetype};base64,${base64Data}`;
 
-            const uploadRes = await cloudinary.uploader.upload(dataUri, uploadOptions);
-            cloudUrl = uploadRes.secure_url;
-            mediaWidth = uploadRes.width;
-            mediaHeight = uploadRes.height;
-            console.log(`[Cloudinary] تم الرفع بنجاح على سحابة المستخدم! الرابط: ${cloudUrl} (أبعاد: ${mediaWidth}x${mediaHeight})`);
+                const uploadRes = await cloudinary.uploader.upload(dataUri, uploadOptions);
+                cloudUrl = uploadRes.secure_url;
+                mediaWidth = uploadRes.width;
+                mediaHeight = uploadRes.height;
+                console.log(`[Cloudinary] تم الرفع بنجاح على سحابة المستخدم! الرابط: ${cloudUrl} (أبعاد: ${mediaWidth}x${mediaHeight})`);
+            }
+
+            // رفع صور التعليقات التلقائية
+            if (commentFiles.length > 0) {
+                for (const cFile of commentFiles) {
+                    const idxMatch = cFile.fieldname.match(/comment_image_(\d+)/);
+                    if (idxMatch) {
+                        const cIdx = parseInt(idxMatch[1], 10);
+                        console.log(`[Cloudinary] جاري رفع صورة التعليق #${cIdx + 1}: ${cFile.originalname}`);
+                        const base64CData = cFile.buffer.toString('base64');
+                        const dataUriC = `data:${cFile.mimetype};base64,${base64CData}`;
+                        const upCRes = await cloudinary.uploader.upload(dataUriC, {
+                            resource_type: 'image',
+                            folder: 'socialflow_comments',
+                            cloud_name: customCloudinary.cloudName.trim(),
+                            api_key: customCloudinary.apiKey.trim(),
+                            api_secret: customCloudinary.apiSecret.trim()
+                        });
+                        if (!parsedComments[cIdx]) {
+                            parsedComments[cIdx] = { text: '', imageUrl: upCRes.secure_url };
+                        } else {
+                            parsedComments[cIdx].imageUrl = upCRes.secure_url;
+                        }
+                        console.log(`[Cloudinary] تم رفع صورة التعليق #${cIdx + 1} بنجاح: ${upCRes.secure_url}`);
+                    }
+                }
+            }
         }
 
         const postData = {
@@ -1892,12 +1946,13 @@ app.post('/api/publish', upload.single('media'), async (req, res) => {
             content: content || '',
             customCaptions: parsedCustomCaptions,
             aspectRatio: aspectRatio || 'auto',
-            firstComment: (firstComment || '').trim(),
+            firstComment: parsedComments[0]?.text || (firstComment || '').trim(),
+            comments: parsedComments,
             mediaPath: null,
             mediaUrl: cloudUrl,
             mediaWidth,
             mediaHeight,
-            mediaType: req.file ? req.file.mimetype : null,
+            mediaType: mainMediaFile ? mainMediaFile.mimetype : null,
             platforms: parsedPlatforms,
             facebookPlacements: parsedFbPlacements,
             instagramPlacements: parsedIgPlacements,
@@ -1976,7 +2031,7 @@ app.get('/api/scheduled', async (req, res) => {
 app.put('/api/scheduled/:id', async (req, res) => {
     try {
         const id = req.params.id;
-        const { content, scheduledTime, customCaptions } = req.body;
+        const { content, scheduledTime, customCaptions, firstComment, comments } = req.body;
         const posts = await getScheduledPosts();
         const post = posts.find(p => p.id === id);
 
@@ -1986,6 +2041,8 @@ app.put('/api/scheduled/:id', async (req, res) => {
 
         if (content !== undefined) post.content = content;
         if (customCaptions !== undefined) post.customCaptions = customCaptions;
+        if (firstComment !== undefined) post.firstComment = firstComment;
+        if (comments !== undefined) post.comments = comments;
 
         // إذا كان مجدولاً، يمكن تعديل وقت الجدولة
         if (post.status === 'PENDING' && scheduledTime) {
@@ -2180,6 +2237,10 @@ async function executePublish(post) {
     const fbCaption = (post.customCaptions && post.customCaptions.facebook) ? post.customCaptions.facebook : post.content;
     const igCaption = (post.customCaptions && post.customCaptions.instagram) ? post.customCaptions.instagram : post.content;
     const firstComment = (post.firstComment || '').trim();
+    // استخراج قائمة التعليقات التلقائية بالكامل (تدعم التعليقات المتعددة والصور)
+    const allComments = (Array.isArray(post.comments) && post.comments.length > 0)
+        ? post.comments.filter(c => (c && c.text && c.text.trim()) || (c && c.imageUrl))
+        : (firstComment ? [{ text: firstComment }] : []);
 
     // استخراج أماكن النشر المحددة (منشور عادي / ستوري / كلاهما)
     const fbPlacements = Array.isArray(post.facebookPlacements) && post.facebookPlacements.length > 0
@@ -2197,9 +2258,19 @@ async function executePublish(post) {
         if (fbPlacements.includes('feed')) {
             try {
                 results.facebook.feed = await publishToFacebookPage(post.pageId, pageAccessToken, post, fbCaption);
-                if (firstComment && results.facebook.feed.success) {
+                if (allComments.length > 0 && results.facebook.feed.success) {
                     const targetId = results.facebook.feed.post_id || results.facebook.feed.id;
-                    results.facebook.firstComment = await postFacebookComment(targetId, firstComment, pageAccessToken);
+                    results.facebook.comments = [];
+                    for (let ci = 0; ci < allComments.length; ci++) {
+                        const c = allComments[ci];
+                        if (ci > 0) {
+                            // انتظار 1.5 ثانية بين كل تعليق والآخر
+                            await new Promise(r => setTimeout(r, 1500));
+                        }
+                        const cRes = await postFacebookComment(targetId, c.text, c.imageUrl, pageAccessToken);
+                        results.facebook.comments.push(cRes);
+                    }
+                    results.facebook.firstComment = results.facebook.comments[0] || { success: true };
                 }
             } catch (err) {
                 results.facebook.feed = { success: false, error: err.message };
@@ -2231,8 +2302,19 @@ async function executePublish(post) {
             if (igPlacements.includes('feed')) {
                 try {
                     results.instagram.feed = await publishToInstagram(igUserId, pageAccessToken, post, igCaption);
-                    if (firstComment && results.instagram.feed.success) {
-                        results.instagram.firstComment = await postInstagramComment(results.instagram.feed.id, firstComment, pageAccessToken);
+                    if (allComments.length > 0 && results.instagram.feed.success) {
+                        results.instagram.comments = [];
+                        for (let ci = 0; ci < allComments.length; ci++) {
+                            const c = allComments[ci];
+                            if (!c || !c.text || !c.text.trim()) continue;
+                            if (ci > 0) {
+                                // انتظار 2.5 ثانية بين تعليقات انستجرام
+                                await new Promise(r => setTimeout(r, 2500));
+                            }
+                            const cRes = await postInstagramComment(results.instagram.feed.id, c.text.trim(), pageAccessToken);
+                            results.instagram.comments.push(cRes);
+                        }
+                        results.instagram.firstComment = results.instagram.comments[0] || { success: true };
                     }
                 } catch (err) {
                     results.instagram.feed = { success: false, error: err.message };
@@ -2644,24 +2726,39 @@ async function publishToInstagramStory(igUserId, token, post) {
 
 
 
-// دالة التعليق الأول على منشور فيسبوك
-async function postFacebookComment(targetId, message, token) {
+// دالة نشر تعليق على منشور فيسبوك (تدعم النص وإرفاق صورة اختيارية عبر attachment_url)
+async function postFacebookComment(targetId, message, imageUrlOrToken, maybeToken) {
+    let actualToken = maybeToken;
+    let actualImageUrl = null;
+
+    if (!maybeToken) {
+        // تم استدعاء الدالة بـ 3 معاملات قديمة: (targetId, message, token)
+        actualToken = imageUrlOrToken;
+    } else {
+        // تم استدعاء الدالة بـ 4 معاملات: (targetId, message, imageUrl, token)
+        actualImageUrl = imageUrlOrToken;
+        actualToken = maybeToken;
+    }
+
     try {
-        console.log(`[Facebook Comment] جاري إضافة التعليق الأول على: ${targetId}`);
+        console.log(`[Facebook Comment] جاري إضافة تعليق على: ${targetId}${actualImageUrl ? ' مع صورة مرفقة' : ''}`);
+        const payload = {
+            access_token: actualToken
+        };
+        if (message) payload.message = message;
+        if (actualImageUrl) payload.attachment_url = actualImageUrl;
+
         const res = await fetch(`https://graph.facebook.com/v21.0/${targetId}/comments`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: message,
-                access_token: token
-            })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
         console.log(`[Facebook Comment] تم إضافة التعليق بنجاح! ID: ${data.id}`);
         return { success: true, id: data.id };
     } catch (err) {
-        console.error('Error in Facebook first comment:', err);
+        console.error('Error in Facebook comment:', err);
         return { success: false, error: err.message };
     }
 }

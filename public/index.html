@@ -415,14 +415,14 @@
                         </div>
                     </div>
 
-                    <!-- 4. ميزة التعليق الأول التلقائي (First Comment) -->
+                    <!-- 4. ميزة التعليقات التلقائية المتعددة (Smart Auto-Comments) -->
                     <div class="form-group first-comment-group">
                         <div class="first-comment-header">
                             <div class="fc-info">
                                 <span class="fc-icon">💬</span>
                                 <div>
-                                    <strong class="fc-title">التعليق الأول التلقائي (First Comment):</strong>
-                                    <p class="fc-desc">ينشر تعليقاً فورياً تحت المنشور (لوضع الروابط في فيسبوك، أو الهاشتاجات في انستجرام)</p>
+                                    <strong class="fc-title">التعليقات التلقائية المتعددة (Auto-Comments Manager):</strong>
+                                    <p class="fc-desc">أضف تعليقاً أولاً أو تعليقات متعددة بالتتابع، مع إمكانية إرفاق صورة لفيسبوك وهاشتاجات لانستجرام</p>
                                 </div>
                             </div>
                             <label class="switch">
@@ -432,15 +432,28 @@
                         </div>
 
                         <div id="firstCommentContainer" class="first-comment-container" style="display: none;">
-                            <div class="label-with-counter">
-                                <span class="format-hint">محتوى التعليق الأول:</span>
-                                <span id="counterFc" class="char-counter">0 حرف</span>
+                            <!-- حاوية كروت التعليقات التلقائية الديناميكية -->
+                            <div id="commentsRepeaterList" class="comments-repeater-list">
+                                <!-- سيتم بناؤها ديناميكياً عبر JS -->
                             </div>
-                            <textarea id="firstCommentContent" rows="3" placeholder="اكتب التعليق الأول هنا (مثال: رابط الموقع، روابط التواصل، أو هاشتاجات إضافية)..."></textarea>
+
+                            <!-- شريط زر إضافة تعليق إضافي -->
+                            <div class="add-comment-action-bar">
+                                <button type="button" class="btn-add-comment-row" id="btnAddCommentRow">
+                                    <span class="btn-icon">➕</span>
+                                    <span>إضافة تعليق إضافي تحت المنشور</span>
+                                </button>
+                            </div>
+
                             <div class="fc-badge-info">
-                                <span>💡 <strong>ميزة ذكية:</strong> سيعمل هذا التعليق تلقائياً على فيسبوك وانستجرام سواء قمت بالنشر الفوري أو بالجدولة بالسحابة!</span>
-                                <div style="margin-top: 6px; font-size: 11px; opacity: 0.95; line-height: 1.5; color: #94a3b8; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 5px;">
-                                    📌 <strong>تنبيه ميتا للمنشن (@المتابعين):</strong> ميزة المنشن الجماعي لجميع المتابعين (@المتابعين أو @followers) مخصصة حصرياً من قِبل شركة Meta للكتابة اليدوية عبر تطبيق فيسبوك الرسمي، بينما تمنع سياسات Meta API إرسال إشعارات جماعية برمجياً لمنع السبام، لذا يظهر النص كنص عادي عند إرساله عبر أي تطبيق أو أداة خارجية.
+                                <div class="fc-badge-item">
+                                    <span>⚡ <strong>النشر التلقائي المتتابع:</strong> تُنشر التعليقات تلقائياً بالتتابع فور نشر البوست أو عند موعد الجدولة بالسحابة بفارق زمني منتظم.</span>
+                                </div>
+                                <div class="fc-badge-item">
+                                    <span>📸 <strong>الصور في التعليقات:</strong> الصور المرفقة تظهر مباشرة داخل التعليق في فيسبوك، بينما تُنشر التعليقات في انستجرام كنصوص وهاشتاجات تفاعلية.</span>
+                                </div>
+                                <div class="fc-badge-item note-muted">
+                                    <span>📌 <strong>تنبيه ميتا للمنشن (@المتابعين):</strong> ميزة المنشن الجماعي لجميع المتابعين (@المتابعين أو @followers) مخصصة حصرياً من قِبل شركة Meta للكتابة اليدوية عبر تطبيق فيسبوك الرسمي، بينما تمنع سياسات Meta API إرسال إشعارات جماعية برمجياً لمنع السبام.</span>
                                 </div>
                             </div>
                         </div>
