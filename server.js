@@ -2337,38 +2337,33 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         if (publishResults?.facebook?.success) msgText += `📘 فيسبوك: تم النشر بنجاح ✅\n`;
         if (publishResults?.instagram?.success) msgText += `📸 انستجرام: تم النشر بنجاح ✅\n`;
         if (publishResults?.facebook?.firstComment?.success) msgText += `💬 التعليقات التلقائية: تم نشر التعليقات مع الصور ✅\n`;
-        msgText += `\n📝 <b>محتوى المنشور:</b>\n<i>"${postSnippet}"</i>\n`;
-        msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
-        msgText += `💡 <b>عنوان للمشاركة بالجروب (المس النص لنسخه فوراً):</b>\n`;
-        msgText += `<code>${chosenHook}</code>\n`;
+        msgText += `💡 <b>نص ورابط المشاركة بالجروب (المس لنسخه فوراً):</b>\n`;
+        msgText += `<code>${chosenHook}\n\n${fbPostUrl}</code>\n`;
         msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
 
         if (currentBatch.length > 0) {
-            msgText += `🎯 <b>جروبات اليوم الـ 5 (تدوير ذكي غير مكرر من أصل ${total} جروب):</b>\n`;
+            msgText += `🎯 <b>جروبات اليوم الـ 5 (المجموعة المجدولة من أصل ${total} جروب):</b>\n`;
             currentBatch.forEach((g, idx) => {
                 msgText += `${idx + 1}️⃣ ${g.name || 'مجموعة مستهدفة'}\n`;
             });
         }
 
-        msgText += `\n👇 <b>اضغط على أي زر أدناه لفتح الجروب والمشاركة فيه مباشرة:</b>`;
+        msgText += `\n👇 <b>اضغط على أي زر أدناه لفتح الجروب مباشرة ولصق النص والرابط:</b>`;
 
         // بناء الأزرار التفاعلية (Inline Keyboard)
         const inlineKeyboard = [];
 
         // زر مستقل لكل جروب من الـ 5 يفتح الجروب مباشرة
         currentBatch.forEach((g, idx) => {
-            const targetUrl = (g.url && g.url.trim()) ? g.url.trim() : fbShareUrl;
+            const targetUrl = (g.url && g.url.trim()) ? g.url.trim() : fbPostUrl;
             inlineKeyboard.push([
                 { text: `👥 ${(idx + 1)}. ${(g.name || 'جروب ' + (idx + 1)).substring(0, 32)}`, url: targetUrl }
             ]);
         });
 
-        // زر نافذة المشاركة السريعة وزر المنشور الأصلي
+        // زر فتح المنشور الأصلي على الصفحة
         inlineKeyboard.push([
-            { text: `📲 نافذة المشاركة الفورية للبوست`, url: fbShareUrl }
-        ]);
-        inlineKeyboard.push([
-            { text: `🔗 فتح المنشور الأصلي على صفحة رسلان`, url: fbPostUrl }
+            { text: `🔗 فتح المنشور الأصلي على صفحة رسلان للتسويق`, url: fbPostUrl }
         ]);
 
         console.log(`[Telegram Bot] جاري إرسال إشعار النشر للدردشة: ${chatId}`);
