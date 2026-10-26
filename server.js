@@ -2223,7 +2223,14 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             await saveAutoReplyConfig(localCfg);
         } catch (e) {}
 
-        const postSnippet = (post.content || '').substring(0, 160) + ((post.content && post.content.length > 160) ? '...' : '');
+        const defaultHooks = [
+            'هل تواجه صعوبة في تنظيم مبيعات وعمليات شركتك؟ شاركنا التحديات وسنقترح لك حلولاً عملية لتحسين الأداء 🚀',
+            'نصيحة اليوم لأصحاب المشاريع: دمج إدارة العملاء مع أدوات التسويق على فيسبوك يزيد مبيعاتك بنسبة تصل إلى 30%! 🔥',
+            'قصة نجاح: كيف استطاعت شركة زيادة إنتاجيتها ومبيعاتها باستخدام نظام أتمتة بسيط؟ تفاصيل التجربة 👇'
+        ];
+        const chosenHook = (Array.isArray(uConfig.hooks) && uConfig.hooks.length > 0)
+            ? uConfig.hooks[startIndex % uConfig.hooks.length]
+            : defaultHooks[startIndex % defaultHooks.length];
 
         let msgText = `🚀 <b>تم نشر المنشور الجديد بنجاح بالسحابة!</b>\n`;
         msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
@@ -2232,6 +2239,9 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         if (publishResults?.instagram?.success) msgText += `📸 انستجرام: تم النشر بنجاح ✅\n`;
         if (publishResults?.facebook?.firstComment?.success) msgText += `💬 التعليقات التلقائية: تم نشر التعليقات مع الصور ✅\n`;
         msgText += `\n📝 <b>محتوى المنشور:</b>\n<i>"${postSnippet || 'منشور وسائط'}"</i>\n`;
+        msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
+        msgText += `💡 <b>عنوان للمشاركة بالجروب (المس النص لنسخه فوراً):</b>\n`;
+        msgText += `<code>${chosenHook}</code>\n`;
         msgText += `━━━━━━━━━━━━━━━━━━━━\n`;
 
         if (currentBatch.length > 0) {
