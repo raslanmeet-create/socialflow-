@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "SocialFlow Auto Sharer | رسلان للتسويق",
+  "version": "1.0",
+  "description": "أداة النشر والمشاركة الآلية لشركة رسلان للتسويق في جروبات فيسبوك اليومية",
+  "permissions": ["tabs", "scripting", "storage"],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "https://agent.raslans.net/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "مساعد النشر الآلي في الجروبات"
+  }
+}

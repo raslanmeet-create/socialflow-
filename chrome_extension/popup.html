@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>SocialFlow Auto Sharer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --success: #10b981;
+    }
+    body {
+      width: 380px;
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      box-sizing: border-box;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+    }
+    .header h1 {
+      font-size: 16px;
+      margin: 0;
+      color: #fff;
+    }
+    .header span {
+      font-size: 11px;
+      color: var(--primary);
+      background: rgba(99, 102, 241, 0.15);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .card-title {
+      font-weight: bold;
+      color: #e2e8f0;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .post-snippet {
+      color: var(--text-muted);
+      line-height: 1.4;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 6px 8px;
+      border-radius: 6px;
+      max-height: 50px;
+      overflow: hidden;
+    }
+    .groups-list {
+      list-style: none;
+      padding: 0;
+      margin: 6px 0 0 0;
+    }
+    .groups-list li {
+      padding: 4px 6px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+    }
+    .groups-list li.done {
+      color: var(--success);
+      border-right: 3px solid var(--success);
+    }
+    .btn-start {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      transition: all 0.2s;
+    }
+    .btn-start:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .btn-start:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .status-box {
+      margin-top: 10px;
+      font-size: 11px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .comment-preview {
+      font-size: 11px;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 6px 8px;
+      border-radius: 6px;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div style="font-size: 22px;">🚀</div>
+    <div>
+      <h1>رسلان للتسويق | النشر بالجروبات</h1>
+      <span>المساعد الآلي الذكي</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📝 منشور اليوم النشط:</div>
+    <div id="postSnippet" class="post-snippet">جاري جلب المنشور...</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💬 التعليق التلقائي الأول بالجروب:</div>
+    <div class="comment-preview" id="commentPreview">
+      💬 للتواصل المباشر عبر واتساب: https://wa.me/201020942335<br>
+      📞 أو الاتصال هاتفياً: 01020942335
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🎯 جروبات اليوم الخمسة (غير مكررة):</div>
+    <ul id="groupsList" class="groups-list">
+      <li>⏳ جاري تحميل الجروبات المجدولة...</li>
+    </ul>
+  </div>
+
+  <button id="btnStart" class="btn-start">
+    <span>🚀 بدء النشر الآلي في الـ 5 جروبات الآن</span>
+  </button>
+
+  <div id="statusBox" class="status-box">جاهز للبدء</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
