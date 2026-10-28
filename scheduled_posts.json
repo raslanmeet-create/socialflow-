@@ -1,5 +1,324 @@
 [
   {
+    "id": "post_1793142152998",
+    "pageId": "",
+    "status": "PUBLISHED",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "🚀 باكدج التسويق الرقمي وبناء الحضور الذكي من Raslans Marketing!\nهل تبحث عن زيادة المبيعات وجذب عملاء جدد لنشاطك التجاري؟\nنحن نوفر لك حلولاً تسويقية متكاملة تبدأ من دراسة السوق حتى إطلاق الحملات الإعلانية الممولة وإدارة المحتوى باحترافية.\n\n📞 للتواصل والاستفسار: 01020942335\n🌐 زوروا موقعنا: https://raslans.net\n\n#RaslansMarketing #تسويق_رقمي #اعلان #بزنس #مصر",
+    "comments": [],
+    "igUserId": null,
+    "mediaUrl": null,
+    "createdAt": "2026-10-27T23:02:32.998+00:00",
+    "mediaPath": null,
+    "mediaType": "image",
+    "metaToken": null,
+    "platforms": [
+      "facebook"
+    ],
+    "mediaWidth": null,
+    "aspectRatio": "auto",
+    "mediaHeight": null,
+    "publishedAt": "2026-10-27T23:07:15.314Z",
+    "firstComment": "",
+    "scheduledTime": "2026-10-27T23:07:02.47+00:00",
+    "customCaptions": null,
+    "publishResults": {},
+    "pageAccessToken": null,
+    "facebookPlacements": [
+      "feed"
+    ],
+    "instagramPlacements": [
+      "feed"
+    ],
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/1793142152998",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-10-27T23:13:16.189Z",
+    "groups_shared_count": 5
+  },
+  {
+    "id": "test_workflow_1793129404800",
+    "pageId": "1036372629556993",
+    "status": "PUBLISHED",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "🧪 هذا منشور تجريبي لاختبار الـ Workflow الكامل - سيتم حذفه تلقائياً بعد الاختبار.\n\nTest Post - Auto Delete After Test ✅\n\n#test #workflow",
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/122138637212889779",
+    "comments": [
+      {
+        "text": "🤖 تعليق تجريبي أول - اختبار الجدولة التلقائية"
+      }
+    ],
+    "mediaUrl": null,
+    "createdAt": "2026-10-27T19:30:05.252017+00:00",
+    "mediaType": "image",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook"
+    ],
+    "publishedAt": "2026-10-27T19:33:06.317Z",
+    "firstComment": "🤖 تعليق تجريبي أول - اختبار الجدولة التلقائية",
+    "scheduledTime": "2026-10-27T19:33:04.8+00:00",
+    "publishResults": {
+      "facebook": {
+        "id": "1036372629556993_122138637212889779",
+        "feed": {
+          "id": "1036372629556993_122138637212889779",
+          "success": true
+        },
+        "success": true,
+        "comments": [
+          {
+            "id": "122138637212889779_1106176715745611",
+            "success": true
+          }
+        ],
+        "firstComment": {
+          "id": "122138637212889779_1106176715745611",
+          "success": true
+        }
+      }
+    },
+    "facebookPlacements": [
+      "feed"
+    ],
+    "instagramPlacements": [],
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-10-27T19:39:57.199Z",
+    "groups_shared_count": 5
+  },
+  {
+    "id": "post_1793128316709",
+    "pageId": "",
+    "status": "PENDING",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "🧪 اختبار الـ Workflow الكامل - منشور تجريبي للتأكد من عمل النظام بالكامل: الجدولة ← النشر ← المشاركة في الجروبات ← الإشعارات. لو شايف المنشور ده يبقى كل حاجة شغالة تمام! 💪🚀",
+    "comments": [],
+    "igUserId": null,
+    "mediaUrl": null,
+    "createdAt": "2026-10-27T19:11:56.709+00:00",
+    "mediaPath": null,
+    "mediaType": "image",
+    "metaToken": null,
+    "platforms": [
+      "facebook"
+    ],
+    "mediaWidth": null,
+    "aspectRatio": "auto",
+    "mediaHeight": null,
+    "firstComment": "",
+    "scheduledTime": "2026-10-27T19:14:55.993+00:00",
+    "customCaptions": null,
+    "pageAccessToken": null,
+    "facebookPlacements": [
+      "feed"
+    ],
+    "instagramPlacements": [
+      "feed"
+    ]
+  },
+  {
+    "id": "post_1793103505945",
+    "pageId": "1036372629556993",
+    "status": "PENDING",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "قبل ما تكبّر حملاتك… ثبّت أساس حسابك. 🛡️\r\n\r\nالتسويق الرقمي مش إعلانات ومحتوى بس؛ تجهيز حسابات نشاطك ومستنداته بالشكل الصحيح خطوة مهمة قبل التوسع في شغلك.\r\n\r\nمع خدمة توثيق حساب Meta الإعلاني ومنصات التواصل الاجتماعي من Raslans، بنساعدك في:\r\n\r\n✅ تجهيز مستندات النشاط المطلوبة.\r\n✅ الإرشاد خلال خطوات التوثيق.\r\n✅ الاستعداد لاستخدام الحساب في إدارة حملاتك بصورة أكثر تنظيمًا.\r\n\r\nالتوثيق بيخضع لمراجعة المنصة ومتطلباتها، والموافقة النهائية مش مضمونة؛ لكن تجهيز البيانات والمستندات بشكل صحيح بيساعدك تبدأ العملية بصورة أفضل.\r\n\r\n📲 للاستفسار عن الخدمة والمتطلبات المناسبة لنشاطك:\r\nواتساب 01020942335\r\n\r\n🌐 https://raslans.net\r\n\r\nRaslans Marketing Company\r\nYour success… our mission\r\n\r\n#Raslans #MetaVerification #توثيق_الحسابات #التسويق_الرقمي #إعلانات_ميتا #إدارة_الإعلانات",
+    "comments": [
+      {
+        "text": "هل حساب نشاطك الإعلاني جاهز للتوسع، ولا لسه محتاج تراجع بيانات النشاط والمستندات؟ 🛡️\n\nشاركنا التحدي اللي بتواجهه، ويمكن نساعدك تحدد الخطوة المناسبة."
+      },
+      {
+        "text": "📩 محتاج تعرف إيه المستندات المطلوبة لتوثيق حساب نشاطك؟\n\nابعتلنا نوع نشاطك على واتساب:\n01020942335\n\nوهنوضح لك المتطلبات المتاحة حسب حالتك."
+      },
+      {
+        "text": "💡 قبل تقديم طلب التوثيق، راجع تطابق بيانات النشاط التجاري مع المستندات الرسمية، وتأكد من جاهزية الأوراق المطلوبة؛ لأن نقص البيانات أو عدم تطابقها قد يؤخر المراجعة."
+      },
+      {
+        "text": "🌐 تعرّف على خدمات رسلان للتسويق الرقمي:\nhttps://raslans.net\n\n#Raslans #MetaVerification #التسويق_الرقمي"
+      }
+    ],
+    "igUserId": "17841439656746504",
+    "mediaUrl": "https://res.cloudinary.com/tzxho0fw/image/upload/v1793103505/socialflow_uploads/hn9csywiwcglci6cywvf.jpg",
+    "createdAt": "2026-10-27T12:18:25.945+00:00",
+    "mediaPath": null,
+    "mediaType": "image/jpeg",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook",
+      "instagram"
+    ],
+    "mediaWidth": 1121,
+    "aspectRatio": "auto",
+    "mediaHeight": 1402,
+    "firstComment": "هل حساب نشاطك الإعلاني جاهز للتوسع، ولا لسه محتاج تراجع بيانات النشاط والمستندات؟ 🛡️\n\nشاركنا التحدي اللي بتواجهه، ويمكن نساعدك تحدد الخطوة المناسبة.",
+    "scheduledTime": "2026-10-30T17:00:00+00:00",
+    "customCaptions": null,
+    "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "facebookPlacements": [
+      "feed",
+      "story"
+    ],
+    "instagramPlacements": [
+      "feed",
+      "story"
+    ],
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/1793103505945"
+  },
+  {
+    "id": "post_1793102412568",
+    "pageId": "1036372629556993",
+    "status": "PENDING",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "مش كل اللي بيشوفك هو عميلك… مين اللي بتكلمه؟ 🎯\r\n\r\nالإعلان القوي مش مجرد صورة بتظهر على الشاشة؛ هو رسالة بتوصل للجمهور المناسب، وتخليه يهتم بنشاطك ويتعرف على اللي بتقدمه.\r\n\r\nمع Meta Ads من Raslans، بنبني حملات إعلانية على فيسبوك وإنستجرام حسب هدف نشاطك، مع الاهتمام بـ:\r\n\r\n🎯 استهداف الجمهور المناسب\r\n💬 جذب العملاء المحتملين\r\n🔁 إعادة استهداف المهتمين\r\n🎨 اختبار أفكار وتصميمات إعلانية مختلفة\r\n\r\nكل نشاط له جمهوره، وكل حملة محتاجة استراتيجية تناسب هدفها.\r\n\r\n📲 عايز تعرف إزاي إعلانات فيسبوك وإنستجرام ممكن تخدم نشاطك؟\r\nتواصل معانا على واتساب:\r\n01020942335\r\n\r\n🌐 https://raslans.net\r\n\r\nRaslans Marketing Company\r\nYour success… our mission\r\n\r\n#Raslans #MetaAds #إعلانات_فيسبوك #إعلانات_إنستجرام #التسويق_الرقمي #إدارة_الإعلانات",
+    "comments": [
+      {
+        "text": "لو هتعمل حملة إعلانية لنشاطك، إيه أهم هدف بالنسبة لك؟ 👇\n\nزيادة معرفة الناس بعلامتك التجارية؟\nجذب عملاء محتملين؟\nولا الوصول لأشخاص مهتمين بالفعل بخدماتك؟"
+      },
+      {
+        "text": "كل مشروع له جمهوره وطريقته المناسبة في الإعلان. 🎯\n\nابعتلنا اسم نشاطك والهدف اللي عايز تحققه على واتساب:\n01020942335\n\nونناقش معاك مدى مناسبة إعلانات Meta لنشاطك."
+      },
+      {
+        "text": "💡 مش لازم تعتمد على تصميم إعلاني واحد طول الوقت؛ اختبار أكثر من فكرة ورسالة بيساعد في معرفة الأنسب لجمهورك بناءً على أداء الحملة الفعلي."
+      },
+      {
+        "text": "🌐 تعرف على خدمات رسلان للتسويق الرقمي:\nhttps://raslans.net\n\n#Raslans #MetaAds #التسويق_الرقمي"
+      }
+    ],
+    "igUserId": "17841439656746504",
+    "mediaUrl": "https://res.cloudinary.com/tzxho0fw/image/upload/v1793102412/socialflow_uploads/h2vftvuadzska4ycdrsq.jpg",
+    "createdAt": "2026-10-27T12:00:12.568+00:00",
+    "mediaPath": null,
+    "mediaType": "image/jpeg",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook",
+      "instagram"
+    ],
+    "mediaWidth": 1121,
+    "aspectRatio": "auto",
+    "mediaHeight": 1402,
+    "firstComment": "لو هتعمل حملة إعلانية لنشاطك، إيه أهم هدف بالنسبة لك؟ 👇\n\nزيادة معرفة الناس بعلامتك التجارية؟\nجذب عملاء محتملين؟\nولا الوصول لأشخاص مهتمين بالفعل بخدماتك؟",
+    "scheduledTime": "2026-10-29T16:00:00+00:00",
+    "customCaptions": null,
+    "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "facebookPlacements": [
+      "feed",
+      "story"
+    ],
+    "instagramPlacements": [
+      "feed",
+      "story"
+    ],
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/1793102412568"
+  },
+  {
+    "id": "post_1793102303924",
+    "pageId": "1036372629556993",
+    "status": "PENDING",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "لما العميل يدور على الحل… هل هيلاقيك؟ 🔎\n\nفي اللحظة اللي عميلك بيبحث فيها عن خدمة بتقدمها، عندك فرصة تظهر قدامه وتعرّفه بنشاطك.\n\nمع Google Ads من Raslans، بنساعدك في بناء حملات إعلانية مخصصة لنشاطك، مع استهداف مناسب، وتقارير واضحة، وتحسين مستمر لأداء الحملات.\n\n🎯 استهداف كلمات البحث المناسبة\n📊 متابعة أداء الحملات بتقارير واضحة\n⚙️ تحسين مستمر بناءً على الأداء\n\nمش الهدف إن إعلانك يظهر وخلاص… الهدف إنك توصل للأشخاص اللي بيدوروا على خدماتك.\n\n📲 للاستفسار عن إعلانات جوجل:\nواتساب 01020942335\n\n🌐 https://raslans.net\n\nRaslans Marketing Company\nYour success… our mission\n\n#Raslans #GoogleAds #إعلانات_جوجل #التسويق_الرقمي #إدارة_الإعلانات #التسويق_الإلكتروني",
+    "comments": [
+      {
+        "text": "لو عميل بحث على جوجل عن خدمتك النهارده، إيه أهم حاجة تحب يشوفها عن نشاطك؟ 👇\n\nالسعر؟ مميزات الخدمة؟ ولا سبب يخليه يثق فيك ويتواصل معاك؟"
+      },
+      {
+        "text": "كل نشاط له جمهور وكلمات بحث مختلفة. 🎯\n\nابعتلنا اسم نشاطك والمدينة اللي بتستهدفها على واتساب:\n01020942335\n\nونناقش معاك مدى مناسبة إعلانات جوجل لنشاطك."
+      },
+      {
+        "text": "💡 مش كل كلمة بحث مناسبة للإعلان؛ اختيار الكلمات بعناية ومتابعة جودة الزيارات والتحويلات بيساعدوا في اتخاذ قرارات أفضل لتحسين الحملة."
+      },
+      {
+        "text": "🌐 تعرّف على خدمات رسلان للتسويق الرقمي:\nhttps://raslans.net\n\n#Raslans #GoogleAds #إعلانات_جوجل"
+      }
+    ],
+    "igUserId": "17841439656746504",
+    "mediaUrl": "https://res.cloudinary.com/tzxho0fw/image/upload/v1793102303/socialflow_uploads/sanqhoh3uiq6svbyqhhz.jpg",
+    "createdAt": "2026-10-27T11:58:23.924+00:00",
+    "mediaPath": null,
+    "mediaType": "image/jpeg",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook",
+      "instagram"
+    ],
+    "mediaWidth": 1121,
+    "aspectRatio": "auto",
+    "mediaHeight": 1402,
+    "firstComment": "لو عميل بحث على جوجل عن خدمتك النهارده، إيه أهم حاجة تحب يشوفها عن نشاطك؟ 👇\n\nالسعر؟ مميزات الخدمة؟ ولا سبب يخليه يثق فيك ويتواصل معاك؟",
+    "scheduledTime": "2026-10-28T16:00:00.000Z",
+    "customCaptions": null,
+    "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "facebookPlacements": [
+      "feed",
+      "story"
+    ],
+    "instagramPlacements": [
+      "feed",
+      "story"
+    ],
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/1793102303924"
+  },
+  {
+    "id": "post_1793099249624",
+    "pageId": "1036372629556993",
+    "status": "PUBLISHED",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "لو عميلك بحث عنك النهارده… هل هيلاقيك، ولا هيلاقي منافسك الأول؟ 🔎\n\nمش كفاية إن مشروعك يكون ممتاز؛ لازم يكون له حضور رقمي يساعد العملاء يكتشفوه، ويتعرفوا عليه، ويوصلوا له بسهولة.\n\nعشان كده   باكدج بناء الحضور الرقمي من Raslans   بتجمع 11 خدمة متكاملة في منظومة واحدة، هدفها دعم ظهور نشاطك وبناء الثقة وتهيئة فرص الحصول على عملاء وطلبات من القنوات العضوية، من غير الاعتماد على الإعلانات المدفوعة وحدها.\n\n🚀   إيه اللي بتقدمه الباقة؟  \n\n🌐   1. تصميم موقع إلكتروني احترافي    \nواجهة رقمية تعرض نشاطك وخدماتك وتسهّل على العملاء التعرف عليك والتواصل معك.\n\n🔍   2. تحسين محركات البحث SEO    \nتهيئة موقعك ومحتواه لمساعدة العملاء في اكتشاف نشاطك عبر البحث.\n\n📍   3. الظهور على Google Maps    \nتعزيز حضور نشاطك في البحث المحلي والخرائط حتى يسهل على العملاء العثور عليك.\n\n📈   4. نظام تتبّع الكلمات البحثية    \nمتابعة ترتيب الكلمات المستهدفة واكتشاف فرص تحسين ظهور موقعك.\n\n📱   5. إدارة السوشيال ميديا    \nبناء حضور منتظم ومتناسق لعلامتك التجارية على منصات التواصل.\n\n✍️   6. صناعة المحتوى الرقمي    \nتقديم محتوى يساعد جمهورك على فهم نشاطك وخدماتك وبناء الثقة في علامتك.\n\n🎨   7. عدد 30 تصميمًا    \nتصميمات تدعم حضورك البصري وتساعدك على عرض رسائلك بصورة احترافية.\n\n👥   8. دعم نمو الحسابات بـ1,000 متابع حقيقي    \nدعم حضور حساباتك الاجتماعية بالعدد المعلن ضمن الباقة.\n\n📰   9. نشر 3 مقالات صحفية    \nتعزيز حضور علامتك من خلال محتوى صحفي منشور.\n\n🌍   10. تعزيز حضورك المعرفي عبر Wikidata    \nدعم البيانات المرتبطة بنشاطك ضمن منظومة المعرفة الرقمية.\n\n⚙️   11. الأتمتة ودعم الظهور الرقمي المتكامل    \nالاستفادة من الأتمتة وربط عناصر الحضور الرقمي لدعم إدارة النشاط واكتشافه عبر القنوات المناسبة.\n\n💰   سعر الباقة: 15,000 جنيه    \n✅   متاح الدفع على دفعات.  \n\nالفكرة مش إنك تنشر في كل مكان وخلاص؛ الفكرة إنك تبني حضورًا رقميًا مترابطًا يساعد العميل يكتشفك ويثق فيك ويعرف إزاي يطلب خدمتك.\n\n📲 للاستفسار عن تفاصيل الباقة ومدى مناسبتها لنشاطك، تواصل معنا عبر واتساب:\n01020942335\n\n🌐 https://raslans.net/pages/offer\n\n  Raslans Marketing Company    \n Your success… our mission \n\n#Raslans #الحضور_الرقمي #التسويق_الرقمي #تحسين_محركات_البحث #SEO #GoogleMaps #تسويق_الأعمال",
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/122138622938889779",
+    "comments": [
+      {
+        "text": "لو عميل بحث عن نشاطك على جوجل والسوشيال ميديا النهارده، إيه أكتر حاجة تحب يلاقيها عنك؟ 👇\n\nموقعك؟ أعمالك السابقة؟ تقييماتك؟ ولا طريقة سهلة يطلب بيها خدمتك؟"
+      },
+      {
+        "text": "كل نشاط ليه احتياجات مختلفة. 📩\n\nابعتلنا اسم نشاطك والهدف اللي عايز تحققه على واتساب 01020942335، وخلينا نوضح لك تفاصيل الباقة ومدى مناسبتها لمشروعك."
+      },
+      {
+        "text": "💡 الظهور العضوي مش خطوة واحدة؛ الموقع وتحسين البحث والمحتوى والحضور المحلي ممكن يكملوا بعض، لكن النتائج بتختلف حسب المجال والمنافسة وجودة التنفيذ والاستمرارية."
+      },
+      {
+        "text": "🌐 شوف تفاصيل باكدج بناء الحضور الرقمي من رسلان:\nhttps://raslans.net/pages/offer\n\n#Raslans #الحضور_الرقمي #التسويق_الرقمي"
+      }
+    ],
+    "igUserId": "17841439656746504",
+    "mediaUrl": "https://res.cloudinary.com/tzxho0fw/image/upload/v1793099249/socialflow_uploads/ppnboaszrytnxcnu3pgp.jpg",
+    "createdAt": "2026-10-27T11:07:29.624+00:00",
+    "mediaPath": null,
+    "mediaType": "image/jpeg",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook",
+      "instagram"
+    ],
+    "mediaWidth": 1121,
+    "aspectRatio": "auto",
+    "mediaHeight": 1402,
+    "publishedAt": "2026-10-27T16:19:13.183Z",
+    "firstComment": "لو عميل بحث عن نشاطك على جوجل والسوشيال ميديا النهارده، إيه أكتر حاجة تحب يلاقيها عنك؟ 👇\n\nموقعك؟ أعمالك السابقة؟ تقييماتك؟ ولا طريقة سهلة يطلب بيها خدمتك؟",
+    "scheduledTime": "2026-10-27T16:00:00+00:00",
+    "customCaptions": null,
+    "publishResults": {
+      "facebook": {
+        "id": "1036372629556993_122138622938889779",
+        "feed": {
+          "id": "1036372629556993_122138622938889779",
+          "post_id": "1036372629556993_122138622938889779"
+        },
+        "post_id": "1036372629556993_122138622938889779",
+        "success": true
+      }
+    },
+    "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "groups_shared_at": "2026-10-27T16:32:59.020Z",
+    "facebookPlacements": [
+      "feed",
+      "story"
+    ],
+    "groups_auto_shared": true,
+    "groups_shared_count": 1,
+    "instagramPlacements": [
+      "feed",
+      "story"
+    ]
+  },
+  {
     "id": "post_1792812630348",
     "content": "123",
     "mediaPath": "D:\\تجربة مشروع رفع البوستات للسوشيال ميديا\\uploads\\1792812629095-871413108.jpeg",
@@ -13,7 +332,9 @@
     "createdAt": "2026-10-24T03:30:30.348Z",
     "scheduledTime": "2026-10-24T06:34",
     "status": "PUBLISHED",
-    "publishedAt": "2026-10-24T03:34:04.547Z"
+    "publishedAt": "2026-10-24T03:34:04.547Z",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-10-24T03:34:04.547Z"
   },
   {
     "id": "1036372629556993_122107818044889779",
@@ -30,7 +351,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-30T18:00:49+0000",
     "publishedAt": "2026-04-30T18:00:49+0000",
-    "createdAt": "2026-04-30T18:00:49+0000"
+    "createdAt": "2026-04-30T18:00:49+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-30T18:00:49+0000"
   },
   {
     "id": "1036372629556993_122107701320889779",
@@ -47,7 +370,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-29T18:00:51+0000",
     "publishedAt": "2026-04-29T18:00:51+0000",
-    "createdAt": "2026-04-29T18:00:51+0000"
+    "createdAt": "2026-04-29T18:00:51+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-29T18:00:51+0000"
   },
   {
     "id": "1036372629556993_122107541918889779",
@@ -64,7 +389,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-28T18:01:49+0000",
     "publishedAt": "2026-04-28T18:01:49+0000",
-    "createdAt": "2026-04-28T18:01:49+0000"
+    "createdAt": "2026-04-28T18:01:49+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-28T18:01:49+0000"
   },
   {
     "id": "1036372629556993_122107376180889779",
@@ -81,7 +408,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-27T18:01:56+0000",
     "publishedAt": "2026-04-27T18:01:56+0000",
-    "createdAt": "2026-04-27T18:01:56+0000"
+    "createdAt": "2026-04-27T18:01:56+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-27T18:01:56+0000"
   },
   {
     "id": "1036372629556993_122107208612889779",
@@ -98,7 +427,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-26T18:00:28+0000",
     "publishedAt": "2026-04-26T18:00:28+0000",
-    "createdAt": "2026-04-26T18:00:28+0000"
+    "createdAt": "2026-04-26T18:00:28+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-26T18:00:28+0000"
   },
   {
     "id": "1036372629556993_122107049438889779",
@@ -115,7 +446,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-25T18:00:36+0000",
     "publishedAt": "2026-04-25T18:00:36+0000",
-    "createdAt": "2026-04-25T18:00:36+0000"
+    "createdAt": "2026-04-25T18:00:36+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-25T18:00:36+0000"
   },
   {
     "id": "1036372629556993_122106880430889779",
@@ -132,7 +465,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-24T18:01:17+0000",
     "publishedAt": "2026-04-24T18:01:17+0000",
-    "createdAt": "2026-04-24T18:01:17+0000"
+    "createdAt": "2026-04-24T18:01:17+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-24T18:01:17+0000"
   },
   {
     "id": "1036372629556993_122106742880889779",
@@ -149,7 +484,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-23T19:00:47+0000",
     "publishedAt": "2026-04-23T19:00:47+0000",
-    "createdAt": "2026-04-23T19:00:47+0000"
+    "createdAt": "2026-04-23T19:00:47+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-23T19:00:47+0000"
   },
   {
     "id": "1036372629556993_122106591410889779",
@@ -166,7 +503,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-22T19:00:28+0000",
     "publishedAt": "2026-04-22T19:00:28+0000",
-    "createdAt": "2026-04-22T19:00:28+0000"
+    "createdAt": "2026-04-22T19:00:28+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-22T19:00:28+0000"
   },
   {
     "id": "1036372629556993_122106443960889779",
@@ -183,7 +522,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-21T19:00:22+0000",
     "publishedAt": "2026-04-21T19:00:22+0000",
-    "createdAt": "2026-04-21T19:00:22+0000"
+    "createdAt": "2026-04-21T19:00:22+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-21T19:00:22+0000"
   },
   {
     "id": "1036372629556993_122106281144889779",
@@ -200,7 +541,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-20T19:00:49+0000",
     "publishedAt": "2026-04-20T19:00:49+0000",
-    "createdAt": "2026-04-20T19:00:49+0000"
+    "createdAt": "2026-04-20T19:00:49+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-20T19:00:49+0000"
   },
   {
     "id": "1036372629556993_122106126314889779",
@@ -217,7 +560,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-19T19:00:40+0000",
     "publishedAt": "2026-04-19T19:00:40+0000",
-    "createdAt": "2026-04-19T19:00:40+0000"
+    "createdAt": "2026-04-19T19:00:40+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-19T19:00:40+0000"
   },
   {
     "id": "1036372629556993_122105967038889779",
@@ -234,7 +579,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-18T19:00:44+0000",
     "publishedAt": "2026-04-18T19:00:44+0000",
-    "createdAt": "2026-04-18T19:00:44+0000"
+    "createdAt": "2026-04-18T19:00:44+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-18T19:00:44+0000"
   },
   {
     "id": "1036372629556993_122105806220889779",
@@ -251,7 +598,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-17T19:00:15+0000",
     "publishedAt": "2026-04-17T19:00:15+0000",
-    "createdAt": "2026-04-17T19:00:15+0000"
+    "createdAt": "2026-04-17T19:00:15+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-17T19:00:15+0000"
   },
   {
     "id": "1036372629556993_122105657984889779",
@@ -268,7 +617,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-16T19:00:11+0000",
     "publishedAt": "2026-04-16T19:00:11+0000",
-    "createdAt": "2026-04-16T19:00:11+0000"
+    "createdAt": "2026-04-16T19:00:11+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-16T19:00:11+0000"
   },
   {
     "id": "1036372629556993_122105424998889779",
@@ -285,7 +636,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-15T19:00:25+0000",
     "publishedAt": "2026-04-15T19:00:25+0000",
-    "createdAt": "2026-04-15T19:00:25+0000"
+    "createdAt": "2026-04-15T19:00:25+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-15T19:00:25+0000"
   },
   {
     "id": "1036372629556993_122105269466889779",
@@ -302,7 +655,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-14T19:00:23+0000",
     "publishedAt": "2026-04-14T19:00:23+0000",
-    "createdAt": "2026-04-14T19:00:23+0000"
+    "createdAt": "2026-04-14T19:00:23+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-14T19:00:23+0000"
   },
   {
     "id": "1036372629556993_122105109284889779",
@@ -319,7 +674,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-13T19:00:35+0000",
     "publishedAt": "2026-04-13T19:00:35+0000",
-    "createdAt": "2026-04-13T19:00:35+0000"
+    "createdAt": "2026-04-13T19:00:35+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-13T19:00:35+0000"
   },
   {
     "id": "1036372629556993_122104899314889779",
@@ -336,7 +693,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-12T19:00:30+0000",
     "publishedAt": "2026-04-12T19:00:30+0000",
-    "createdAt": "2026-04-12T19:00:30+0000"
+    "createdAt": "2026-04-12T19:00:30+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-12T19:00:30+0000"
   },
   {
     "id": "1036372629556993_122104751606889779",
@@ -353,7 +712,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-11T19:00:44+0000",
     "publishedAt": "2026-04-11T19:00:44+0000",
-    "createdAt": "2026-04-11T19:00:44+0000"
+    "createdAt": "2026-04-11T19:00:44+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-11T19:00:44+0000"
   },
   {
     "id": "1036372629556993_122104588088889779",
@@ -370,7 +731,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-10T19:01:05+0000",
     "publishedAt": "2026-04-10T19:01:05+0000",
-    "createdAt": "2026-04-10T19:01:05+0000"
+    "createdAt": "2026-04-10T19:01:05+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-10T19:01:05+0000"
   },
   {
     "id": "1036372629556993_122104406852889779",
@@ -387,7 +750,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-09T19:00:29+0000",
     "publishedAt": "2026-04-09T19:00:29+0000",
-    "createdAt": "2026-04-09T19:00:29+0000"
+    "createdAt": "2026-04-09T19:00:29+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-09T19:00:29+0000"
   },
   {
     "id": "1036372629556993_122104224524889779",
@@ -404,7 +769,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-08T19:01:31+0000",
     "publishedAt": "2026-04-08T19:01:31+0000",
-    "createdAt": "2026-04-08T19:01:31+0000"
+    "createdAt": "2026-04-08T19:01:31+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-08T19:01:31+0000"
   },
   {
     "id": "1036372629556993_122103924656889779",
@@ -421,7 +788,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-07T19:00:01+0000",
     "publishedAt": "2026-04-07T19:00:01+0000",
-    "createdAt": "2026-04-07T19:00:01+0000"
+    "createdAt": "2026-04-07T19:00:01+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-07T19:00:01+0000"
   },
   {
     "id": "1036372629556993_122103749246889779",
@@ -438,7 +807,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-06T20:00:17+0000",
     "publishedAt": "2026-04-06T20:00:17+0000",
-    "createdAt": "2026-04-06T20:00:17+0000"
+    "createdAt": "2026-04-06T20:00:17+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-06T20:00:17+0000"
   },
   {
     "id": "1036372629556993_122103533552889779",
@@ -455,7 +826,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-05T19:00:28+0000",
     "publishedAt": "2026-04-05T19:00:28+0000",
-    "createdAt": "2026-04-05T19:00:28+0000"
+    "createdAt": "2026-04-05T19:00:28+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-05T19:00:28+0000"
   },
   {
     "id": "1036372629556993_122103305588889779",
@@ -472,7 +845,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-04T19:00:45+0000",
     "publishedAt": "2026-04-04T19:00:45+0000",
-    "createdAt": "2026-04-04T19:00:45+0000"
+    "createdAt": "2026-04-04T19:00:45+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-04T19:00:45+0000"
   },
   {
     "id": "1036372629556993_122103088082889779",
@@ -489,7 +864,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-03T19:01:58+0000",
     "publishedAt": "2026-04-03T19:01:58+0000",
-    "createdAt": "2026-04-03T19:01:58+0000"
+    "createdAt": "2026-04-03T19:01:58+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-03T19:01:58+0000"
   },
   {
     "id": "1036372629556993_122102843516889779",
@@ -506,7 +883,9 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-02T19:01:25+0000",
     "publishedAt": "2026-04-02T19:01:25+0000",
-    "createdAt": "2026-04-02T19:01:25+0000"
+    "createdAt": "2026-04-02T19:01:25+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-02T19:01:25+0000"
   },
   {
     "id": "1036372629556993_122102545376889779",
@@ -523,6 +902,8 @@
     "status": "PUBLISHED",
     "scheduledTime": "2026-04-01T19:00:51+0000",
     "publishedAt": "2026-04-01T19:00:51+0000",
-    "createdAt": "2026-04-01T19:00:51+0000"
+    "createdAt": "2026-04-01T19:00:51+0000",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-04-01T19:00:51+0000"
   }
 ]

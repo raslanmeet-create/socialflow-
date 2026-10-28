@@ -9,8 +9,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="vendor/cropper.min.css">
-    <link rel="stylesheet" href="style.css?v=20261026_1535">
+    <link rel="stylesheet" href="style.css?v=20261027_1505_tz">
     <!-- مكتبة Supabase للواجهة الأمامية -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -150,6 +153,11 @@
                 <span class="tab-icon">📢</span>
                 <span class="tab-label">بوت التيليجرام ونشر الجروبات (AI Hunter)</span>
                 <span class="tab-badge" id="telegramGroupsBadge">6 جروبات</span>
+            </button>
+            <button type="button" class="nav-tab-btn" id="tabBtnAdmin" data-tab="admin" onclick="switchTab('admin')" style="display: none;">
+                <span class="tab-icon">👑</span>
+                <span class="tab-label">إدارة المشتركين والمنصة</span>
+                <span class="tab-badge admin-badge" id="adminUsersBadge">الإدارة</span>
             </button>
         </nav>
 
@@ -495,6 +503,34 @@
                         <div class="schedule-inputs" id="scheduleInputs" style="display: none;">
                             <label for="scheduleDateTime">اختر التاريخ ووقت النشر بالتحديد:</label>
                             <input type="datetime-local" id="scheduleDateTime">
+
+                            <div class="recurrence-box" style="margin-top: 12px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; margin-bottom: 6px;">
+                                    <input type="checkbox" id="checkRepeatPost" style="cursor: pointer; width: 16px; height: 16px;">
+                                    <span>🔄 تكرار نشر هذا المنشور المجدول تلقائياً</span>
+                                </label>
+                                <div id="repeatOptions" style="display: none; margin-top: 10px; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                    <label for="repeatInterval" style="font-size: 13px; color: #aaa;">تكرار المنشور كل:</label>
+                                    <select id="repeatInterval" class="form-control" style="padding: 7px 12px; border-radius: 6px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); font-family: inherit; font-size: 13px;">
+                                        <option value="daily">يومياً (كل 24 ساعة)</option>
+                                        <option value="weekly">أسبوعياً (كل 7 أيام)</option>
+                                        <option value="monthly">شهرياً (كل 30 يوم)</option>
+                                        <option value="custom_days">كل عدد أيام محدد</option>
+                                    </select>
+                                    <span id="customDaysWrapper" style="display: none; align-items: center; gap: 6px;">
+                                        <input type="number" id="repeatCustomDays" min="1" max="365" value="3" style="width: 60px; padding: 6px; border-radius: 6px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); text-align: center; font-size: 13px;">
+                                        <span style="font-size: 13px; color: #aaa;">يوم</span>
+                                    </span>
+                                    <div style="width: 100%; display: flex; align-items: center; gap: 8px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08);">
+                                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: #58a6ff;">
+                                            <input type="checkbox" id="checkRepeatOnGridDirectly" checked style="cursor: pointer;">
+                                            <span>تكراره على الجدول مباشرة لعدد:</span>
+                                        </label>
+                                        <input type="number" id="repeatGridCountInput" min="1" max="30" value="3" style="width: 55px; padding: 4px 6px; border-radius: 6px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); text-align: center; font-size: 13px;">
+                                        <span style="font-size: 12px; color: #aaa;">مرات قادمة</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1001,6 +1037,23 @@
                                     <small>رسالة خاصة شاملة تشرح استفساره بناءً على كابشن البوست وبيانات التواصل</small>
                                 </div>
                             </label>
+
+                            <label class="interaction-check">
+                                <input type="checkbox" id="checkHideComment">
+                                <span class="check-box"></span>
+                                <div>
+                                    <strong>🔒 إخفاء التعليقات تلقائياً بعد الرد (Hide Comments)</strong>
+                                    <small>ميزة اختيارية: تخفي كومنت العميل بعد الرد عليه لمنع المنافسين من التواصل معه</small>
+                                </div>
+                            </label>
+
+                            <div class="interaction-permanent-badge" style="padding: 12px 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; margin-top: 10px; display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 22px;">🛡️</span>
+                                <div>
+                                    <strong style="color: #ef4444; font-size: 13px;">حذف التعليقات السلبية والمسيئة تلقائياً (ميزة مفعلة دائماً)</strong>
+                                    <p style="margin: 3px 0 0; font-size: 12px; color: #cbd5e1; line-height: 1.5;">يقوم النظام فورياً بحذف أي تعليق سلبي، سب، أو اتهام بالنصب لحماية سمعة صفحتك ومبيعاتك تلقائياً دون أي تدخل منك.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1136,10 +1189,10 @@
                                 <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" class="tg-helper-link">احصل عليه من @BotFather ↗</a>
                             </div>
                             <div class="input-with-action">
-                                <input type="text" id="tgBotToken" class="settings-input" placeholder="مثال: 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" value="8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8">
+                                <input type="text" id="tgBotToken" class="settings-input" placeholder="مثال: 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ" value="">
                                 <button type="button" class="btn-toggle-view" id="btnToggleTgToken" onclick="toggleTgTokenVisibility()" title="إظهار / إخفاء التوكن">👁️</button>
                             </div>
-                            <small class="tg-hint">تم ربط البوت <b>Raslan Marketing bot</b> بنجاح عبر التوكن الخاص بك.</small>
+                            <small class="tg-hint" id="tgBotHint">احصل على التوكن المجاني من BotFather في 30 ثانية لتلقي الإشعارات الفورية على هاتفك.</small>
                         </div>
 
                         <!-- Chat ID -->
@@ -1148,7 +1201,7 @@
                                 <label for="tgChatId">🆔 معرف المحادثة (Your Chat ID):</label>
                                 <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" class="tg-helper-link">احصل عليه من @userinfobot ↗</a>
                             </div>
-                            <input type="text" id="tgChatId" class="settings-input" placeholder="مثال: 1077637435" value="1077637435">
+                            <input type="text" id="tgChatId" class="settings-input" placeholder="مثال: 1077637435" value="">
                             <small class="tg-hint">تحدث مع <a href="https://t.me/userinfobot" target="_blank" rel="noopener">@userinfobot</a> واضغط Start لمعرفة الـ ID الخاص بحسابك والصقه هنا.</small>
                         </div>
 
@@ -1304,6 +1357,93 @@
 
                         <div class="tg-status-feedback" id="groupsStatusFeedback" style="display: none;"></div>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================
+             لوحة إدارة المنصة والمشتركين (Super Admin Panel - Raslan)
+             ======================================================== -->
+        <section class="admin-panel-section" id="adminSection" style="display: none;">
+            <div class="admin-header-banner">
+                <div class="admin-title-area">
+                    <span class="admin-crown-icon">👑</span>
+                    <div>
+                        <h2>لوحة إدارة المنصة والمشتركين (Super Admin)</h2>
+                        <p>مرحباً بك يا مدير المنصة. هنا يمكنك إدارة حسابات الجيميل المسجلة، الموافقة على العملاء، التحكم بمدة الاشتراكات، ومراقبة حالة الربط.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-refresh-admin" id="btnRefreshAdminUsers" onclick="loadAdminUsersUI()">
+                    <span>🔄 تحديث البيانات الحية</span>
+                </button>
+            </div>
+
+            <!-- بطاقات الإحصائيات السريعة -->
+            <div class="admin-stats-grid">
+                <div class="admin-stat-card">
+                    <div class="stat-icon-wrapper blue">👥</div>
+                    <div class="stat-details">
+                        <span class="stat-number" id="adminStatTotal">0</span>
+                        <span class="stat-label">إجمالي الحسابات المسجلة</span>
+                    </div>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-icon-wrapper green">✅</div>
+                    <div class="stat-details">
+                        <span class="stat-number" id="adminStatActive">0</span>
+                        <span class="stat-label">المشتركون النشطون</span>
+                    </div>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-icon-wrapper yellow">⏳</div>
+                    <div class="stat-details">
+                        <span class="stat-number" id="adminStatPending">0</span>
+                        <span class="stat-label">بانتظار الموافقة والتفعيل</span>
+                    </div>
+                </div>
+                <div class="admin-stat-card">
+                    <div class="stat-icon-wrapper red">⛔</div>
+                    <div class="stat-details">
+                        <span class="stat-number" id="adminStatSuspended">0</span>
+                        <span class="stat-label">موقوف / منتهي الصلاحية</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تنبيه الطلبات المعلقة إن وجدت -->
+            <div class="admin-pending-alert" id="adminPendingAlert" style="display: none;">
+                <span class="alert-icon">🔔</span>
+                <span id="adminPendingAlertText">يوجد حسابات جديدة بانتظار موافقتك واعتمادها!</span>
+            </div>
+
+            <!-- جدول المشتركين -->
+            <div class="admin-table-container card">
+                <div class="admin-table-header">
+                    <div class="table-title-group">
+                        <h3>📋 قائمة المشتركين وإدارة الصلاحيات</h3>
+                        <span class="admin-table-hint">يمكنك تفعيل الحساب واختيار مدة الاشتراك (شهر، 3 شهور، سنة، أو دائم) أو إيقاف الحساب فوراً</span>
+                    </div>
+                    <input type="text" id="inputSearchUsers" class="admin-search-input" placeholder="🔍 بحث بالاسم أو الإيميل..." oninput="filterAdminUsersTable()">
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-users-table" id="adminUsersTable">
+                        <thead>
+                            <tr>
+                                <th>المستخدم</th>
+                                <th>تاريخ التسجيل</th>
+                                <th>حالة الحساب</th>
+                                <th>باقة الاشتراك</th>
+                                <th>المدة المتبقية</th>
+                                <th>اكتمال المفاتيح (BYOK)</th>
+                                <th>الإجراءات والتحكم</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminUsersTableBody">
+                            <tr>
+                                <td colspan="7" class="loading-td">جاري تحميل قائمة المشتركين...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </section>
@@ -1540,6 +1680,23 @@
                         </button>
                         <span id="keepAliveStatusText" style="font-size: 13px; color: var(--text-secondary); display: none;"></span>
                     </div>
+                <!-- 2.5 قسم مفتاح الذكاء الاصطناعي العام (Groq API Key) -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <h4>🤖 مفتاح الذكاء الاصطناعي العام (Groq API Key)</h4>
+                        <span class="badge-tag" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">مطلوب لكافة ميزات AI</span>
+                    </div>
+                    <p class="settings-hint">يُستخدم هذا المفتاح الخاص بك لكتابة الكابشن، الخطافات التسويقية، اكتشاف الجروبات، الرد التلقائي، وتيليجرام:</p>
+                    <div class="input-with-button">
+                        <input type="password" id="inputSettingsGroqKey" placeholder="gsk_... الصق مفتاح Groq الخاص بك هنا" class="settings-input">
+                        <button type="button" class="btn-action-verify" id="btnVerifySettingsGroqKey" onclick="testSettingsGroqKey()">
+                            <span>⚡ تحقق من المفتاح</span>
+                        </button>
+                    </div>
+                    <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                        <span id="settingsGroqStatus" style="font-weight: bold;"></span>
+                        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline;">احصل على مفتاح مجاني في 10 ثوانٍ من console.groq.com ↗</a>
+                    </div>
                 </div>
             </div>
 
@@ -1548,6 +1705,7 @@
                 <button type="button" class="btn-primary" id="btnSaveSettings">💾 حفظ الإعدادات وتطبيق التغييرات</button>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- نافذة معاينة المنشور المجدول بالتفصيل (Meta Post Preview Modal) -->
@@ -1569,9 +1727,96 @@
             </div>
 
             <div class="modal-footer preview-modal-footer">
+                <button type="button" class="btn-repeat-scheduled-action" id="btnRepeatFromPreviewModal" style="background: rgba(46, 160, 67, 0.2); border: 1px solid rgba(46, 160, 67, 0.4); color: #3fb950; font-weight: 700; padding: 9px 16px; border-radius: 8px; cursor: pointer;">🔁 تكرار على الجدول</button>
                 <button type="button" class="btn-edit-scheduled-action" id="btnEditFromPreviewModal">✏️ تعديل هذا المنشور</button>
                 <button type="button" class="btn-delete-scheduled-danger" id="btnDeleteFromPreviewModal">🗑️ حذف المنشور</button>
                 <button type="button" class="btn-secondary" id="btnClosePreviewModalBtn">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة تكرار المنشور على جدول ومخطط المواعيد (Repeat Scheduled Post on Grid Modal) -->
+    <div class="modal-overlay" id="repeatPostModal" style="display: none;">
+        <div class="modal-dialog modal-preview-dialog" style="max-width: 620px;">
+            <div class="modal-header">
+                <div class="modal-title-box">
+                    <span class="modal-icon">🔁</span>
+                    <div>
+                        <h3 id="repeatModalTitle">تكرار المنشور على جدول ومخطط المواعيد</h3>
+                        <p class="modal-subtitle" id="repeatModalSubtitle">إنشاء نسخ مجدولة من هذا المنشور مباشرة على الجدول للأيام القادمة</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close-modal" id="btnCloseRepeatModal">✕</button>
+            </div>
+
+            <div class="modal-body" id="repeatModalBody" style="padding: 20px 24px;">
+                <input type="hidden" id="repeatSourcePostId">
+
+                <!-- ملخص المنشور المختار -->
+                <div id="repeatPostSummaryCard" style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px; margin-bottom: 20px; display: flex; gap: 14px; align-items: center;">
+                    <div id="repeatSummaryThumb" style="width: 56px; height: 56px; border-radius: 8px; overflow: hidden; background: #000; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 24px;">📄</span>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div id="repeatSummaryText" style="font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">...</div>
+                        <div id="repeatSummaryTime" style="font-size: 12px; color: var(--accent);">⏰ توقيت المنشور الحالي: ...</div>
+                    </div>
+                </div>
+
+                <!-- اختيارات التكرار السريع بالأزرار -->
+                <label style="display: block; font-weight: 700; font-size: 14px; margin-bottom: 10px; color: var(--text-primary);">
+                    ⚡ خيارات سريعة للتكرار على الجدول:
+                </label>
+                <div class="repeat-presets-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 18px;">
+                    <button type="button" class="btn-preset-repeat" data-count="1" data-interval="1" style="background: rgba(88, 166, 255, 0.1); border: 1px solid rgba(88, 166, 255, 0.3); color: #58a6ff; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; font-family: inherit; font-size: 13px; font-weight: 600;">
+                        📅 غداً (+1 يوم)
+                    </button>
+                    <button type="button" class="btn-preset-repeat" data-count="3" data-interval="1" style="background: rgba(46, 160, 67, 0.1); border: 1px solid rgba(46, 160, 67, 0.3); color: #3fb950; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; font-family: inherit; font-size: 13px; font-weight: 600;">
+                        🗓️ 3 أيام متتالية
+                    </button>
+                    <button type="button" class="btn-preset-repeat" data-count="5" data-interval="1" style="background: rgba(163, 113, 247, 0.1); border: 1px solid rgba(163, 113, 247, 0.3); color: #a371f7; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; font-family: inherit; font-size: 13px; font-weight: 600;">
+                        🗓️ 5 أيام متتالية
+                    </button>
+                    <button type="button" class="btn-preset-repeat" data-count="7" data-interval="1" style="background: rgba(210, 153, 34, 0.1); border: 1px solid rgba(210, 153, 34, 0.3); color: #d29922; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; font-family: inherit; font-size: 13px; font-weight: 600;">
+                        📆 أسبوع كامل (7 أيام)
+                    </button>
+                </div>
+
+                <!-- إعدادات التخصيص -->
+                <div class="repeat-custom-box" style="background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px; margin-bottom: 16px;">
+                    <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 140px;">
+                            <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">عدد مرات التكرار على الجدول:</label>
+                            <input type="number" id="repeatCustomCountInput" min="1" max="30" value="3" class="form-control" style="width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); font-size: 14px;">
+                        </div>
+                        <div style="flex: 1; min-width: 140px;">
+                            <label style="display: block; font-size: 12px; color: #aaa; margin-bottom: 5px;">الفاصل الزمني:</label>
+                            <select id="repeatCustomIntervalSelect" class="form-control" style="width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 6px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); font-size: 13px;">
+                                <option value="1">يومياً (كل يوم)</option>
+                                <option value="2">كل يومين</option>
+                                <option value="3">كل 3 أيام</option>
+                                <option value="7">أسبوعياً (كل 7 أيام)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- معاينة المواعيد القادمة الحية -->
+                <div class="repeat-preview-dates-box" style="margin-top: 10px;">
+                    <label style="display: block; font-weight: 700; font-size: 13px; margin-bottom: 8px; color: #cbd5e1;">
+                        👀 المواعيد التي ستضاف على الجدول:
+                    </label>
+                    <div id="repeatUpcomingSlotsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; padding-right: 4px;">
+                        <!-- ديناميكياً -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="btnCancelRepeatModal">إلغاء</button>
+                <button type="button" class="btn-primary" id="btnConfirmRepeatOnGrid" style="background: #238636; border-color: rgba(255,255,255,0.1);">
+                    🔁 تكرار وإضافة للجدول الآن
+                </button>
             </div>
         </div>
     </div>
@@ -1592,6 +1837,59 @@
 
             <div class="modal-body" id="editModalBody">
                 <input type="hidden" id="editPostId">
+
+                <!-- اختيار المنصات المستهدفة وطريقة النشر (بوست / ستوري) -->
+                <div class="form-group" id="editPlatformsGroup" style="margin-bottom: 16px;">
+                    <label class="section-label" style="margin-bottom: 8px; font-weight: 700; color: var(--text-primary); display: block;">
+                        🎯 المنصات المستهدفة ونوع النشر (بوست / ستوري):
+                    </label>
+                    <div class="edit-platforms-grid">
+                        <!-- كارت فيسبوك -->
+                        <div class="edit-platform-card" id="editCardFacebook">
+                            <label class="edit-platform-header" for="editPlatFacebook">
+                                <input type="checkbox" id="editPlatFacebook" value="facebook">
+                                <div class="edit-platform-brand facebook">
+                                    <span class="icon">📘</span>
+                                    <span class="name">Facebook</span>
+                                    <span class="check-mark">✓</span>
+                                </div>
+                            </label>
+                            <div class="edit-placements-row" id="editFbPlacementsRow">
+                                <label class="edit-placement-pill" for="editFbOptFeed">
+                                    <input type="checkbox" id="editFbOptFeed" value="feed">
+                                    <span>📝 بوست (Feed)</span>
+                                </label>
+                                <label class="edit-placement-pill" for="editFbOptStory">
+                                    <input type="checkbox" id="editFbOptStory" value="story">
+                                    <span>📸 ستوري (Story)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- كارت انستجرام -->
+                        <div class="edit-platform-card" id="editCardInstagram">
+                            <label class="edit-platform-header" for="editPlatInstagram">
+                                <input type="checkbox" id="editPlatInstagram" value="instagram">
+                                <div class="edit-platform-brand instagram">
+                                    <span class="icon">📸</span>
+                                    <span class="name">Instagram</span>
+                                    <span class="check-mark">✓</span>
+                                </div>
+                            </label>
+                            <div class="edit-placements-row" id="editIgPlacementsRow">
+                                <label class="edit-placement-pill" for="editIgOptFeed">
+                                    <input type="checkbox" id="editIgOptFeed" value="feed">
+                                    <span>📝 بوست (Feed)</span>
+                                </label>
+                                <label class="edit-placement-pill" for="editIgOptStory">
+                                    <input type="checkbox" id="editIgOptStory" value="story">
+                                    <span>📸 ستوري (Story)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group" style="margin-bottom: 14px;">
                     <label class="section-label" style="margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">نص المنشور:</label>
                     <textarea id="editPostContent" rows="6" class="form-control" style="width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px; background: #0d1117; color: #fff; border: 1px solid var(--card-border); font-family: inherit; font-size: 14px; line-height: 1.6; resize: vertical;" placeholder="اكتب النص الجديد هنا..."></textarea>
@@ -1673,7 +1971,153 @@
     </div>
     </div> <!-- /#appDashboard -->
 
+    <!-- ========================================================
+         شاشة الحظر والتعليق (Blocking Screen for Pending/Expired)
+         ======================================================== -->
+    <div class="blocking-overlay" id="blockingAccountOverlay" style="display: none;">
+        <div class="blocking-card">
+            <div class="blocking-icon" id="blockingIcon">⏳</div>
+            <h2 id="blockingTitle">حسابك قيد المراجعة والاعتماد</h2>
+            <p id="blockingMessage">
+                مرحباً بك في منصة <b>SocialFlow</b> (شركة رسلان للتسويق).<br>
+                حسابك مسجل بنجاح وهو حالياً قيد المراجعة والاعتماد من قِبل إدارة المنصة لتفعيله وتحديد باقة اشتراكك.
+            </p>
+            <div class="blocking-meta-info" id="blockingMetaInfo" style="display: none;"></div>
+            
+            <div class="blocking-actions">
+                <a href="https://wa.me/201021469046?text=مرحباً،+قمت+بالتسجيل+في+منصة+SocialFlow+وأرغب+في+تفعيل+حسابي" target="_blank" rel="noopener noreferrer" class="btn-blocking-whatsapp">
+                    <span>💬 تواصل مع الإدارة عبر واتساب للتفعيل</span>
+                </a>
+                <button type="button" class="btn-blocking-logout" onclick="logoutSupabase()">
+                    <span>🚪 تسجيل الخروج</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================
+         معالج التهيئة والربط الأولي للعميل (Initial Setup Wizard)
+         ======================================================== -->
+    <div class="modal-overlay" id="onboardingWizardModal" style="display: none;">
+        <div class="modal-dialog modal-wizard">
+            <div class="modal-header wizard-header">
+                <div class="modal-title-box">
+                    <span class="modal-icon">🚀</span>
+                    <div>
+                        <h3>معالج التهيئة والربط الأولي (مرة واحدة فقط)</h3>
+                        <p class="modal-subtitle">أدخل مفاتيحك الخاصة لضمان خصوصيتك واستقلالية حسابك وموارده 100%</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close-modal" id="btnCloseWizardModal">✕</button>
+            </div>
+
+            <div class="modal-body wizard-body">
+                <div class="wizard-notice">
+                    🔒 <b>استقلالية تامة (BYOK):</b> كل عميل يدخل مفاتيحه المستقلة ليتم تشغيل ميزات الذكاء الاصطناعي، رفع الوسائط، والنشر عبر موارده الخاصة دون أي تداخل مع حسابات أخرى.
+                </div>
+
+                <!-- 1. مفتاح الذكاء الاصطناعي Groq -->
+                <div class="wizard-step-card">
+                    <div class="step-card-header">
+                        <span class="step-badge">1</span>
+                        <div>
+                            <h4>🤖 مفتاح الذكاء الاصطناعي (Groq API Key) <span class="required-tag">إلزامي</span></h4>
+                            <p>يُستخدم لكتابة الكابشن الإبداعي، الخطافات التسويقية، اكتشاف الجروبات، والرد التلقائي.</p>
+                        </div>
+                    </div>
+                    <div class="input-with-button">
+                        <input type="password" id="wizardGroqKey" class="settings-input" placeholder="gsk_... الصق مفتاح Groq الخاص بك هنا">
+                        <button type="button" class="btn-action-verify" id="btnTestWizardGroq" onclick="testWizardGroqKey()">
+                            <span>⚡ تحقق</span>
+                        </button>
+                    </div>
+                    <div class="step-help-row">
+                        <span id="wizardGroqStatus" class="step-status"></span>
+                        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="wizard-external-link">احصل على مفتاح مجاني في 10 ثوانٍ من console.groq.com ↗</a>
+                    </div>
+                </div>
+
+                <!-- 2. بيانات التخزين السحابي Cloudinary -->
+                <div class="wizard-step-card">
+                    <div class="step-card-header">
+                        <span class="step-badge">2</span>
+                        <div>
+                            <h4>☁️ حساب التخزين السحابي للوسائط (Cloudinary) <span class="required-tag">إلزامي</span></h4>
+                            <p>لاستضافة صور وفيديوهات منشوراتك بروابط سريعة ومباشرة متوافقة مع فيسبوك.</p>
+                        </div>
+                    </div>
+                    <div class="cloudinary-inputs-grid">
+                        <div class="form-group-mini">
+                            <label>Cloud Name:</label>
+                            <input type="text" id="wizardCloudName" class="settings-input" placeholder="اسم الكلاود">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>API Key:</label>
+                            <input type="text" id="wizardCloudApiKey" class="settings-input" placeholder="API Key">
+                        </div>
+                        <div class="form-group-mini">
+                            <label>API Secret:</label>
+                            <input type="password" id="wizardCloudApiSecret" class="settings-input" placeholder="API Secret">
+                        </div>
+                    </div>
+                    <div class="step-help-row">
+                        <button type="button" class="btn-mini-verify" id="btnTestWizardCloudinary" onclick="testWizardCloudinary()">⚡ اختبار اتصال Cloudinary</button>
+                        <span id="wizardCloudStatus" class="step-status"></span>
+                        <a href="https://cloudinary.com/users/register_free" target="_blank" rel="noopener noreferrer" class="wizard-external-link">سجل حساباً مجانياً 100% من cloudinary.com ↗</a>
+                    </div>
+                </div>
+
+                <!-- 3. مفتاح الوصول لفيسبوك Meta Access Token -->
+                <div class="wizard-step-card">
+                    <div class="step-card-header">
+                        <span class="step-badge">3</span>
+                        <div>
+                            <h4>📘 رمز وصول فيسبوك (Meta User Access Token) <span class="required-tag">إلزامي</span></h4>
+                            <p>لجلب صفحاتك التجارية وتمكين البوت من النشر والجدولة بها.</p>
+                        </div>
+                    </div>
+                    <div class="input-with-button">
+                        <input type="password" id="wizardMetaToken" class="settings-input" placeholder="EAANs... الصق رمز Meta Access Token هنا">
+                        <button type="button" class="btn-action-verify" id="btnWizardFetchPages" onclick="fetchWizardPages()">
+                            <span>📄 فحص وجلب الصفحات</span>
+                        </button>
+                    </div>
+                    <div class="step-help-row">
+                        <span id="wizardMetaStatus" class="step-status"></span>
+                    </div>
+                    <div class="wizard-pages-container" id="wizardPagesContainer" style="display: none;">
+                        <label class="wizard-pages-title">اختر الصفحة التي تريد تفعيل البوت عليها:</label>
+                        <div class="wizard-pages-list" id="wizardPagesList"></div>
+                    </div>
+                </div>
+
+                <!-- 4. إعدادات التيليجرام (اختياري) -->
+                <div class="wizard-step-card">
+                    <div class="step-card-header">
+                        <span class="step-badge">4</span>
+                        <div>
+                            <h4>📱 إشعارات التيليجرام (اختياري)</h4>
+                            <p>لتلقي تنبيهات فورية بكل عملية نشر على هاتفك المحمول.</p>
+                        </div>
+                    </div>
+                    <div class="tg-mini-grid">
+                        <input type="text" id="wizardTgToken" class="settings-input" placeholder="توكن البوت من @BotFather">
+                        <input type="text" id="wizardTgChatId" class="settings-input" placeholder="Chat ID من @userinfobot">
+                    </div>
+                </div>
+
+                <div class="wizard-feedback" id="wizardFeedback" style="display: none;"></div>
+            </div>
+
+            <div class="modal-footer wizard-footer">
+                <button type="button" class="btn-save-wizard" id="btnSaveOnboardingWizard" onclick="submitOnboardingWizard()">
+                    <span>💾 حفظ وتفعيل كافة المفاتيح في حسابي والبدء فوراً 🚀</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="vendor/cropper.min.js"></script>
-    <script src="app.js?v=20261026_1535"></script>
+    <script src="app.js?v=20261027_1505_tz"></script>
 </body>
 </html>

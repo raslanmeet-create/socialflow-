@@ -39,7 +39,8 @@ const upload = multer({
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // مسار حفظ المنشورات المجدولة (يدعم Vercel /tmp أو Upstash Redis سحابياً مجاناً)
@@ -48,7 +49,38 @@ const DB_FILE = process.env.VERCEL
     : path.join(__dirname, 'scheduled_posts.json');
 
 async function getScheduledPosts() {
-    // 1. دعم قاعدة بيانات Upstash Redis السحابية إذا توفرت في إعدادات Vercel
+    // 1. جلب المنشورات المجدولة سحابياً بشكل دائم من Supabase (لا يتم حذفها نهائياً عند ريستارت Vercel)
+    if (supabaseAdmin) {
+        try {
+            const { data, error } = await supabaseAdmin
+                .from('scheduled_posts')
+                .select('*')
+                .order('publish_time', { ascending: true });
+
+            if (data && !error && data.length > 0) {
+                return data.map(row => {
+                    const fullPost = (row.post_results && typeof row.post_results === 'object') ? row.post_results : {};
+                    return {
+                        ...fullPost,
+                        id: String(row.id),
+                        userId: row.user_id || fullPost.userId,
+                        content: row.content || fullPost.content || '',
+                        scheduledTime: row.publish_time || fullPost.scheduledTime,
+                        status: row.status || fullPost.status || 'PENDING',
+                        platforms: (Array.isArray(row.platforms) && row.platforms.length > 0) ? row.platforms : (fullPost.platforms || []),
+                        firstComment: row.first_comment || fullPost.firstComment || '',
+                        mediaUrl: (Array.isArray(row.media_urls) && row.media_urls.length > 0) ? row.media_urls[0] : (fullPost.mediaUrl || null),
+                        mediaType: row.media_types || fullPost.mediaType || 'image',
+                        createdAt: row.created_at || fullPost.createdAt
+                    };
+                });
+            }
+        } catch (e) {
+            console.error('Error fetching scheduled_posts from Supabase:', e.message);
+        }
+    }
+
+    // 2. دعم قاعدة بيانات Upstash Redis السحابية إذا توفرت في إعدادات Vercel
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
         try {
             const res = await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/get/socialflow_scheduled_posts`, {
@@ -58,13 +90,12 @@ async function getScheduledPosts() {
             if (data.result) {
                 return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
             }
-            return [];
         } catch (e) {
             console.error('Error reading from Upstash Redis:', e);
         }
     }
 
-    // 2. استخدام التخزين المؤقت
+    // 3. التخزين المؤقت المحلي
     if (!fs.existsSync(DB_FILE)) return [];
     try {
         return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
@@ -74,7 +105,40 @@ async function getScheduledPosts() {
 }
 
 async function saveScheduledPosts(posts) {
-    // 1. حفظ في Upstash Redis إذا وُجد
+    // 1. حفظ سحابي دائم في Supabase لمنع فقدان أو حذف المنشورات عند تدوير سيرفرات Vercel
+    if (supabaseAdmin && Array.isArray(posts)) {
+        try {
+            const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+            const defaultAdminId = '36a81f14-e396-4670-9cc5-3206c55f2596';
+            for (const post of posts) {
+                if (!post || !post.id) continue;
+                const postUserId = isUuid(post.userId) ? post.userId : defaultAdminId;
+
+                const row = {
+                    id: String(post.id),
+                    user_id: postUserId,
+                    content: post.content || '',
+                    first_comment: post.firstComment || post.comments?.[0]?.text || '',
+                    media_urls: post.mediaUrl ? [post.mediaUrl] : [],
+                    media_types: post.mediaType || 'image',
+                    publish_time: post.scheduledTime || post.publishedAt || post.createdAt || new Date().toISOString(),
+                    platforms: Array.isArray(post.platforms) ? post.platforms : [],
+                    status: post.status || 'PENDING',
+                    post_results: post,
+                    is_story: (post.facebookPlacements || []).includes('story') || (post.instagramPlacements || []).includes('story'),
+                    created_at: post.createdAt || new Date().toISOString()
+                };
+
+                await supabaseAdmin
+                    .from('scheduled_posts')
+                    .upsert(row, { onConflict: 'id' });
+            }
+        } catch (e) {
+            console.error('Error saving scheduled_posts to Supabase:', e.message);
+        }
+    }
+
+    // 2. حفظ في Upstash Redis إذا وُجد
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
         try {
             await fetch(`${process.env.UPSTASH_REDIS_REST_URL}/set/socialflow_scheduled_posts`, {
@@ -91,7 +155,7 @@ async function saveScheduledPosts(posts) {
         }
     }
 
-    // 2. حفظ في الملف
+    // 3. حفظ في الملف المحلي
     try {
         fs.writeFileSync(DB_FILE, JSON.stringify(posts, null, 2), 'utf8');
     } catch (e) {
@@ -141,6 +205,7 @@ const DEFAULT_AUTOREPLY_CONFIG = {
     likeComment: true,
     replyComment: true,
     sendDm: true,
+    hideComments: false,
     lastScrapedUrl: ''
 };
 
@@ -1354,6 +1419,12 @@ ${config?.customPrompt && typeof config.customPrompt === 'string' && config.cust
 
        سؤال ختامي لطيف يشجعه على اتخاذ الخطوة التالية.
 
+   النوع الثالث: تعليق سلبي / سب / اتهام بالنصب / شكوى مسيئة أو تشهير (intent = "negative"):
+   - أمثلة: (نصابين، خدمة سيئة جداً، أسوأ تعامل، حرامية، كذابين، ألفاظ نابية، احذروا منهم، نصب، قلة أدب...).
+   - publicReply: ""
+   - sendDm: false
+   - privateMessage: ""
+
 3. منع الأقواس والنصوص النائبة نهائياً:
    - ممنوع كتابة [أدخل الرابط] أو [السعر] أو أي نص بين أقواس مربعة.
 
@@ -1370,6 +1441,13 @@ ${config?.customPrompt && typeof config.customPrompt === 'string' && config.cust
   "publicReply": "أهلاً بحضرتك يا فندم! نورتنا 🌸 كل تفاصيل الخدمة بعتناهالك في رسالة خاصة على الـ DM 📩",
   "sendDm": true,
   "privateMessage": "نص الرسالة الخاصة مع ترك سطر فارغ بين كل سطر"
+}
+أو في حالة التعليق السلبي:
+{
+  "intent": "negative",
+  "publicReply": "",
+  "sendDm": false,
+  "privateMessage": ""
 }`;
 
     const userMessage = `كابشن المنشور: "${postCaption || 'بدون كابشن'}"\nاسم العميل: "${customerName}"\nتعليق العميل: "${commentText}"`;
@@ -1441,6 +1519,17 @@ ${config?.customPrompt && typeof config.customPrompt === 'string' && config.cust
         }
         return cleaned.trim();
     };
+
+    // فحص التعليق السلبي أو المسيء (Negative Sentiment)
+    if (parsed.intent === 'negative' || isNegativeComment(commentText)) {
+        return {
+            intent: 'negative',
+            publicReply: '',
+            privateMessage: '',
+            sendDm: false,
+            tokensUsed: data?.usage?.total_tokens || 0
+        };
+    }
 
     // فحص ذكي حاسم لطبيعة التعليق (إطراء/تشجيع vs استفسار)
     const normalizedComment = commentText.trim().toLowerCase();
@@ -1560,6 +1649,82 @@ async function executePrivateDm(commentId, text, token, platform, pageId) {
     }
 }
 
+// 4. إخفاء التعليق (Hide Comment) - ميزة اختيارية تتفعل من لوحة التحكم لحماية العملاء والمنافسة
+async function executeHideComment(commentId, token, platform) {
+    try {
+        let url;
+        let body;
+        if (platform === 'facebook') {
+            url = `https://graph.facebook.com/v21.0/${commentId}`;
+            body = { is_hidden: true, access_token: token };
+        } else {
+            url = `https://graph.facebook.com/v21.0/${commentId}`;
+            body = { hide: true, access_token: token };
+        }
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        return { success: true };
+    } catch (err) {
+        console.error(`[Meta Hide Comment Error] (${platform}):`, err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// 5. حذف التعليق نهائياً (Delete Comment) - ميزة ثابتة ودائمة لحذف التعليقات السلبية والمسيئة فورياً
+async function executeDeleteComment(commentId, token, platform) {
+    try {
+        const url = `https://graph.facebook.com/v21.0/${commentId}?access_token=${token}`;
+        const res = await fetch(url, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        return { success: true };
+    } catch (err) {
+        console.error(`[Meta Delete Comment Error] (${platform}):`, err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// دالة فحص الكلمات السلبية والمسيئة بالعربية
+function isNegativeComment(text) {
+    if (!text || typeof text !== 'string') return false;
+    const lower = text.toLowerCase().trim();
+    const negativeKeywords = [
+        'نصابين', 'نصاب', 'نصب', 'احتيال', 'حرامية', 'حرامي', 'سرقة', 'سارقين',
+        'كذابين', 'كدابين', 'كذاب', 'كداب', 'فاشلين', 'فاشل', 'فاشلة', 'فشل',
+        'زفت', 'سيء', 'سيئة', 'أسوأ', 'وحش', 'وحشة', 'مقرف', 'قرف',
+        'اشتغالة', 'مقلب', 'ضحكوا عليا', 'بيضحكوا', 'بلاغ', 'حظر', 'بلوك',
+        'قلة أدب', 'غشاشين', 'غش', 'نصابين كبار', 'أوعوا تصدقوهم', 'حسبي الله',
+        'خرا', 'لعنة', 'يلعن', 'تفو', 'شحاتين', 'أوساخ', 'حقيرين', 'قذرين'
+    ];
+    return negativeKeywords.some(keyword => lower.includes(keyword));
+}
+
+// دالة حساب موعد التكرار القادم للمنشور المجدول
+function calculateNextScheduledTime(baseTime, interval, repeatEvery = 1) {
+    const d = new Date(baseTime);
+    if (isNaN(d.getTime())) return new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const count = parseInt(repeatEvery, 10) || 1;
+
+    if (interval === 'daily') {
+        d.setUTCDate(d.getUTCDate() + count);
+    } else if (interval === 'weekly') {
+        d.setUTCDate(d.getUTCDate() + (7 * count));
+    } else if (interval === 'monthly') {
+        d.setUTCMonth(d.getUTCMonth() + count);
+    } else if (interval === 'custom_days') {
+        d.setUTCDate(d.getUTCDate() + count);
+    } else {
+        d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return d.toISOString();
+}
+
 // دالة حل واستخراج Page Access Token تلقائياً من خوادم Meta عند الحاجة لضمان صلاحية الرد
 async function resolvePageToken(pageOrIgId) {
     if (!pageOrIgId) return null;
@@ -1669,6 +1834,29 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
         }
     }
 
+    // 2. فحص فوري وحذف التعليقات السلبية والمسيئة تلقائياً (ميزة ثابتة دائمة)
+    if (isNegativeComment(commentText)) {
+        console.log(`🚨 [Auto-Reply] تم اكتشاف تعليق سلبي/مسيء فورياً: "${commentText}"`);
+        const delRes = await executeDeleteComment(commentId, token, platform);
+        const actionsTaken = ['delete'];
+        if (delRes.success) {
+            console.log(`🗑️ [Auto-Reply] تم حذف التعليق السلبي فورياً بنجاح لحماية سمعة الصفحة!`);
+        }
+        await addAutoReplyLog({
+            id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+            platform,
+            senderName,
+            senderId,
+            commentText,
+            postCaption: postCaption ? (postCaption.length > 80 ? postCaption.substring(0, 80) + '...' : postCaption) : 'بدون كابشن',
+            publicReply: '[تم حذف التعليق السلبي تلقائياً لحماية الصفحة 🛡️]',
+            privateMessage: '',
+            actions: actionsTaken,
+            timestamp: new Date().toISOString()
+        });
+        return;
+    }
+
     // 4. توليد الردود بذكاء اصطناعي Groq مع آلية احتياطية ذكية تضمن عدم توقف الردود نهائياً
     let replyData;
     try {
@@ -1707,6 +1895,29 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
         }
     }
 
+    // إذا صنف الذكاء الاصطناعي التعليق كتعليق سلبي، يتم حذفه فورياً
+    if (replyData.intent === 'negative') {
+        console.log(`🚨 [Auto-Reply] الذكاء الاصطناعي صنّف التعليق كتعليق سلبي: "${commentText}"`);
+        const delRes = await executeDeleteComment(commentId, token, platform);
+        const actionsTaken = ['delete'];
+        if (delRes.success) {
+            console.log(`🗑️ [Auto-Reply] تم حذف التعليق السلبي بواسطة الذكاء الاصطناعي بنجاح!`);
+        }
+        await addAutoReplyLog({
+            id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+            platform,
+            senderName,
+            senderId,
+            commentText,
+            postCaption: postCaption ? (postCaption.length > 80 ? postCaption.substring(0, 80) + '...' : postCaption) : 'بدون كابشن',
+            publicReply: '[تم حذف التعليق السلبي تلقائياً بواسطة الذكاء الاصطناعي 🛡️]',
+            privateMessage: '',
+            actions: actionsTaken,
+            timestamp: new Date().toISOString()
+        });
+        return;
+    }
+
     const actionsTaken = [];
 
     // الخطوة 1 الصارمة: الإعجاب بالتعليق أولاً (Auto-Like Comment)
@@ -1733,6 +1944,15 @@ async function handleIncomingComment({ platform, pageOrIgId, commentId, commentT
         if (dmRes.success) {
             actionsTaken.push('dm');
             console.log(`[Auto-Reply] 📩 تم إرسال الرسالة الخاصة في الـ DM بنجاح!`);
+        }
+    }
+
+    // الخطوة 4 الاختيارية: إخفاء التعليق بعد الرد لحماية المنافسة ومنع سرقة العملاء (من لوحة التحكم)
+    if (config.hideComments) {
+        const hideRes = await executeHideComment(commentId, token, platform);
+        if (hideRes.success) {
+            actionsTaken.push('hide');
+            console.log(`🔒 [Auto-Reply] تم إخفاء التعليق بنجاح بناءً على إعدادات لوحة التحكم: ${commentId}`);
         }
     }
 
@@ -1827,6 +2047,40 @@ app.post('/api/telegram/test', async (req, res) => {
     }
 });
 
+// ترحيل إشعارات بوت فيسبوك المباشرة إلى تيليجرام لتجاوز حجب مزودي الخدمة المحليين في مصر
+app.post('/api/telegram/relay', async (req, res) => {
+    try {
+        const { text, parse_mode = 'HTML', chat_id, bot_token } = req.body;
+        const targetChatId = (chat_id || '').trim() || '1077637435';
+        const botToken = (bot_token || '').trim() || '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8';
+
+        const teleRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: targetChatId, text, parse_mode })
+        });
+        const teleData = await teleRes.json();
+        return res.json({ success: teleData.ok, data: teleData });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// جلب رسائل وتحديثات التيليجرام للرد التفاعلي
+app.get('/api/telegram/updates', async (req, res) => {
+    try {
+        const offset = req.query.offset || 0;
+        const botToken = '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8';
+        const teleRes = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?offset=${offset}&timeout=0`);
+        const teleData = await teleRes.json();
+        return res.json(teleData);
+    } catch (e) {
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+
+
 // 1.5 تجربة إشعار تدوير الجروبات الخمسة والعنوان اليومي الذكي
 app.post('/api/telegram/test-rotation', async (req, res) => {
     try {
@@ -1861,39 +2115,24 @@ app.post('/api/telegram/test-rotation', async (req, res) => {
     }
 });
 
-// 2. جلب إعدادات التيليجرام
+// 2. جلب إعدادات التيليجرام لكل مستخدم بشكل معزول ومحمي 100%
 app.get('/api/telegram/config', async (req, res) => {
     try {
-        let userId = req.query.userId;
-        let telegramConfig = { enabled: true, botToken: '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8', chatId: '1077637435' };
-
-        if (!userId && supabaseAdmin) {
-            try {
-                const { data: adminRow } = await supabaseAdmin
-                    .from('user_profiles')
-                    .select('id')
-                    .eq('email', 'raslan.meet@gmail.com')
-                    .maybeSingle();
-                if (adminRow?.id) userId = adminRow.id;
-            } catch (e) {}
-        }
+        const userId = req.query.userId;
+        let telegramConfig = { enabled: false, botToken: '', chatId: '' };
 
         if (userId && supabaseAdmin) {
             try {
                 const { data: userRow } = await supabaseAdmin
                     .from('user_profiles')
-                    .select('auto_reply_config')
+                    .select('email, auto_reply_config')
                     .eq('id', userId)
                     .maybeSingle();
+
                 if (userRow?.auto_reply_config?.telegram) {
-                    telegramConfig = { ...telegramConfig, ...userRow.auto_reply_config.telegram };
+                    telegramConfig = { ...userRow.auto_reply_config.telegram };
                 }
             } catch (e) {}
-        }
-
-        if (!telegramConfig.botToken || !telegramConfig.chatId) {
-            const localCfg = await getAutoReplyConfig();
-            if (localCfg?.telegram) telegramConfig = { ...telegramConfig, ...localCfg.telegram };
         }
 
         res.json({ success: true, telegram: telegramConfig });
@@ -1902,28 +2141,98 @@ app.get('/api/telegram/config', async (req, res) => {
     }
 });
 
+// 2.5 مزامنة إعدادات العميل التلقائية إلى جهازه عبر البريد الإلكتروني (Cloud Sync)
+app.get('/api/client/sync-config', async (req, res) => {
+    try {
+        const email = (req.query.email || '').trim().toLowerCase();
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'يرجى إدخال البريد الإلكتروني المسجل في الموقع.' });
+        }
+
+        if (!supabaseAdmin) {
+            return res.status(500).json({ success: false, message: 'قاعدة البيانات غير متصلة حالياً.' });
+        }
+
+        const { data: userRow, error } = await supabaseAdmin
+            .from('user_profiles')
+            .select('id, email, full_name, selected_pages, auto_reply_config, groq_api_key')
+            .ilike('email', email)
+            .maybeSingle();
+
+        if (error || !userRow) {
+            return res.status(404).json({ 
+                success: false, 
+                message: `لم يتم العثور على حساب مسجل بهذا الإيميل: ${email}. يرجى تسجيل الدخول في الموقع (agent.raslans.net) أولاً.` 
+            });
+        }
+
+        // فحص حالة اشتراك العميل قبل مزامنة وتشغيل البوت
+        const userStatus = userRow.status || userRow.auto_reply_config?.account_status || 'pending';
+        const userSub = userRow.auto_reply_config?.subscription;
+        if (userRow.email !== 'raslan.meet@gmail.com') {
+            if (userStatus === 'pending') {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: '⚠️ حسابك ما زال قيد المراجعة بانتظار تفعيل الاشتراك من قِبل إدارة المنصة.' 
+                });
+            }
+            if (userStatus === 'suspended') {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: '⚠️ تم إيقاف حسابك مؤقتاً من قِبل إدارة المنصة. تواصل مع الدعم للمتابعة.' 
+                });
+            }
+            if (userSub?.expires_at && new Date(userSub.expires_at) <= new Date()) {
+                return res.status(403).json({ 
+                    success: false, 
+                    message: '⚠️ انتهت فترة اشتراكك في المنصة. يرجى تجديد الاشتراك لتشغيل البوت.' 
+                });
+            }
+        }
+
+        const teleCfg = userRow.auto_reply_config?.telegram || {};
+        const selectedPage = Array.isArray(userRow.selected_pages) && userRow.selected_pages.length > 0 
+            ? userRow.selected_pages[0] 
+            : null;
+
+        const clientConfig = {
+            client_id: userRow.id,
+            client_name: userRow.full_name || userRow.email,
+            page_name: selectedPage?.name || 'Raslans Marketing - رسلان للتسويق',
+            page_id: selectedPage?.id || null,
+            telegram_bot_token: teleCfg.botToken || '',
+            telegram_chat_id: teleCfg.chatId || '',
+            groq_api_key: userRow.groq_api_key || (userRow.email === 'raslan.meet@gmail.com' ? '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' : ''),
+            synced_at: new Date().toISOString()
+        };
+
+        return res.json({
+            success: true,
+            message: `تم العثور على حسابك بنجاح (${userRow.full_name || userRow.email})!`,
+            config: clientConfig
+        });
+    } catch (err) {
+        console.error('Error in /api/client/sync-config:', err);
+        return res.status(500).json({ success: false, message: err.message || 'حدث خطأ أثناء مزامنة الإعدادات.' });
+    }
+});
+
+
 // 3. حفظ إعدادات التيليجرام
 app.post('/api/telegram/config', async (req, res) => {
     try {
         let { userId, botToken, chatId, enabled } = req.body;
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'يجب تسجيل الدخول لحفظ إعدادات التيليجرام.' });
+        }
+
         const newTelegramConfig = {
-            botToken: (botToken || '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8').trim(),
-            chatId: (chatId || '1077637435').trim(),
+            botToken: (botToken || '').trim(),
+            chatId: (chatId || '').trim(),
             enabled: enabled !== false
         };
 
-        if (!userId && supabaseAdmin) {
-            try {
-                const { data: adminRow } = await supabaseAdmin
-                    .from('user_profiles')
-                    .select('id')
-                    .eq('email', 'raslan.meet@gmail.com')
-                    .maybeSingle();
-                if (adminRow?.id) userId = adminRow.id;
-            } catch (e) {}
-        }
-
-        if (userId && supabaseAdmin) {
+        if (supabaseAdmin) {
             try {
                 const { data: userRow } = await supabaseAdmin
                     .from('user_profiles')
@@ -1944,31 +2253,381 @@ app.post('/api/telegram/config', async (req, res) => {
             }
         }
 
-        try {
-            const localCfg = await getAutoReplyConfig();
-            localCfg.telegram = newTelegramConfig;
-            await saveAutoReplyConfig(localCfg);
-        } catch (e) {}
-
         res.json({ success: true, message: 'تم حفظ إعدادات التيليجرام بنجاح!' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'تعذر حفظ إعدادات التيليجرام.' });
     }
 });
 
+// 3.5 فحص حالة الحساب والاشتراك وقائمة المفاتيح المطلوبة
+app.get('/api/user/account-status', async (req, res) => {
+    try {
+        const userId = req.query.userId;
+        if (!userId || !supabaseAdmin) {
+            return res.status(400).json({ success: false, message: 'معرف المستخدم مطلوب.' });
+        }
+
+        const { data: userRow } = await supabaseAdmin
+            .from('user_profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (!userRow) {
+            return res.status(404).json({ success: false, message: 'المستخدم غير مسجل.' });
+        }
+
+        const isSuperAdmin = userRow.email === 'raslan.meet@gmail.com';
+        if (isSuperAdmin) {
+            return res.json({
+                success: true,
+                status: 'active',
+                role: 'admin',
+                isSuperAdmin: true,
+                subscription: {
+                    period: 'lifetime',
+                    expires_at: null,
+                    is_expired: false,
+                    days_remaining: 9999
+                },
+                keys_checklist: {
+                    meta: Boolean(userRow.meta_access_token),
+                    groq: Boolean(userRow.groq_api_key),
+                    cloudinary: Boolean(userRow.auto_reply_config?.cloudinary?.cloudName && userRow.auto_reply_config?.cloudinary?.apiKey),
+                    telegram: Boolean(userRow.auto_reply_config?.telegram?.botToken && userRow.auto_reply_config?.telegram?.chatId)
+                },
+                needs_onboarding: false
+            });
+        }
+
+        let status = userRow.status || userRow.auto_reply_config?.account_status || 'pending';
+        let sub = userRow.auto_reply_config?.subscription || {
+            period: userRow.subscription_period || '1_month',
+            expires_at: userRow.subscription_expires_at || null
+        };
+
+        let isExpired = false;
+        let daysRemaining = 0;
+        let hoursRemaining = 0;
+        if (sub.expires_at) {
+            const expDate = new Date(sub.expires_at);
+            const now = new Date();
+            const diffMs = expDate.getTime() - now.getTime();
+            daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            hoursRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+            if (diffMs <= 0 && status === 'active') {
+                status = 'expired';
+                isExpired = true;
+            }
+        }
+
+        const keysChecklist = {
+            meta: Boolean(userRow.meta_access_token),
+            groq: Boolean(userRow.groq_api_key),
+            cloudinary: Boolean(userRow.auto_reply_config?.cloudinary?.cloudName && userRow.auto_reply_config?.cloudinary?.apiKey),
+            telegram: Boolean(userRow.auto_reply_config?.telegram?.botToken && userRow.auto_reply_config?.telegram?.chatId)
+        };
+
+        return res.json({
+            success: true,
+            status,
+            role: 'client',
+            isSuperAdmin: false,
+            subscription: {
+                period: sub.period || '1_month',
+                expires_at: sub.expires_at,
+                is_expired: isExpired,
+                days_remaining: Math.max(0, daysRemaining),
+                hours_remaining: hoursRemaining
+            },
+            keys_checklist: keysChecklist,
+            needs_onboarding: status === 'active' && (!keysChecklist.meta || !keysChecklist.groq || !keysChecklist.cloudinary)
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 3.6 لوحة الإدارة: جلب كافة المشتركين (خاص بـ raslan.meet@gmail.com)
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const adminUserId = req.query.adminUserId;
+        if (!adminUserId || !supabaseAdmin) {
+            return res.status(401).json({ success: false, message: 'غير مصرح.' });
+        }
+
+        const { data: adminRow } = await supabaseAdmin
+            .from('user_profiles')
+            .select('email')
+            .eq('id', adminUserId)
+            .maybeSingle();
+
+        if (adminRow?.email !== 'raslan.meet@gmail.com') {
+            return res.status(403).json({ success: false, message: 'هذه اللوحة مخصصة فقط لمدير المنصة (رسلان للتسويق).' });
+        }
+
+        const { data: allUsers, error } = await supabaseAdmin
+            .from('user_profiles')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const usersList = (allUsers || []).map(u => {
+            const isSelf = u.email === 'raslan.meet@gmail.com';
+            let status = isSelf ? 'active' : (u.status || u.auto_reply_config?.account_status || 'pending');
+            const sub = u.auto_reply_config?.subscription || {
+                period: u.subscription_period || '1_month',
+                expires_at: u.subscription_expires_at || null
+            };
+
+            let daysRemaining = null;
+            let hoursRemaining = null;
+            if (sub.expires_at) {
+                const diffMs = new Date(sub.expires_at).getTime() - Date.now();
+                daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                hoursRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+                if (diffMs <= 0 && status === 'active' && !isSelf) {
+                    status = 'expired';
+                }
+            }
+
+            return {
+                id: u.id,
+                email: u.email,
+                full_name: u.full_name || 'بدون اسم',
+                avatar_url: u.avatar_url || '',
+                created_at: u.created_at,
+                status,
+                role: isSelf ? 'admin' : 'client',
+                is_super_admin: isSelf,
+                subscription: {
+                    period: isSelf ? 'lifetime' : (sub.period || '1_month'),
+                    expires_at: sub.expires_at,
+                    days_remaining: daysRemaining,
+                    hours_remaining: hoursRemaining
+                },
+                keys_checklist: {
+                    meta: Boolean(u.meta_access_token),
+                    groq: Boolean(u.groq_api_key),
+                    cloudinary: Boolean(u.auto_reply_config?.cloudinary?.cloudName),
+                    telegram: Boolean(u.auto_reply_config?.telegram?.botToken && u.auto_reply_config?.telegram?.chatId),
+                    selected_pages_count: Array.isArray(u.selected_pages) ? u.selected_pages.length : 0,
+                    groups_count: Array.isArray(u.auto_reply_config?.target_groups) ? u.auto_reply_config.target_groups.length : 0
+                }
+            };
+        });
+
+        return res.json({ success: true, users: usersList, total: usersList.length });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 3.7 لوحة الإدارة: تفعيل / إيقاف / تحديد مدة اشتراك أي مستخدم
+app.post('/api/admin/user-status', async (req, res) => {
+    try {
+        const { adminUserId, targetUserId, action, period = '1_month' } = req.body;
+        if (!adminUserId || !targetUserId || !supabaseAdmin) {
+            return res.status(400).json({ success: false, message: 'بيانات غير مكتملة.' });
+        }
+
+        const { data: adminRow } = await supabaseAdmin
+            .from('user_profiles')
+            .select('email')
+            .eq('id', adminUserId)
+            .maybeSingle();
+
+        if (adminRow?.email !== 'raslan.meet@gmail.com') {
+            return res.status(403).json({ success: false, message: 'غير مصرح لك بتنفيذ هذا الإجراء.' });
+        }
+
+        const { data: targetUser } = await supabaseAdmin
+            .from('user_profiles')
+            .select('*')
+            .eq('id', targetUserId)
+            .maybeSingle();
+
+        if (!targetUser) {
+            return res.status(404).json({ success: false, message: 'المستخدم غير موجود.' });
+        }
+
+        if (targetUser.email === 'raslan.meet@gmail.com') {
+            return res.status(400).json({ success: false, message: 'لا يمكن تعديل أو إيقاف حساب المشرف الأساسي.' });
+        }
+
+        if (action === 'delete') {
+            await supabaseAdmin.from('user_profiles').delete().eq('id', targetUserId);
+            return res.json({ success: true, message: `تم حذف حساب المستخدم ${targetUser.email} بنجاح.` });
+        }
+
+        let newStatus = 'pending';
+        let expiresAt = null;
+
+        if (action === 'activate') {
+            newStatus = 'active';
+            const now = new Date();
+            if (period === '1_day') {
+                now.setDate(now.getDate() + 1);
+                expiresAt = now.toISOString();
+            } else if (period === '1_month') {
+                now.setDate(now.getDate() + 30);
+                expiresAt = now.toISOString();
+            } else if (period === '3_months') {
+                now.setDate(now.getDate() + 90);
+                expiresAt = now.toISOString();
+            } else if (period === '6_months') {
+                now.setDate(now.getDate() + 180);
+                expiresAt = now.toISOString();
+            } else if (period === '1_year') {
+                now.setDate(now.getDate() + 365);
+                expiresAt = now.toISOString();
+            } else if (period === 'lifetime') {
+                now.setFullYear(now.getFullYear() + 100);
+                expiresAt = now.toISOString();
+            }
+        } else if (action === 'suspend') {
+            newStatus = 'suspended';
+        }
+
+        let uConfig = targetUser.auto_reply_config || {};
+        if (typeof uConfig !== 'object') uConfig = {};
+        uConfig.account_status = newStatus;
+        uConfig.subscription = {
+            period: period,
+            expires_at: expiresAt,
+            updated_at: new Date().toISOString()
+        };
+
+        const updateData = {
+            auto_reply_config: uConfig,
+            updated_at: new Date().toISOString()
+        };
+
+        try {
+            updateData.status = newStatus;
+            updateData.subscription_period = period;
+            updateData.subscription_expires_at = expiresAt;
+        } catch (e) {}
+
+        const { error } = await supabaseAdmin
+            .from('user_profiles')
+            .update(updateData)
+            .eq('id', targetUserId);
+
+        if (error) {
+            await supabaseAdmin
+                .from('user_profiles')
+                .update({ auto_reply_config: uConfig, updated_at: new Date().toISOString() })
+                .eq('id', targetUserId);
+        }
+
+        const actionName = action === 'activate' ? `تفعيل الحساب بنجاح لمدة (${period})` : 'إيقاف الحساب';
+        return res.json({
+            success: true,
+            message: `تم ${actionName} للمستخدم (${targetUser.email})!`,
+            status: newStatus,
+            subscription: uConfig.subscription
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 3.8 معالج التهيئة والربط الأولي للعميل (Onboarding Wizard)
+app.post('/api/user/onboarding-setup', async (req, res) => {
+    try {
+        const { userId, groqApiKey, metaToken, cloudinary, telegram, selectedPages } = req.body;
+        if (!userId || !supabaseAdmin) {
+            return res.status(400).json({ success: false, message: 'معرف المستخدم مطلوب.' });
+        }
+
+        const { data: userRow } = await supabaseAdmin
+            .from('user_profiles')
+            .select('*')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (!userRow) {
+            return res.status(404).json({ success: false, message: 'المستخدم غير مسجل.' });
+        }
+
+        let uConfig = userRow.auto_reply_config || {};
+        if (typeof uConfig !== 'object') uConfig = {};
+
+        if (cloudinary && typeof cloudinary === 'object') {
+            uConfig.cloudinary = {
+                cloudName: (cloudinary.cloudName || '').trim(),
+                apiKey: (cloudinary.apiKey || '').trim(),
+                apiSecret: (cloudinary.apiSecret || '').trim()
+            };
+        }
+
+        if (telegram && typeof telegram === 'object') {
+            uConfig.telegram = {
+                botToken: (telegram.botToken || '').trim(),
+                chatId: (telegram.chatId || '').trim(),
+                enabled: telegram.enabled !== false
+            };
+        }
+
+        const cleanGroqKey = (groqApiKey || '').trim();
+        const cleanMetaToken = (metaToken || '').trim();
+        if (cleanGroqKey) {
+            uConfig.groq_api_key = cleanGroqKey;
+        }
+
+        const updatePayload = {
+            auto_reply_config: uConfig,
+            updated_at: new Date().toISOString()
+        };
+
+        if (cleanGroqKey) updatePayload.groq_api_key = cleanGroqKey;
+        if (cleanMetaToken) updatePayload.meta_access_token = cleanMetaToken;
+        if (Array.isArray(selectedPages) && selectedPages.length > 0) {
+            updatePayload.selected_pages = selectedPages;
+        }
+
+        await supabaseAdmin
+            .from('user_profiles')
+            .update(updatePayload)
+            .eq('id', userId);
+
+        return res.json({
+            success: true,
+            message: 'تم حفظ كافة المفاتيح والإعدادات بنجاح! حسابك جاهز تماماً 🚀'
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // 4. مستكشف الكلمات المفتاحية والجروبات الكبرى بالذكاء الاصطناعي (AI Group Hunter)
 app.post('/api/groups/ai-discover', async (req, res) => {
     try {
-        const { niche, pageName, groqApiKey } = req.body;
+        const { niche, pageName, groqApiKey, userId } = req.body;
         const targetNiche = niche || 'تسويق رقمي، إدارة صفحات سوشيال ميديا، إعلانات ممولة، وتصميم مواقع';
 
-        let apiKey = groqApiKey;
-        if (!apiKey) {
-            const localCfg = await getAutoReplyConfig();
-            apiKey = localCfg.groqApiKey;
+        let apiKey = (groqApiKey || '').trim();
+        if (!apiKey && userId && supabaseAdmin) {
+            try {
+                const { data: uRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('groq_api_key, email')
+                    .eq('id', userId)
+                    .maybeSingle();
+                if (uRow?.groq_api_key) apiKey = uRow.groq_api_key;
+                else if (uRow?.email === 'raslan.meet@gmail.com') {
+                    apiKey = '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';
+                }
+            } catch (e) {}
         }
-        if (!apiKey || !apiKey.trim()) {
-            apiKey = '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';
+
+        if (!apiKey) {
+            return res.status(400).json({
+                success: false,
+                message: 'يرجى إدخال مفتاح Groq API الخاص بك من الإعدادات لتشغيل ميزات الذكاء الاصطناعي.'
+            });
         }
 
         const prompt = `أنت خبير تسويق فيسبوك متخصص في المجموعات (Facebook Groups Growth Expert).
@@ -2024,7 +2683,6 @@ app.post('/api/groups/ai-discover', async (req, res) => {
         const content = groqData.choices?.[0]?.message?.content || '{}';
         const parsed = JSON.parse(content);
 
-        // إضافة روابط البحث المباشرة بفيسبوك لكل كلمة مفتاحية
         if (Array.isArray(parsed.keywords)) {
             parsed.keywords = parsed.keywords.map(k => ({
                 keyword: k.keyword,
@@ -2039,68 +2697,31 @@ app.post('/api/groups/ai-discover', async (req, res) => {
     }
 });
 
-// 5. جلب قائمة الجروبات المستهدفة والتدوير
+// 5. جلب قائمة الجروبات المستهدفة والتدوير (معزولة لكل مستخدم 100%)
 app.get('/api/groups/target-list', async (req, res) => {
     try {
-        let userId = req.query.userId;
+        const userId = req.query.userId;
+        if (!userId) {
+            return res.json({ success: true, groups: [], total: 0 });
+        }
+
         let groups = [];
-
-        if (!userId && supabaseAdmin) {
-            try {
-                const { data: adminRow } = await supabaseAdmin
-                    .from('user_profiles')
-                    .select('id')
-                    .eq('email', 'raslan.meet@gmail.com')
-                    .maybeSingle();
-                if (adminRow?.id) userId = adminRow.id;
-            } catch (e) {}
-        }
-
-        if (userId && supabaseAdmin) {
+        if (supabaseAdmin) {
             try {
                 const { data: userRow } = await supabaseAdmin
                     .from('user_profiles')
-                    .select('auto_reply_config')
+                    .select('email, auto_reply_config')
                     .eq('id', userId)
                     .maybeSingle();
-                if (Array.isArray(userRow?.auto_reply_config?.target_groups) && userRow.auto_reply_config.target_groups.length > 6) {
+
+                if (Array.isArray(userRow?.auto_reply_config?.target_groups) && userRow.auto_reply_config.target_groups.length > 0) {
                     groups = userRow.auto_reply_config.target_groups;
-                }
-            } catch (e) {}
-        }
-
-        if (groups.length === 0) {
-            const localCfg = await getAutoReplyConfig();
-            if (Array.isArray(localCfg?.target_groups) && localCfg.target_groups.length > 0) {
-                groups = localCfg.target_groups;
-            }
-        }
-
-        // إذا كانت القائمة فارغة، نضع المجموعات من clean_groups.json
-        if (groups.length === 0) {
-            try {
-                const cleanGroups = JSON.parse(fs.readFileSync(path.join(__dirname, 'clean_groups.json'), 'utf8'));
-                if (Array.isArray(cleanGroups) && cleanGroups.length > 0) {
-                    groups = cleanGroups;
-                }
-            } catch (e) {}
-        }
-
-        // مزامنة القائمة الكاملة مع سحابة Supabase إذا لم تكن مسجلة بعد
-        if (userId && supabaseAdmin && groups.length > 6) {
-            try {
-                const { data: userRow } = await supabaseAdmin
-                    .from('user_profiles')
-                    .select('auto_reply_config')
-                    .eq('id', userId)
-                    .maybeSingle();
-                let uConfig = userRow?.auto_reply_config || {};
-                if (!Array.isArray(uConfig.target_groups) || uConfig.target_groups.length <= 6) {
-                    uConfig.target_groups = groups;
-                    await supabaseAdmin
-                        .from('user_profiles')
-                        .update({ auto_reply_config: uConfig, updated_at: new Date().toISOString() })
-                        .eq('id', userId);
+                } else if (userRow?.email === 'raslan.meet@gmail.com') {
+                    // فقط المشرف الأساسي يسترجع قائمته الافتراضية إذا كانت فارغة
+                    try {
+                        const cleanGroups = JSON.parse(fs.readFileSync(path.join(__dirname, 'clean_groups.json'), 'utf8'));
+                        if (Array.isArray(cleanGroups)) groups = cleanGroups;
+                    } catch (e) {}
                 }
             } catch (e) {}
         }
@@ -2111,24 +2732,17 @@ app.get('/api/groups/target-list', async (req, res) => {
     }
 });
 
-// 6. حفظ قائمة الجروبات المستهدفة
+// 6. حفظ قائمة الجروبات المستهدفة (معزولة لحساب المستخدم فقط)
 app.post('/api/groups/target-list', async (req, res) => {
     try {
-        let { userId, groups } = req.body;
-        const validGroups = Array.isArray(groups) ? groups : [];
-
-        if (!userId && supabaseAdmin) {
-            try {
-                const { data: adminRow } = await supabaseAdmin
-                    .from('user_profiles')
-                    .select('id')
-                    .eq('email', 'raslan.meet@gmail.com')
-                    .maybeSingle();
-                if (adminRow?.id) userId = adminRow.id;
-            } catch (e) {}
+        const { userId, groups } = req.body;
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'يجب تسجيل الدخول لحفظ قائمة المجموعات.' });
         }
 
-        if (userId && supabaseAdmin) {
+        const validGroups = Array.isArray(groups) ? groups : [];
+
+        if (supabaseAdmin) {
             try {
                 const { data: userRow } = await supabaseAdmin
                     .from('user_profiles')
@@ -2149,13 +2763,7 @@ app.post('/api/groups/target-list', async (req, res) => {
             }
         }
 
-        try {
-            const localCfg = await getAutoReplyConfig();
-            localCfg.target_groups = validGroups;
-            await saveAutoReplyConfig(localCfg);
-        } catch (e) {}
-
-        res.json({ success: true, message: 'تم حفظ وتحديث قائمة الجروبات بنجاح!' });
+        res.json({ success: true, message: 'تم حفظ وتحديث قائمة الجروبات لحسابك بنجاح!' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'تعذر حفظ قائمة الجروبات.' });
     }
@@ -2168,61 +2776,74 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
         let targetGroups = [];
         let uConfig = {};
         let targetUserId = userId;
-
-        if (!targetUserId && supabaseAdmin) {
-            try {
-                const { data: adminRow } = await supabaseAdmin
-                    .from('user_profiles')
-                    .select('id')
-                    .eq('email', 'raslan.meet@gmail.com')
-                    .maybeSingle();
-                if (adminRow?.id) targetUserId = adminRow.id;
-            } catch (e) {}
-        }
+        let isSuperAdmin = false;
 
         if (targetUserId && supabaseAdmin) {
             try {
                 const { data: userRow } = await supabaseAdmin
                     .from('user_profiles')
-                    .select('auto_reply_config')
+                    .select('email, status, auto_reply_config')
                     .eq('id', targetUserId)
                     .maybeSingle();
-                uConfig = userRow?.auto_reply_config || {};
-                telegramConfig = uConfig.telegram;
-                targetGroups = uConfig.target_groups || [];
+
+                if (userRow) {
+                    isSuperAdmin = userRow.email === 'raslan.meet@gmail.com';
+                    uConfig = userRow.auto_reply_config || {};
+                    telegramConfig = uConfig.telegram;
+                    targetGroups = Array.isArray(uConfig.target_groups) ? uConfig.target_groups : [];
+
+                    // إذا لم يكن المدير الأساسي، التأكد من أن اشتراكه نشط
+                    if (!isSuperAdmin) {
+                        const uStatus = userRow.status || uConfig.account_status || 'pending';
+                        const uSub = uConfig.subscription;
+                        const isExpired = uSub?.expires_at && new Date(uSub.expires_at) <= new Date();
+                        if (uStatus !== 'active' || isExpired) {
+                            console.log(`[Telegram Bot] تم تخطي إرسال إشعار تيليجرام لأن حساب المستخدم (${userRow.email}) غير نشط أو اشتراكه منتهٍ.`);
+                            return { success: false, reason: 'subscription_inactive' };
+                        }
+                    }
+                }
             } catch (e) {
-                console.warn('Error fetching telegramConfig from Supabase:', e.message);
+                console.warn('Error fetching user config for Telegram from Supabase:', e.message);
             }
         }
 
-        if (!telegramConfig || targetGroups.length === 0) {
-            const localCfg = await getAutoReplyConfig(post.pageId);
-            if (!telegramConfig) telegramConfig = localCfg?.telegram;
-            if (targetGroups.length === 0) targetGroups = localCfg?.target_groups || [];
-            if (!uConfig.last_rotation_index) uConfig.last_rotation_index = localCfg?.last_rotation_index || 0;
+        // إذا لم يكن هناك مستخدم محدد، الافتراض أنه حساب المشرف
+        if (!targetUserId) {
+            isSuperAdmin = true;
         }
 
-        // إسناد احتياطي دائم لقائمة الـ 99 جروب من clean_groups.json
-        if (!Array.isArray(targetGroups) || targetGroups.length === 0) {
-            try {
-                const fs = require('fs');
-                const p = path.join(__dirname, 'clean_groups.json');
-                if (fs.existsSync(p)) {
-                    targetGroups = JSON.parse(fs.readFileSync(p, 'utf8'));
-                }
-            } catch (e) {}
+        // فقط المشرف الأساسي يسترجع القائمة الاحتياطية والتكوين الافتراضي لشركة رسلان
+        if (isSuperAdmin) {
+            if (!telegramConfig) {
+                const localCfg = await getAutoReplyConfig(post.pageId);
+                telegramConfig = localCfg?.telegram;
+                if (!uConfig.last_rotation_index) uConfig.last_rotation_index = localCfg?.last_rotation_index || 0;
+            }
+            if (targetGroups.length === 0) {
+                try {
+                    const fs = require('fs');
+                    const p = path.join(__dirname, 'clean_groups.json');
+                    if (fs.existsSync(p)) targetGroups = JSON.parse(fs.readFileSync(p, 'utf8'));
+                } catch (e) {}
+            }
         }
 
-        // التأكد من توفر التوكن والدردشة (مع إسناد البوت الافتراضي لشركة رسلان)
-        const botToken = (telegramConfig?.botToken && telegramConfig.botToken.trim()) || '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8';
-        const chatId = (telegramConfig?.chatId && telegramConfig.chatId.trim()) || '1077637435';
+        // تحديد التوكن ومعرف الدردشة
+        let botToken = telegramConfig?.botToken?.trim();
+        let chatId = telegramConfig?.chatId?.trim();
+
+        if (isSuperAdmin) {
+            if (!botToken) botToken = '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8';
+            if (!chatId) chatId = '1077637435';
+        }
 
         if (!botToken || !chatId) {
-            console.log('[Telegram Bot] لم يتم العثور على توكن أو معرف الدردشة لتيليجرام.');
-            return { success: false, error: 'لم يتم العثور على توكن أو معرف الدردشة لتيليجرام.' };
+            console.log('[Telegram Bot] لا يوجد بوت تيليجرام مهيأ لهذا المستخدم، تم تخطي إرسال الإشعار.');
+            return { success: false, skipped: true, reason: 'No telegram bot configured for this user' };
         }
 
-        // استخراج معرف ورابط البوست على فيسبوك بالشكل الرسمي لصفحة رسلان
+        // استخراج رابط البوست على فيسبوك
         const fbFeedResult = publishResults?.facebook?.feed || publishResults?.facebook;
         const fbPostId = fbFeedResult?.post_id || fbFeedResult?.id;
         let fbPostUrl = '';
@@ -2232,9 +2853,11 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             fbPostUrl = post.postUrl;
         } else if (fbPostId) {
             const cleanId = String(fbPostId).includes('_') ? String(fbPostId).split('_')[1] : fbPostId;
-            fbPostUrl = `https://www.facebook.com/RaslansMarketing/posts/${cleanId}`;
+            fbPostUrl = isSuperAdmin 
+                ? `https://www.facebook.com/RaslansMarketing/posts/${cleanId}`
+                : `https://www.facebook.com/${cleanId}`;
         } else {
-            fbPostUrl = `https://www.facebook.com/RaslansMarketing`;
+            fbPostUrl = post.pageId ? `https://www.facebook.com/${post.pageId}` : 'https://www.facebook.com';
         }
 
         // رابط المشاركة السريعة الرسمي لفيسبوك
@@ -2371,9 +2994,9 @@ async function sendTelegramGroupNotification(post, publishResults, userId) {
             ]);
         });
 
-        // زر فتح المنشور الأصلي على الصفحة
+        // زر فتح المنشور على الصفحة
         inlineKeyboard.push([
-            { text: `🔗 فتح المنشور الأصلي على صفحة رسلان للتسويق`, url: fbPostUrl }
+            { text: isSuperAdmin ? `🔗 فتح المنشور الأصلي على صفحة رسلان للتسويق` : `🔗 فتح المنشور على فيسبوك`, url: fbPostUrl }
         ]);
 
         console.log(`[Telegram Bot] جاري إرسال إشعار النشر للدردشة: ${chatId}`);
@@ -2454,6 +3077,45 @@ app.post('/api/publish', upload.any(), async (req, res) => {
             comments,
             userCloudinary
         } = req.body;
+
+        // فحص صلاحية واشتراك المستخدم قبل النشر أو الجدولة
+        if (userId && supabaseAdmin) {
+            try {
+                const { data: userRow } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('email, status, auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                if (userRow && userRow.email !== 'raslan.meet@gmail.com') {
+                    const uStatus = userRow.status || userRow.auto_reply_config?.account_status || 'pending';
+                    const sub = userRow.auto_reply_config?.subscription;
+                    const now = new Date();
+                    const isExpired = sub?.expires_at && new Date(sub.expires_at) <= now;
+
+                    if (uStatus === 'pending') {
+                        return res.status(403).json({
+                            success: false,
+                            message: '⚠️ حسابك ما زال قيد المراجعة بانتظار موافقة الإدارة وتفعيل الاشتراك.'
+                        });
+                    }
+                    if (uStatus === 'suspended') {
+                        return res.status(403).json({
+                            success: false,
+                            message: '⚠️ تم إيقاف حسابك مؤقتاً. يرجى التواصل مع إدارة المنصة للمتابعة.'
+                        });
+                    }
+                    if (isExpired || uStatus === 'expired') {
+                        return res.status(403).json({
+                            success: false,
+                            message: '⚠️ انتهت فترة اشتراكك في المنصة. يرجى تجديد الاشتراك لتتمكن من النشر والجدولة.'
+                        });
+                    }
+                }
+            } catch (authErr) {
+                console.warn('Subscription check error in /api/publish:', authErr.message);
+            }
+        }
 
         const parsedPlatforms = JSON.parse(platforms || '[]');
         let parsedCustomCaptions = null;
@@ -2615,21 +3277,62 @@ app.post('/api/publish', upload.any(), async (req, res) => {
             pageAccessToken: pageAccessToken || null,
             igUserId: igUserId || null,
             metaToken: metaToken || null,
+            isRecurring: req.body.isRecurring === 'true' || req.body.isRecurring === true,
+            repeatInterval: req.body.repeatInterval || 'none',
+            repeatEvery: parseInt(req.body.repeatEvery, 10) || 1,
             createdAt: new Date().toISOString()
         };
 
         // إذا كان المنشور مجدولاً:
         if (isScheduled === 'true' || isScheduled === true) {
-            postData.scheduledTime = scheduledTime;
+            let normalizedTime = scheduledTime;
+            if (scheduledTime && typeof scheduledTime === 'string') {
+                if (!scheduledTime.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(scheduledTime)) {
+                    const offsetMinutes = parseInt(req.body.timezoneOffset, 10);
+                    if (!isNaN(offsetMinutes)) {
+                        const localMs = new Date(scheduledTime + 'Z').getTime();
+                        const utcDate = new Date(localMs + offsetMinutes * 60 * 1000);
+                        if (!isNaN(utcDate.getTime())) normalizedTime = utcDate.toISOString();
+                    } else {
+                        const localMs = new Date(scheduledTime + 'Z').getTime();
+                        const utcDate = new Date(localMs - 3 * 60 * 60 * 1000);
+                        if (!isNaN(utcDate.getTime())) normalizedTime = utcDate.toISOString();
+                    }
+                }
+            }
+            postData.scheduledTime = normalizedTime;
             postData.status = 'PENDING';
 
             const posts = await getScheduledPosts();
             posts.push(postData);
+
+            // إذا طلب المستخدم تكرار المنشور مسبقاً على جدول ومخطط المواعيد مباشرة
+            const repeatGridCount = parseInt(req.body.repeatGridCount, 10) || 0;
+            if (postData.isRecurring && repeatGridCount > 0) {
+                let lastTime = postData.scheduledTime;
+                for (let r = 1; r <= repeatGridCount; r++) {
+                    const nextTime = calculateNextScheduledTime(lastTime, postData.repeatInterval, postData.repeatEvery);
+                    lastTime = nextTime;
+                    const repeatedPost = {
+                        ...postData,
+                        id: 'post_' + (Date.now() + r) + '_' + Math.random().toString(36).substr(2, 5),
+                        scheduledTime: nextTime,
+                        status: 'PENDING',
+                        isRecurring: false,
+                        createdAt: new Date().toISOString()
+                    };
+                    posts.push(repeatedPost);
+                }
+                console.log(`[Repeat on Grid] تم إنشاء ${repeatGridCount} منشورات مكررة على الجدول مباشرة.`);
+            }
+
             await saveScheduledPosts(posts);
 
             return res.json({
                 success: true,
-                message: 'تم حفظ المنشور في جدول الانتظار السحابي بنجاح!',
+                message: repeatGridCount > 0 
+                    ? `تم حفظ المنشور وتكراره لـ ${repeatGridCount} مواعيد قادمة على الجدول مباشرة!`
+                    : 'تم حفظ المنشور في جدول الانتظار السحابي بنجاح!',
                 post: postData
             });
         }
@@ -2686,7 +3389,16 @@ app.get('/api/scheduled', async (req, res) => {
 app.put('/api/scheduled/:id', async (req, res) => {
     try {
         const id = req.params.id;
-        const { content, scheduledTime, customCaptions, firstComment, comments } = req.body;
+        const { 
+            content, 
+            scheduledTime, 
+            customCaptions, 
+            firstComment, 
+            comments,
+            platforms,
+            facebookPlacements,
+            instagramPlacements
+        } = req.body;
         const posts = await getScheduledPosts();
         const post = posts.find(p => p.id === id);
 
@@ -2699,9 +3411,62 @@ app.put('/api/scheduled/:id', async (req, res) => {
         if (firstComment !== undefined) post.firstComment = firstComment;
         if (comments !== undefined) post.comments = comments;
 
+        // تعديل المنصات المستهدفة
+        if (platforms !== undefined) {
+            let parsedPlats = platforms;
+            if (typeof parsedPlats === 'string') {
+                try { parsedPlats = JSON.parse(parsedPlats); } catch { parsedPlats = [parsedPlats]; }
+            }
+            if (Array.isArray(parsedPlats)) {
+                post.platforms = parsedPlats;
+            }
+        }
+
+        // تعديل أماكن النشر على فيسبوك (بوست / ستوري)
+        if (facebookPlacements !== undefined) {
+            let parsedFb = facebookPlacements;
+            if (typeof parsedFb === 'string') {
+                try { parsedFb = JSON.parse(parsedFb); } catch { parsedFb = [parsedFb]; }
+            }
+            if (Array.isArray(parsedFb)) {
+                post.facebookPlacements = parsedFb;
+            }
+        }
+
+        // تعديل أماكن النشر على انستجرام (بوست / ستوري)
+        if (instagramPlacements !== undefined) {
+            let parsedIg = instagramPlacements;
+            if (typeof parsedIg === 'string') {
+                try { parsedIg = JSON.parse(parsedIg); } catch { parsedIg = [parsedIg]; }
+            }
+            if (Array.isArray(parsedIg)) {
+                post.instagramPlacements = parsedIg;
+            }
+        }
+
+        // تعديل إعدادات تكرار المنشور
+        if (req.body.isRecurring !== undefined) post.isRecurring = req.body.isRecurring === 'true' || req.body.isRecurring === true;
+        if (req.body.repeatInterval !== undefined) post.repeatInterval = req.body.repeatInterval;
+        if (req.body.repeatEvery !== undefined) post.repeatEvery = parseInt(req.body.repeatEvery, 10) || 1;
+
         // إذا كان مجدولاً، يمكن تعديل وقت الجدولة
         if (post.status === 'PENDING' && scheduledTime) {
-            post.scheduledTime = scheduledTime;
+            let normalizedTime = scheduledTime;
+            if (typeof scheduledTime === 'string') {
+                if (!scheduledTime.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(scheduledTime)) {
+                    const offsetMinutes = parseInt(req.body.timezoneOffset, 10);
+                    if (!isNaN(offsetMinutes)) {
+                        const localMs = new Date(scheduledTime + 'Z').getTime();
+                        const utcDate = new Date(localMs + offsetMinutes * 60 * 1000);
+                        if (!isNaN(utcDate.getTime())) normalizedTime = utcDate.toISOString();
+                    } else {
+                        const localMs = new Date(scheduledTime + 'Z').getTime();
+                        const utcDate = new Date(localMs - 3 * 60 * 60 * 1000);
+                        if (!isNaN(utcDate.getTime())) normalizedTime = utcDate.toISOString();
+                    }
+                }
+            }
+            post.scheduledTime = normalizedTime;
         }
 
         // إذا كان تم نشره، محاولة تحديث نصه مباشرة على فيسبوك
@@ -2772,10 +3537,101 @@ app.delete('/api/scheduled/:id', async (req, res) => {
         }
 
         posts = posts.filter(p => p.id !== id);
+        if (supabaseAdmin) {
+            try {
+                await supabaseAdmin.from('scheduled_posts').delete().eq('id', id);
+            } catch (supaErr) {
+                console.warn('Error deleting post from Supabase:', supaErr.message);
+            }
+        }
         await saveScheduledPosts(posts);
         res.json({ success: true, message: deleteFromMeta ? 'تم حذف المنشور من السجل ومن السوشيال ميديا بنجاح.' : 'تم حذف المنشور من جدول المواعيد.' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'تعذر حذف المنشور.' });
+    }
+});
+
+// 5.5 مسار تكرار المنشور المجدول على جدول ومخطط المواعيد (Repeat Scheduled Post on Schedule Grid)
+app.post('/api/scheduled/repeat', async (req, res) => {
+    try {
+        const { postId, daysCount, intervalDays, targetDates, targetTime, timezoneOffset } = req.body;
+        if (!postId) {
+            return res.status(400).json({ success: false, message: 'معرف المنشور مطلوب للتكرار.' });
+        }
+
+        const posts = await getScheduledPosts();
+        const basePost = posts.find(p => String(p.id) === String(postId));
+        if (!basePost) {
+            return res.status(404).json({ success: false, message: 'المنشور المطلوب تكراره غير موجود.' });
+        }
+
+        const baseTimeIso = basePost.scheduledTime || basePost.publishedAt || basePost.createdAt || new Date().toISOString();
+        const baseDate = new Date(baseTimeIso);
+
+        const newPosts = [];
+        let scheduledTimes = [];
+
+        if (Array.isArray(targetDates) && targetDates.length > 0) {
+            for (const dStr of targetDates) {
+                const [y, m, day] = dStr.split('-').map(Number);
+                let d = new Date(baseDate);
+                d.setUTCFullYear(y, m - 1, day);
+
+                if (targetTime && typeof targetTime === 'string' && targetTime.includes(':')) {
+                    const [h, min] = targetTime.split(':').map(Number);
+                    const offset = parseInt(timezoneOffset, 10);
+                    if (!isNaN(offset)) {
+                        const localD = new Date(Date.UTC(y, m - 1, day, h, min, 0));
+                        d = new Date(localD.getTime() + offset * 60 * 1000);
+                    } else {
+                        d.setUTCHours(h, min, 0, 0);
+                    }
+                }
+                scheduledTimes.push(d.toISOString());
+            }
+        } else {
+            const count = Math.min(Math.max(parseInt(daysCount, 10) || 1, 1), 60);
+            const step = Math.max(parseInt(intervalDays, 10) || 1, 1);
+
+            let current = new Date(baseDate);
+            for (let i = 0; i < count; i++) {
+                current = new Date(current);
+                current.setUTCDate(current.getUTCDate() + step);
+                scheduledTimes.push(current.toISOString());
+            }
+        }
+
+        for (let i = 0; i < scheduledTimes.length; i++) {
+            const timeIso = scheduledTimes[i];
+            const newId = 'post_' + (Date.now() + i) + '_' + Math.random().toString(36).substr(2, 5);
+            const clone = {
+                ...basePost,
+                id: newId,
+                scheduledTime: timeIso,
+                status: 'PENDING',
+                isRecurring: false,
+                createdAt: new Date().toISOString()
+            };
+            delete clone.publishedAt;
+            delete clone.publishResults;
+
+            newPosts.push(clone);
+            posts.push(clone);
+        }
+
+        await saveScheduledPosts(posts);
+
+        console.log(`[Repeat on Grid] تم تكرار المنشور ${postId} لـ ${newPosts.length} مواعيد جديدة على الجدول بنجاح.`);
+
+        return res.json({
+            success: true,
+            message: `تم تكرار المنشور على الجدول بنجاح لـ ${newPosts.length} موعد قادم!`,
+            count: newPosts.length,
+            posts: newPosts
+        });
+    } catch (err) {
+        console.error('Error repeating post on schedule grid:', err);
+        return res.status(500).json({ success: false, message: 'حدث خطأ أثناء تكرار المنشور: ' + err.message });
     }
 });
 
@@ -2828,7 +3684,9 @@ app.post('/api/posts/sync-page', async (req, res) => {
     }
 });
 
-// 5. مسار تنفيذ الجدولة التلقائية لـ Vercel Cron (GET /api/cron)
+// 5. مسار تنفيذ الجدولة التلقائية لـ Vercel Cron (GET /api/cron) مع قفل مانع للتكرار
+const activePublishingIds = new Set();
+
 app.get('/api/cron', async (req, res) => {
     console.log('[⏰ Vercel Cron] فحص المنشورات المجدولة...');
     try {
@@ -2839,15 +3697,103 @@ app.get('/api/cron', async (req, res) => {
 
         for (const post of posts) {
             if (post.status === 'PENDING' && new Date(post.scheduledTime) <= now) {
-                console.log(`[⏰ Cron] نشر البوست المستحق: ${post.id}`);
+                // 1. قفل فوري في الذاكرة لمنع تكرار النشر في نفس العملية
+                if (activePublishingIds.has(post.id)) {
+                    console.log(`[⏰ Cron Lock] المنشور ${post.id} قيد المعالجة حالياً، تم تخطيه.`);
+                    continue;
+                }
+                activePublishingIds.add(post.id);
+
+                // 2. قفل ذري في Supabase لمنع أي خادم أو طلب متزامن من النشر المزدوج
+                if (supabaseAdmin) {
+                    try {
+                        const { data: lockRows, error: lockErr } = await supabaseAdmin
+                            .from('scheduled_posts')
+                            .update({ status: 'PROCESSING' })
+                            .eq('id', post.id)
+                            .eq('status', 'PENDING')
+                            .select('id');
+
+                        if (lockErr || !lockRows || lockRows.length === 0) {
+                            console.log(`[⏰ DB Lock] تم التقاط المنشور ${post.id} بواسطة طلب متزامن آخر، تم التخطي بأمان.`);
+                            activePublishingIds.delete(post.id);
+                            continue;
+                        }
+                    } catch (lockEx) {
+                        console.warn('[⏰ Lock DB Note]:', lockEx.message);
+                    }
+                }
+
+                post.status = 'PROCESSING';
+                console.log(`[⏰ Cron] معالجة البوست المستحق: ${post.id}`);
+
                 try {
-                    await executePublish(post);
+                    // فحص اشتراك المستخدم صاحب البوست
+                    if (post.userId && supabaseAdmin) {
+                        try {
+                            const { data: uRow } = await supabaseAdmin
+                                .from('user_profiles')
+                                .select('email, status, auto_reply_config')
+                                .eq('id', post.userId)
+                                .maybeSingle();
+
+                            if (uRow && uRow.email !== 'raslan.meet@gmail.com') {
+                                const uStatus = uRow.status || uRow.auto_reply_config?.account_status || 'pending';
+                                const sub = uRow.auto_reply_config?.subscription;
+                                const isExpired = sub?.expires_at && new Date(sub.expires_at) <= now;
+
+                                if (uStatus !== 'active' || isExpired) {
+                                    console.warn(`[⏰ Cron] تم إلغاء نشر المنشور ${post.id} لأن حساب المستخدم (${uRow.email}) معلق أو اشتراكه منتهٍ.`);
+                                    post.status = 'CANCELLED';
+                                    post.error = 'تم إلغاء النشر لعدم وجود اشتراك نشط.';
+                                    updated = true;
+                                    continue;
+                                }
+                            }
+                        } catch (chkErr) {
+                            console.warn('[⏰ Cron] خطأ فحص اشتراك المستخدم:', chkErr.message);
+                        }
+                    }
+
+                    const results = await executePublish(post);
                     post.status = 'PUBLISHED';
                     post.publishedAt = now.toISOString();
+                    post.publishResults = results;
+                    if (results?.facebook?.post_id || results?.facebook?.id) {
+                        const fbId = results.facebook.post_id || results.facebook.id;
+                        const cleanId = String(fbId).includes('_') ? String(fbId).split('_')[1] : fbId;
+                        post.postUrl = `https://www.facebook.com/RaslansMarketing/posts/${cleanId}`;
+                    }
+
+                    // إذا كان المنشور معداً للتكرار (Recurring Post)، يتم جدولة النسخة القادمة فورياً
+                    if (post.isRecurring && post.repeatInterval && post.repeatInterval !== 'none') {
+                        const nextScheduledIso = calculateNextScheduledTime(post.scheduledTime || post.publishedAt, post.repeatInterval, post.repeatEvery);
+                        const nextPost = {
+                            ...post,
+                            id: 'post_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                            status: 'PENDING',
+                            scheduledTime: nextScheduledIso,
+                            publishedAt: null,
+                            publishResults: null,
+                            postUrl: null,
+                            groups_auto_shared: false,
+                            groups_shared_at: null,
+                            groups_shared_count: 0,
+                            createdAt: new Date().toISOString()
+                        };
+                        posts.push(nextPost);
+                        console.log(`🔄 [Cron تكرار] تم إنشاء الجدولة القادمة للمنشور ${post.id} بتاريخ: ${nextScheduledIso} (${post.repeatInterval})`);
+                    }
+
                     updated = true;
                     publishedCount++;
                 } catch (err) {
                     console.error('Error in Cron publishing:', err);
+                    post.status = 'FAILED';
+                    post.error = err.message;
+                    updated = true;
+                } finally {
+                    activePublishingIds.delete(post.id);
                 }
             }
         }
@@ -3000,10 +3946,13 @@ async function executePublish(post) {
         if (results.instagram?.id) postCaptionsCache.set(results.instagram.id, fullCaption);
     }
 
-    // إرسال إشعار التيليجرام الفوري مع أزرار النشر في الجروبات
-    sendTelegramGroupNotification(post, results, post.userId).catch(e => {
-        console.warn('[Telegram Dispatch Warning]:', e.message);
-    });
+    // إرسال إشعار التيليجرام الفوري مع أزرار النشر في الجروبات فقط إذا تم النشر الفعلي بنجاح
+    const hasPublished = !!(results.facebook?.success || results.instagram?.success);
+    if (hasPublished) {
+        sendTelegramGroupNotification(post, results, post.userId).catch(e => {
+            console.warn('[Telegram Dispatch Warning]:', e.message);
+        });
+    }
 
     return results;
 }
@@ -3481,13 +4430,63 @@ if (!process.env.VERCEL) {
             for (const post of posts) {
                 if (post.status === 'PENDING' && new Date(post.scheduledTime) <= now) {
                     console.log(`[⏰ منبه الجدولة المحلي] حان وقت نشر البوست: ${post.id}`);
+
+                    // فحص اشتراك المستخدم
+                    if (post.userId && supabaseAdmin) {
+                        try {
+                            const { data: uRow } = await supabaseAdmin
+                                .from('user_profiles')
+                                .select('email, status, auto_reply_config')
+                                .eq('id', post.userId)
+                                .maybeSingle();
+
+                            if (uRow && uRow.email !== 'raslan.meet@gmail.com') {
+                                const uStatus = uRow.status || uRow.auto_reply_config?.account_status || 'pending';
+                                const sub = uRow.auto_reply_config?.subscription;
+                                const isExpired = sub?.expires_at && new Date(sub.expires_at) <= now;
+
+                                if (uStatus !== 'active' || isExpired) {
+                                    console.warn(`[⏰ محلي] تم إلغاء نشر المنشور ${post.id} لعدم وجود اشتراك نشط.`);
+                                    post.status = 'CANCELLED';
+                                    post.error = 'تم إلغاء النشر لعدم وجود اشتراك نشط.';
+                                    updated = true;
+                                    continue;
+                                }
+                            }
+                        } catch (chkErr) {}
+                    }
+
                     try {
                         await executePublish(post);
                         post.status = 'PUBLISHED';
                         post.publishedAt = now.toISOString();
+
+                        // إذا كان المنشور معداً للتكرار (Recurring Post)، يتم جدولة النسخة القادمة فورياً
+                        if (post.isRecurring && post.repeatInterval && post.repeatInterval !== 'none') {
+                            const nextScheduledIso = calculateNextScheduledTime(post.scheduledTime || post.publishedAt, post.repeatInterval, post.repeatEvery);
+                            const nextPost = {
+                                ...post,
+                                id: 'post_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                                status: 'PENDING',
+                                scheduledTime: nextScheduledIso,
+                                publishedAt: null,
+                                publishResults: null,
+                                postUrl: null,
+                                groups_auto_shared: false,
+                                groups_shared_at: null,
+                                groups_shared_count: 0,
+                                createdAt: new Date().toISOString()
+                            };
+                            posts.push(nextPost);
+                            console.log(`🔄 [Local تكرار] تم إنشاء الجدولة القادمة للمنشور ${post.id} بتاريخ: ${nextScheduledIso} (${post.repeatInterval})`);
+                        }
+
                         updated = true;
                     } catch (err) {
                         console.error('Error publishing scheduled post:', err);
+                        post.status = 'FAILED';
+                        post.error = err.message;
+                        updated = true;
                     }
                 }
             }

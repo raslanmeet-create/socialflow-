@@ -91,11 +91,13 @@ const tabBtnComposer = document.getElementById('tabBtnComposer');
 const tabBtnPlanner = document.getElementById('tabBtnPlanner');
 const tabBtnAutoReply = document.getElementById('tabBtnAutoReply');
 const tabBtnTelegramGroups = document.getElementById('tabBtnTelegramGroups');
+const tabBtnAdmin = document.getElementById('tabBtnAdmin');
 const plannerBadgeCount = document.getElementById('plannerBadgeCount');
 const composerSection = document.getElementById('composerSection');
 const plannerSection = document.getElementById('plannerSection');
 const autoReplySection = document.getElementById('autoReplySection');
 const telegramGroupsSection = document.getElementById('telegramGroupsSection');
+const adminSection = document.getElementById('adminSection');
 
 // عناصر الرد التلقائي الذكي (AI Auto-Reply Bot)
 const autoReplyMasterToggle = document.getElementById('toggleAutoReplyMaster') || document.getElementById('autoReplyMasterToggle');
@@ -158,6 +160,25 @@ const groqKeyStatusMsg = document.getElementById('groqKeyStatusMsg');
 const checkLikeComment = document.getElementById('checkLikeComment');
 const checkReplyComment = document.getElementById('checkReplyComment');
 const checkSendDm = document.getElementById('checkSendDm');
+const checkHideComment = document.getElementById('checkHideComment');
+
+// عناصر تكرار المنشور المجدول
+const checkRepeatPost = document.getElementById('checkRepeatPost');
+const repeatOptions = document.getElementById('repeatOptions');
+const repeatInterval = document.getElementById('repeatInterval');
+const customDaysWrapper = document.getElementById('customDaysWrapper');
+const repeatCustomDays = document.getElementById('repeatCustomDays');
+
+if (checkRepeatPost) {
+    checkRepeatPost.addEventListener('change', () => {
+        if (repeatOptions) repeatOptions.style.display = checkRepeatPost.checked ? 'flex' : 'none';
+    });
+}
+if (repeatInterval) {
+    repeatInterval.addEventListener('change', () => {
+        if (customDaysWrapper) customDaysWrapper.style.display = repeatInterval.value === 'custom_days' ? 'inline-flex' : 'none';
+    });
+}
 
 const simSenderName = document.getElementById('simSenderName');
 const simPostCaption = document.getElementById('simPostCaption');
@@ -970,7 +991,30 @@ postForm.addEventListener('submit', async (e) => {
         });
     }
     if (isScheduled) {
-        formData.append('scheduledTime', scheduleTime);
+        let isoScheduledTime = scheduleTime;
+        try {
+            const d = new Date(scheduleTime);
+            if (!isNaN(d.getTime())) {
+                isoScheduledTime = d.toISOString();
+            }
+        } catch {}
+        formData.append('scheduledTime', isoScheduledTime);
+        formData.append('timezoneOffset', new Date().getTimezoneOffset());
+
+        if (checkRepeatPost && checkRepeatPost.checked) {
+            formData.append('isRecurring', 'true');
+            formData.append('repeatInterval', repeatInterval ? repeatInterval.value : 'daily');
+            formData.append('repeatEvery', (repeatInterval && repeatInterval.value === 'custom_days' && repeatCustomDays) ? repeatCustomDays.value : '1');
+            const checkGridDirectly = document.getElementById('checkRepeatOnGridDirectly');
+            const gridCountInput = document.getElementById('repeatGridCountInput');
+            if (checkGridDirectly && checkGridDirectly.checked) {
+                formData.append('repeatGridCount', gridCountInput ? gridCountInput.value : '3');
+            }
+        } else {
+            formData.append('isRecurring', 'false');
+            formData.append('repeatInterval', 'none');
+            formData.append('repeatEvery', '1');
+        }
     }
     if (croppedImageBlob) {
         formData.append('media', croppedImageBlob, selectedMediaFile ? selectedMediaFile.name : 'post-image.jpg');
@@ -1164,39 +1208,32 @@ async function loadScheduledPosts() {
                         return `<span class="platform-mini-badge">${p}</span>`;
                     }).join(' ');
 
+                    let recurringBadge = '';
+                    if (post.isRecurring && post.repeatInterval && post.repeatInterval !== 'none') {
+                        const intvMap = {
+                            daily: 'تكرار يومي',
+                            weekly: 'تكرار أسبوعي',
+                            monthly: 'تكرار شهري',
+                            custom_days: `تكرار كل ${post.repeatEvery || 1} أيام`
+                        };
+                        recurringBadge = ` <span class="platform-mini-badge recurring" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">🔄 ${intvMap[post.repeatInterval] || post.repeatInterval}</span>`;
+                    }
+
                     item.innerHTML = `
                         <div class="scheduled-info">
                             <div class="scheduled-date">⏰ ${dateStr}</div>
                             <div class="scheduled-snippet">${post.content || (post.mediaUrl ? '📁 وسائط بدون نص' : '')}</div>
-                            <div class="scheduled-platforms">${platformsBadges}</div>
+                            <div class="scheduled-platforms">${platformsBadges}${recurringBadge}</div>
                         </div>
                         <div class="scheduled-item-actions">
-                            <button type="button" class="btn-quick-preview-list" data-id="${post.id}" title="معاينة تفاصيل المنشور">👁️</button>
-                            <button type="button" class="btn-delete-scheduled" data-id="${post.id}" title="إلغاء المنشور">🗑️</button>
+                            <button type="button" class="btn-quick-repeat-list" onclick="event.stopPropagation(); window.openRepeatPostModalById('${post.id}')" title="🔁 تكرار على الجدول" style="background: rgba(46,160,67,0.15); border: 1px solid rgba(46,160,67,0.4); color: #3fb950; font-size: 13px; cursor: pointer; padding: 4px 8px; border-radius: 6px;">🔁</button>
+                            <button type="button" class="btn-quick-preview-list" onclick="event.stopPropagation(); window.openPostPreviewModalById('${post.id}')" title="معاينة تفاصيل المنشور">👁️</button>
+                            <button type="button" class="btn-quick-edit-list" onclick="event.stopPropagation(); window.openEditPostModalById('${post.id}')" title="تعديل المنشور">✏️</button>
+                            <button type="button" class="btn-delete-scheduled" onclick="event.stopPropagation(); window.handleDeletePostById('${post.id}')" title="إلغاء المنشور">🗑️</button>
                         </div>
                     `;
 
                     scheduledList.appendChild(item);
-                });
-
-                // ربط أزرار المعاينة بالقائمة الجانبية
-                document.querySelectorAll('.btn-quick-preview-list').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        const id = e.currentTarget.dataset.id;
-                        const post = cachedScheduledPosts.find(p => p.id === id);
-                        if (post) openPostPreviewModal(post);
-                    });
-                });
-
-                // ربط أزرار الحذف بالقائمة الجانبية
-                document.querySelectorAll('.btn-delete-scheduled').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        const id = e.currentTarget.dataset.id;
-                        if (confirm('هل أنت متأكد من إلغاء هذا المنشور المجدول؟')) {
-                            await fetch(`/api/scheduled/${id}`, { method: 'DELETE' });
-                            loadScheduledPosts();
-                        }
-                    });
                 });
             }
         }
@@ -1213,17 +1250,19 @@ async function loadScheduledPosts() {
 // نظام التبويبات والمخطط الأسبوعي التفاعلي (Meta Planner)
 // ========================================================
 
-// 1. دالة التبديل بين التبويبات الأربعة
+// 1. دالة التبديل بين التبويبات
 function switchTab(tabName) {
     if (tabBtnComposer) tabBtnComposer.classList.remove('active');
     if (tabBtnPlanner) tabBtnPlanner.classList.remove('active');
     if (tabBtnAutoReply) tabBtnAutoReply.classList.remove('active');
     if (tabBtnTelegramGroups) tabBtnTelegramGroups.classList.remove('active');
+    if (tabBtnAdmin) tabBtnAdmin.classList.remove('active');
 
     if (composerSection) composerSection.style.display = 'none';
     if (plannerSection) plannerSection.style.display = 'none';
     if (autoReplySection) autoReplySection.style.display = 'none';
     if (telegramGroupsSection) telegramGroupsSection.style.display = 'none';
+    if (adminSection) adminSection.style.display = 'none';
 
     if (tabName === 'planner') {
         if (tabBtnPlanner) tabBtnPlanner.classList.add('active');
@@ -1248,6 +1287,13 @@ function switchTab(tabName) {
         }
         loadTelegramConfigUI();
         loadTargetGroupsUI();
+    } else if (tabName === 'admin') {
+        if (tabBtnAdmin) tabBtnAdmin.classList.add('active');
+        if (adminSection) {
+            adminSection.style.display = 'block';
+            adminSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        loadAdminUsersUI();
     } else {
         if (tabBtnComposer) tabBtnComposer.classList.add('active');
         if (composerSection) {
@@ -1262,6 +1308,7 @@ if (tabBtnComposer) tabBtnComposer.addEventListener('click', () => switchTab('co
 if (tabBtnPlanner) tabBtnPlanner.addEventListener('click', () => switchTab('planner'));
 if (tabBtnAutoReply) tabBtnAutoReply.addEventListener('click', () => switchTab('autoreply'));
 if (tabBtnTelegramGroups) tabBtnTelegramGroups.addEventListener('click', () => switchTab('telegram-groups'));
+if (tabBtnAdmin) tabBtnAdmin.addEventListener('click', () => switchTab('admin'));
 if (btnOpenPlannerCta) btnOpenPlannerCta.addEventListener('click', () => switchTab('planner'));
 
 // زر إضافة سريعة من رأس المخطط
@@ -1541,35 +1588,18 @@ function renderMetaPlanner() {
                             <p class="chip-text">${snippet}</p>
                         </div>
                         <div class="chip-actions">
-                            <button type="button" class="btn-chip-action btn-chip-view" title="معاينة كاملة">👁️</button>
-                            <button type="button" class="btn-chip-action btn-chip-edit" title="تعديل المنشور">✏️</button>
-                            <button type="button" class="btn-chip-action delete btn-chip-del" title="حذف المنشور">🗑️</button>
+                            <button type="button" class="btn-chip-action repeat btn-chip-repeat" onclick="event.stopPropagation(); window.openRepeatPostModalById('${post.id}')" title="🔁 تكرار على الجدول">🔁</button>
+                            <button type="button" class="btn-chip-action btn-chip-view" onclick="event.stopPropagation(); window.openPostPreviewModalById('${post.id}')" title="معاينة كاملة">👁️</button>
+                            <button type="button" class="btn-chip-action btn-chip-edit" onclick="event.stopPropagation(); window.openEditPostModalById('${post.id}')" title="تعديل المنشور">✏️</button>
+                            <button type="button" class="btn-chip-action delete btn-chip-del" onclick="event.stopPropagation(); window.handleDeletePostById('${post.id}')" title="حذف المنشور">🗑️</button>
                         </div>
                     `;
 
-                    // عند الضغط على الكارت تفتح المعاينة
+                    // عند الضغط على الكارت بالكامل تفتح المعاينة
                     chip.addEventListener('click', (e) => {
-                        if (e.target.closest('.btn-chip-edit') || e.target.closest('.btn-chip-del')) return;
+                        if (e.target.closest('.btn-chip-action')) return;
                         openPostPreviewModal(post);
                     });
-
-                    // زر التعديل السريع
-                    const editBtn = chip.querySelector('.btn-chip-edit');
-                    if (editBtn) {
-                        editBtn.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            openEditPostModal(post);
-                        });
-                    }
-
-                    // زر الحذف
-                    const delBtn = chip.querySelector('.btn-chip-del');
-                    if (delBtn) {
-                        delBtn.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            handleDeletePost(post);
-                        });
-                    }
 
                     slotCell.appendChild(chip);
                 });
@@ -1596,114 +1626,236 @@ function renderMetaPlanner() {
     }
 }
 
+// دوال الوصول السريع العامة للنقر المباشر من الواجهة
+window.openPostPreviewModalById = function(id) {
+    console.log('[Meta Planner] Opening preview for post id:', id);
+    const post = (cachedScheduledPosts || []).find(p => String(p.id) === String(id));
+    if (post) {
+        openPostPreviewModal(post);
+    } else {
+        console.warn('[Meta Planner] Post not found in cache for id:', id);
+    }
+};
+
+window.openEditPostModalById = function(id) {
+    console.log('[Meta Planner] Opening edit for post id:', id);
+    const post = (cachedScheduledPosts || []).find(p => String(p.id) === String(id));
+    if (post) {
+        openEditPostModal(post);
+    } else {
+        console.warn('[Meta Planner] Post not found in cache for id:', id);
+    }
+};
+
+window.handleDeletePostById = function(id) {
+    const post = (cachedScheduledPosts || []).find(p => String(p.id) === String(id));
+    if (post) {
+        handleDeletePost(post);
+    }
+};
+
 // 6. نافذة تفاصيل ومعاينة المنشور (Post Preview Modal)
 function openPostPreviewModal(post) {
-    if (!postPreviewModal || !previewModalBody) return;
-    activePreviewPostId = post.id;
+    try {
+        if (!post) {
+            console.warn('[openPostPreviewModal] No post provided');
+            return;
+        }
+        const modalEl = document.getElementById('postPreviewModal');
+        const bodyEl = document.getElementById('previewModalBody');
+        if (!modalEl || !bodyEl) {
+            console.error('[openPostPreviewModal] Modal DOM elements missing');
+            return;
+        }
+        activePreviewPostId = post.id;
 
-    const targetTime = post.scheduledTime || post.publishedAt || post.createdAt;
-    const postDate = new Date(targetTime);
-    const dateFormatted = formatArabicSlot(postDate);
-    const isPublished = post.status === 'PUBLISHED';
+        const targetTime = post.scheduledTime || post.publishedAt || post.createdAt || new Date();
+        const postDate = new Date(targetTime);
+        const dateFormatted = !isNaN(postDate.getTime()) ? formatArabicSlot(postDate) : 'توقيت غير محدد';
+        const isPublished = post.status === 'PUBLISHED';
 
-    if (previewModalTitle) {
-        previewModalTitle.textContent = isPublished ? 'معاينة منشور تم نشره' : 'معاينة منشور مجدول بالسحابة';
-    }
-    if (previewModalSubtitle) {
-        previewModalSubtitle.textContent = `توقيت النشر: ${dateFormatted} (${isPublished ? '✅ تم النشر' : '⏳ قيد الانتظار'})`;
-    }
+        const titleEl = document.getElementById('previewModalTitle');
+        const subtitleEl = document.getElementById('previewModalSubtitle');
+        if (titleEl) {
+            titleEl.textContent = isPublished ? 'معاينة منشور تم نشره' : 'معاينة منشور مجدول بالسحابة';
+        }
+        if (subtitleEl) {
+            subtitleEl.textContent = `توقيت النشر: ${dateFormatted} (${isPublished ? '✅ تم النشر' : '⏳ قيد الانتظار'})`;
+        }
 
-    const isFb = (post.platforms || []).includes('facebook');
-    const isIg = (post.platforms || []).includes('instagram');
-    const platformsText = `${isFb ? '📘 فيسبوك' : ''} ${isIg ? '📸 انستجرام' : ''}`;
+        const isFb = (post.platforms || []).includes('facebook');
+        const isIg = (post.platforms || []).includes('instagram');
 
-    let mediaHtml = '';
-    if (post.mediaUrl) {
-        const isVideo = post.mediaType && post.mediaType.startsWith('video');
-        if (isVideo) {
-            mediaHtml = `
-                <div class="preview-media-frame">
-                    <video src="${post.mediaUrl}" controls></video>
+        const fbPlacements = Array.isArray(post.facebookPlacements) && post.facebookPlacements.length > 0
+            ? post.facebookPlacements
+            : (isFb ? ['feed'] : []);
+        const igPlacements = Array.isArray(post.instagramPlacements) && post.instagramPlacements.length > 0
+            ? post.instagramPlacements
+            : (isIg ? ['feed'] : []);
+
+        const hasFbFeed = fbPlacements.includes('feed');
+        const hasFbStory = fbPlacements.includes('story');
+        const hasIgFeed = igPlacements.includes('feed');
+        const hasIgStory = igPlacements.includes('story');
+
+        let platformsCardsHtml = '';
+        if (!isFb && !isIg) {
+            platformsCardsHtml = `
+                <div class="preview-platform-card">
+                    <span class="preview-pill-tag none">⚠️ لم يتم تحديد منصة</span>
                 </div>
             `;
         } else {
-            mediaHtml = `
-                <div class="preview-media-frame">
-                    <img src="${post.mediaUrl}" alt="Media Preview">
+            if (isFb) {
+                platformsCardsHtml += `
+                    <div class="preview-platform-card facebook">
+                        <span class="platform-badge-title">📘 Facebook:</span>
+                        <div class="preview-tags-list">
+                            ${hasFbFeed ? '<span class="preview-pill-tag feed">📝 بوست (Feed)</span>' : ''}
+                            ${hasFbStory ? '<span class="preview-pill-tag story">📸 ستوري (Story)</span>' : ''}
+                            ${(!hasFbFeed && !hasFbStory) ? '<span class="preview-pill-tag none">تلقائي</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            if (isIg) {
+                platformsCardsHtml += `
+                    <div class="preview-platform-card instagram">
+                        <span class="platform-badge-title">📸 Instagram:</span>
+                        <div class="preview-tags-list">
+                            ${hasIgFeed ? '<span class="preview-pill-tag feed">📝 بوست (Feed)</span>' : ''}
+                            ${hasIgStory ? '<span class="preview-pill-tag story">📸 ستوري (Story)</span>' : ''}
+                            ${(!hasIgFeed && !hasIgStory) ? '<span class="preview-pill-tag none">تلقائي</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        let mediaHtml = '';
+        if (post.mediaUrl) {
+            const isVideo = post.mediaType && post.mediaType.startsWith('video');
+            if (isVideo) {
+                mediaHtml = `
+                    <div class="preview-media-frame">
+                        <video src="${post.mediaUrl}" controls style="max-width:100%;border-radius:8px;"></video>
+                    </div>
+                `;
+            } else {
+                mediaHtml = `
+                    <div class="preview-media-frame">
+                        <img src="${post.mediaUrl}" alt="Media Preview" style="max-width:100%;border-radius:8px;">
+                    </div>
+                `;
+            }
+        }
+
+        let firstCommentHtml = '';
+        if (Array.isArray(post.comments) && post.comments.length > 0) {
+            const validComments = post.comments.filter(Boolean);
+            if (validComments.length > 0) {
+                firstCommentHtml = `
+                    <div class="preview-first-comment-box" style="margin-top:14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;padding:12px;">
+                        <strong style="color:var(--accent);display:block;margin-bottom:8px;">💬 التعليقات التلقائية المتتابعة (${validComments.length}):</strong>
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            ${validComments.map((c, i) => {
+                                const commentText = typeof c === 'string' ? c : (c?.text || '');
+                                const commentImg = (typeof c === 'object' && c) ? c.imageUrl : null;
+                                return `
+                                <div style="background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:13px;">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                                        <span style="color:#58a6ff;font-weight:700;font-size:12px;">تعليق #${i + 1}</span>
+                                        ${commentImg ? '<span style="font-size:11px;color:#3fb950;">📸 صورة مرفقة</span>' : ''}
+                                    </div>
+                                    ${commentText ? `<p style="margin:0;color:var(--text-primary);line-height:1.4;">${commentText}</p>` : ''}
+                                    ${commentImg ? `<div style="margin-top:6px;"><img src="${commentImg}" style="max-height:90px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>` : ''}
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        } else if (post.firstComment) {
+            firstCommentHtml = `
+                <div class="preview-first-comment-box" style="margin-top:14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;padding:12px;">
+                    <strong style="color:var(--accent);display:block;margin-bottom:4px;">💬 التعليق الأول التلقائي:</strong>
+                    <p style="margin:0;color:var(--text-primary);font-size:13px;line-height:1.4;">${post.firstComment}</p>
                 </div>
             `;
         }
-    }
 
-    let firstCommentHtml = '';
-    if (Array.isArray(post.comments) && post.comments.length > 0) {
-        firstCommentHtml = `
-            <div class="preview-first-comment-box" style="margin-top:14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;padding:12px;">
-                <strong style="color:var(--accent);display:block;margin-bottom:8px;">💬 التعليقات التلقائية المتتابعة (${post.comments.length}):</strong>
-                <div style="display:flex;flex-direction:column;gap:8px;">
-                    ${post.comments.map((c, i) => `
-                        <div style="background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:13px;">
-                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                                <span style="color:#58a6ff;font-weight:700;font-size:12px;">تعليق #${i + 1}</span>
-                                ${c.imageUrl ? '<span style="font-size:11px;color:#3fb950;">📸 صورة مرفقة (فيسبوك)</span>' : ''}
-                            </div>
-                            ${c.text ? `<p style="margin:0;color:var(--text-primary);line-height:1.4;">${c.text}</p>` : ''}
-                            ${c.imageUrl ? `<div style="margin-top:6px;"><img src="${c.imageUrl}" style="max-height:90px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>` : ''}
-                        </div>
-                    `).join('')}
+        bodyEl.innerHTML = `
+            <div class="preview-post-card">
+                <div class="preview-meta-row" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div style="font-size:12px;color:var(--text-secondary);">
+                        موعد التنفيذ: <strong style="color:#58a6ff;">${dateFormatted}</strong>
+                    </div>
+                    <div>
+                        <span style="font-size:12px;background:rgba(88,166,255,0.15);color:var(--accent);padding:3px 10px;border-radius:12px;font-weight:600;">
+                            ${isPublished ? '✅ تم النشر' : '⏳ مجدول بالسحابة'}
+                        </span>
+                    </div>
                 </div>
+
+                <!-- بلوك المنصات والستوري المستهدفة -->
+                <div class="preview-platforms-box">
+                    <div class="preview-platforms-label">
+                        <span>🎯 المنصات المستهدفة وطريقة النشر (بوست / ستوري):</span>
+                    </div>
+                    <div class="preview-platforms-row">
+                        ${platformsCardsHtml}
+                    </div>
+                </div>
+
+                <div style="font-size:14px;color:var(--text-primary);white-space:pre-wrap;line-height:1.6;margin:12px 0;">
+                    ${post.content ? post.content : '<em style="color:var(--text-secondary);">منشور وسائط بدون نص</em>'}
+                </div>
+
+                ${mediaHtml}
+                ${firstCommentHtml}
             </div>
         `;
-    } else if (post.firstComment) {
-        firstCommentHtml = `
-            <div class="preview-first-comment-box" style="margin-top:14px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.2);border-radius:8px;padding:12px;">
-                <strong style="color:var(--accent);display:block;margin-bottom:4px;">💬 التعليق الأول التلقائي:</strong>
-                <p style="margin:0;color:var(--text-primary);font-size:13px;line-height:1.4;">${post.firstComment}</p>
-            </div>
-        `;
+
+        const editActionBtn = document.getElementById('btnEditFromPreviewModal');
+        if (editActionBtn) {
+            editActionBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closePostPreviewModal();
+                openEditPostModal(post);
+            };
+        }
+
+        const repeatActionBtn = document.getElementById('btnRepeatFromPreviewModal');
+        if (repeatActionBtn) {
+            repeatActionBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closePostPreviewModal();
+                window.openRepeatPostModalById(post.id);
+            };
+        }
+
+        const deleteActionBtn = document.getElementById('btnDeleteFromPreviewModal');
+        if (deleteActionBtn) {
+            deleteActionBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDeletePost(post);
+            };
+        }
+
+        modalEl.style.setProperty('display', 'flex', 'important');
+        modalEl.style.setProperty('z-index', '100000', 'important');
+    } catch (err) {
+        console.error('Error opening preview modal:', err);
     }
-
-    previewModalBody.innerHTML = `
-        <div class="preview-post-card">
-            <div class="preview-meta-row">
-                <div>
-                    <span style="font-size:13px;color:var(--text-secondary);">المنصات المستهدفة: </span>
-                    <strong style="color:var(--accent);">${platformsText}</strong>
-                </div>
-                <div>
-                    <span style="font-size:12px;background:rgba(88,166,255,0.15);color:var(--accent);padding:3px 10px;border-radius:12px;">
-                        ${isPublished ? '✅ تم النشر' : '⏳ مجدول بالسحابة'}
-                    </span>
-                </div>
-            </div>
-
-            <div style="font-size:14px;color:var(--text-primary);white-space:pre-wrap;line-height:1.6;margin:12px 0;">
-                ${post.content ? post.content : '<em style="color:var(--text-secondary);">منشور وسائط بدون نص</em>'}
-            </div>
-
-            ${mediaHtml}
-            ${firstCommentHtml}
-        </div>
-    `;
-
-    if (btnEditFromPreviewModal) {
-        btnEditFromPreviewModal.onclick = () => {
-            closePostPreviewModal();
-            openEditPostModal(post);
-        };
-    }
-
-    if (btnDeleteFromPreviewModal) {
-        btnDeleteFromPreviewModal.onclick = () => {
-            handleDeletePost(post);
-        };
-    }
-
-    postPreviewModal.style.display = 'flex';
 }
 
 function closePostPreviewModal() {
-    if (postPreviewModal) postPreviewModal.style.display = 'none';
+    const modalEl = document.getElementById('postPreviewModal');
+    if (modalEl) modalEl.style.setProperty('display', 'none', 'important');
     activePreviewPostId = null;
 }
 
@@ -1744,29 +1896,157 @@ async function handleDeletePost(post) {
 
 // دالة فتح نافذة تعديل المنشور
 function openEditPostModal(post) {
-    if (!post || !editPostModal) return;
-    if (editPostId) editPostId.value = post.id;
-    if (editPostContent) editPostContent.value = post.content || '';
+    try {
+        if (!post) {
+            console.warn('[openEditPostModal] No post provided');
+            return;
+        }
+        const modalEl = document.getElementById('editPostModal');
+        if (!modalEl) {
+            console.error('[openEditPostModal] editPostModal not found');
+            return;
+        }
 
-    const isPub = post.status === 'PUBLISHED';
-    if (editScheduleTimeGroup) {
-        editScheduleTimeGroup.style.display = isPub ? 'none' : 'block';
-    }
-    if (editPublishedNote) {
-        editPublishedNote.style.display = isPub ? 'block' : 'none';
-    }
-    if (editScheduledTime && !isPub && post.scheduledTime) {
-        try {
-            const d = new Date(post.scheduledTime);
-            editScheduledTime.value = formatLocalDateTime(d);
-        } catch {}
-    }
+        closePostPreviewModal();
 
-    editPostModal.style.display = 'flex';
+        const idInput = document.getElementById('editPostId');
+        const contentInput = document.getElementById('editPostContent');
+        const timeGroup = document.getElementById('editScheduleTimeGroup');
+        const timeInput = document.getElementById('editScheduledTime');
+        const pubNote = document.getElementById('editPublishedNote');
+
+        if (idInput) idInput.value = post.id;
+        if (contentInput) contentInput.value = post.content || '';
+
+        const isPub = post.status === 'PUBLISHED';
+        if (timeGroup) {
+            timeGroup.style.display = isPub ? 'none' : 'block';
+        }
+        if (pubNote) {
+            pubNote.style.display = isPub ? 'block' : 'none';
+        }
+        if (timeInput && !isPub && post.scheduledTime) {
+            try {
+                const d = new Date(post.scheduledTime);
+                if (!isNaN(d.getTime())) {
+                    timeInput.value = formatLocalDateTime(d);
+                }
+            } catch {}
+        }
+
+        // ضبط واختيار المنصات والستوري في نافذة التعديل
+        const editPlatGroup = document.getElementById('editPlatformsGroup');
+        const editPlatFb = document.getElementById('editPlatFacebook');
+        const editPlatIg = document.getElementById('editPlatInstagram');
+        const editFbFeed = document.getElementById('editFbOptFeed');
+        const editFbStory = document.getElementById('editFbOptStory');
+        const editIgFeed = document.getElementById('editIgOptFeed');
+        const editIgStory = document.getElementById('editIgOptStory');
+        const editCardFb = document.getElementById('editCardFacebook');
+        const editCardIg = document.getElementById('editCardInstagram');
+
+        if (editPlatGroup) {
+            editPlatGroup.style.display = isPub ? 'none' : 'block';
+        }
+
+        const postPlats = Array.isArray(post.platforms) ? post.platforms : [];
+        const isFb = postPlats.includes('facebook');
+        const isIg = postPlats.includes('instagram');
+
+        const fbPlacements = Array.isArray(post.facebookPlacements) && post.facebookPlacements.length > 0
+            ? post.facebookPlacements
+            : (isFb ? ['feed'] : []);
+        const igPlacements = Array.isArray(post.instagramPlacements) && post.instagramPlacements.length > 0
+            ? post.instagramPlacements
+            : (isIg ? ['feed'] : []);
+
+        if (editPlatFb) editPlatFb.checked = isFb;
+        if (editFbFeed) editFbFeed.checked = fbPlacements.includes('feed');
+        if (editFbStory) editFbStory.checked = fbPlacements.includes('story');
+
+        if (editPlatIg) editPlatIg.checked = isIg;
+        if (editIgFeed) editIgFeed.checked = igPlacements.includes('feed');
+        if (editIgStory) editIgStory.checked = igPlacements.includes('story');
+
+        function updateEditPlatVisuals() {
+            if (editCardFb && editPlatFb) {
+                editCardFb.classList.toggle('active', editPlatFb.checked);
+                editCardFb.classList.toggle('inactive', !editPlatFb.checked);
+            }
+            if (editCardIg && editPlatIg) {
+                editCardIg.classList.toggle('active', editPlatIg.checked);
+                editCardIg.classList.toggle('inactive', !editPlatIg.checked);
+            }
+            if (editFbFeed) editFbFeed.closest('.edit-placement-pill')?.classList.toggle('active', editFbFeed.checked);
+            if (editFbStory) editFbStory.closest('.edit-placement-pill')?.classList.toggle('active-story', editFbStory.checked);
+            if (editIgFeed) editIgFeed.closest('.edit-placement-pill')?.classList.toggle('active', editIgFeed.checked);
+            if (editIgStory) editIgStory.closest('.edit-placement-pill')?.classList.toggle('active-story', editIgStory.checked);
+        }
+
+        updateEditPlatVisuals();
+
+        if (editPlatFb) {
+            editPlatFb.onchange = () => {
+                if (editPlatFb.checked) {
+                    if (!editFbFeed.checked && !editFbStory.checked) editFbFeed.checked = true;
+                } else {
+                    editFbFeed.checked = false;
+                    editFbStory.checked = false;
+                }
+                updateEditPlatVisuals();
+            };
+        }
+        if (editFbFeed) {
+            editFbFeed.onchange = () => {
+                if (editFbFeed.checked) editPlatFb.checked = true;
+                else if (!editFbStory.checked) editPlatFb.checked = false;
+                updateEditPlatVisuals();
+            };
+        }
+        if (editFbStory) {
+            editFbStory.onchange = () => {
+                if (editFbStory.checked) editPlatFb.checked = true;
+                else if (!editFbFeed.checked) editPlatFb.checked = false;
+                updateEditPlatVisuals();
+            };
+        }
+
+        if (editPlatIg) {
+            editPlatIg.onchange = () => {
+                if (editPlatIg.checked) {
+                    if (!editIgFeed.checked && !editIgStory.checked) editIgFeed.checked = true;
+                } else {
+                    editIgFeed.checked = false;
+                    editIgStory.checked = false;
+                }
+                updateEditPlatVisuals();
+            };
+        }
+        if (editIgFeed) {
+            editIgFeed.onchange = () => {
+                if (editIgFeed.checked) editPlatIg.checked = true;
+                else if (!editIgStory.checked) editPlatIg.checked = false;
+                updateEditPlatVisuals();
+            };
+        }
+        if (editIgStory) {
+            editIgStory.onchange = () => {
+                if (editIgStory.checked) editPlatIg.checked = true;
+                else if (!editIgFeed.checked) editPlatIg.checked = false;
+                updateEditPlatVisuals();
+            };
+        }
+
+        modalEl.style.setProperty('display', 'flex', 'important');
+        modalEl.style.setProperty('z-index', '100000', 'important');
+    } catch (err) {
+        console.error('Error opening edit modal:', err);
+    }
 }
 
 function closeEditPostModal() {
-    if (editPostModal) editPostModal.style.display = 'none';
+    const modalEl = document.getElementById('editPostModal');
+    if (modalEl) modalEl.style.setProperty('display', 'none', 'important');
 }
 
 if (btnCloseEditModal) btnCloseEditModal.addEventListener('click', closeEditPostModal);
@@ -1785,22 +2065,78 @@ if (btnSaveEditedPost) {
         const newContent = editPostContent ? editPostContent.value.trim() : '';
         const newTime = editScheduledTime ? editScheduledTime.value : null;
 
+        const currentPost = (cachedScheduledPosts || []).find(p => String(p.id) === String(id));
+        const isPub = currentPost?.status === 'PUBLISHED';
+
+        let newPlatforms = undefined;
+        let newFbPlacements = undefined;
+        let newIgPlacements = undefined;
+
+        if (!isPub) {
+            newPlatforms = [];
+            const editPlatFb = document.getElementById('editPlatFacebook');
+            const editPlatIg = document.getElementById('editPlatInstagram');
+            const editFbFeed = document.getElementById('editFbOptFeed');
+            const editFbStory = document.getElementById('editFbOptStory');
+            const editIgFeed = document.getElementById('editIgOptFeed');
+            const editIgStory = document.getElementById('editIgOptStory');
+
+            if (editPlatFb && editPlatFb.checked) newPlatforms.push('facebook');
+            if (editPlatIg && editPlatIg.checked) newPlatforms.push('instagram');
+
+            newFbPlacements = [];
+            if (editFbFeed && editFbFeed.checked) newFbPlacements.push('feed');
+            if (editFbStory && editFbStory.checked) newFbPlacements.push('story');
+            if (newPlatforms.includes('facebook') && newFbPlacements.length === 0) newFbPlacements.push('feed');
+
+            newIgPlacements = [];
+            if (editIgFeed && editIgFeed.checked) newIgPlacements.push('feed');
+            if (editIgStory && editIgStory.checked) newIgPlacements.push('story');
+            if (newPlatforms.includes('instagram') && newIgPlacements.length === 0) newIgPlacements.push('feed');
+
+            if (newPlatforms.length === 0) {
+                showAlert('يرجى تحديد منصة واحدة على الأقل للنشر!', 'error');
+                return;
+            }
+
+            // فحص شرط الستوري في التعديل: إذا كان ستوري فقط بدون بوست وبدون وسائط
+            const onlyFbStory = newPlatforms.includes('facebook') && newFbPlacements.length === 1 && newFbPlacements[0] === 'story';
+            const onlyIgStory = newPlatforms.includes('instagram') && newIgPlacements.length === 1 && newIgPlacements[0] === 'story';
+            const hasFeed = (newPlatforms.includes('facebook') && newFbPlacements.includes('feed')) ||
+                            (newPlatforms.includes('instagram') && newIgPlacements.includes('feed'));
+
+            if ((onlyFbStory || onlyIgStory) && !hasFeed && !currentPost?.mediaUrl) {
+                showAlert('⚠️ نشر الستوري (Story) يشترط توفر صورة أو فيديو! هذا المنشور لا يحتوي على وسائط، يرجى تفعيل نشر البوست (Feed) أيضاً.', 'error');
+                return;
+            }
+        }
+
         btnSaveEditedPost.disabled = true;
         const originalText = btnSaveEditedPost.textContent;
         btnSaveEditedPost.textContent = 'جاري الحفظ...';
 
         try {
+            const payload = {
+                content: newContent,
+                scheduledTime: newTime ? new Date(newTime).toISOString() : undefined
+            };
+            if (!isPub) {
+                payload.platforms = newPlatforms;
+                payload.facebookPlacements = newFbPlacements;
+                payload.instagramPlacements = newIgPlacements;
+            }
+
             const res = await fetch(`/api/scheduled/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    content: newContent,
-                    scheduledTime: newTime ? new Date(newTime).toISOString() : undefined
-                })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.success) {
                 showAlert(data.message || 'تم حفظ التعديلات بنجاح!', 'success');
+                if (currentPost && data.post) {
+                    Object.assign(currentPost, data.post);
+                }
                 closeEditPostModal();
                 loadScheduledPosts();
             } else {
@@ -1929,6 +2265,10 @@ async function openSettingsModal() {
         inputCloudName.value = userConfig.cloudinary.cloudName || '';
         inputCloudApiKey.value = userConfig.cloudinary.apiKey || '';
         inputCloudApiSecret.value = userConfig.cloudinary.apiSecret || '';
+    }
+    const inputSettingsGroqKey = document.getElementById('inputSettingsGroqKey');
+    if (inputSettingsGroqKey) {
+        inputSettingsGroqKey.value = userConfig.groqApiKey || '';
     }
 
     metaStatusMsg.style.display = 'none';
@@ -2126,6 +2466,13 @@ btnSaveSettings.addEventListener('click', async () => {
         apiSecret: inputCloudApiSecret.value.trim()
     };
 
+    const inputSettingsGroqKey = document.getElementById('inputSettingsGroqKey');
+    if (inputSettingsGroqKey) {
+        userConfig.groqApiKey = inputSettingsGroqKey.value.trim();
+        const arGroqApiKey = document.getElementById('arGroqApiKey');
+        if (arGroqApiKey) arGroqApiKey.value = userConfig.groqApiKey;
+    }
+
     if (currentAuthUser && supabaseClient) {
         btnSaveSettings.disabled = true;
         btnSaveSettings.textContent = 'جاري الحفظ في حسابك...';
@@ -2139,12 +2486,17 @@ btnSaveSettings.addEventListener('click', async () => {
             };
             userConfig.autoReplyConfig = updatedAutoReply;
 
-            await supabaseClient.from('user_profiles').update({
+            const updateData = {
                 meta_access_token: userConfig.metaToken,
                 selected_pages: activePages,
                 auto_reply_config: updatedAutoReply,
                 updated_at: new Date().toISOString()
-            }).eq('id', currentAuthUser.id);
+            };
+            if (userConfig.groqApiKey !== undefined) {
+                updateData.groq_api_key = userConfig.groqApiKey;
+            }
+
+            await supabaseClient.from('user_profiles').update(updateData).eq('id', currentAuthUser.id);
         } catch (e) {
             console.error('Failed to save to Supabase:', e);
         } finally {
@@ -3120,7 +3472,8 @@ async function loadAutoReplyConfigUI(pageId) {
             groqApiKey: userConfig.groqApiKey || '',
             likeComment: true,
             replyComment: true,
-            sendDm: true
+            sendDm: true,
+            hideComments: false
         };
     }
 
@@ -3180,6 +3533,7 @@ async function loadAutoReplyConfigUI(pageId) {
     if (checkLikeComment) checkLikeComment.checked = config.likeComment !== false;
     if (checkReplyComment) checkReplyComment.checked = config.replyComment !== false;
     if (checkSendDm) checkSendDm.checked = config.sendDm !== false;
+    if (checkHideComment) checkHideComment.checked = config.hideComments === true;
 }
 
 function updateMasterToggleLabel() {
@@ -3217,7 +3571,8 @@ async function saveAutoReplyConfigUI() {
         groqApiKey: arGroqApiKey ? arGroqApiKey.value.trim() : (userConfig.groqApiKey || ''),
         likeComment: checkLikeComment ? checkLikeComment.checked : true,
         replyComment: checkReplyComment ? checkReplyComment.checked : true,
-        sendDm: checkSendDm ? checkSendDm.checked : true
+        sendDm: checkSendDm ? checkSendDm.checked : true,
+        hideComments: checkHideComment ? checkHideComment.checked : false
     };
 
     if (btnSaveAutoReplyConfig) {
@@ -3732,6 +4087,71 @@ async function initSupabaseAuth() {
             if (userEmailText) userEmailText.textContent = user.email;
             if (userAvatarImg) userAvatarImg.src = avatar;
 
+            // 1. فحص حالة الحساب والاشتراك من السيرفر
+            try {
+                const statusRes = await fetch(`/api/user/account-status?userId=${encodeURIComponent(user.id)}`);
+                const statusData = await statusRes.json();
+
+                if (statusData.success) {
+                    const blockingOverlay = document.getElementById('blockingAccountOverlay');
+                    const blockingIcon = document.getElementById('blockingIcon');
+                    const blockingTitle = document.getElementById('blockingTitle');
+                    const blockingMessage = document.getElementById('blockingMessage');
+
+                    if (statusData.isSuperAdmin) {
+                        // إظهار زر لوحة الإدارة للمدير الأساسي فقط
+                        if (tabBtnAdmin) tabBtnAdmin.style.display = 'inline-flex';
+                        if (blockingOverlay) blockingOverlay.style.display = 'none';
+                        renderSubscriptionBadgeInHeader({ period: 'lifetime', is_super_admin: true });
+                    } else {
+                        // إخفاء زر الإدارة عن أي عميل آخر
+                        if (tabBtnAdmin) tabBtnAdmin.style.display = 'none';
+
+                        if (statusData.status === 'pending') {
+                            if (blockingOverlay) {
+                                if (blockingIcon) blockingIcon.textContent = '⏳';
+                                if (blockingTitle) blockingTitle.textContent = 'حسابك قيد المراجعة والاعتماد';
+                                if (blockingMessage) {
+                                    blockingMessage.innerHTML = `مرحباً بك في منصة <b>SocialFlow</b> (شركة رسلان للتسويق).<br>حسابك (${escapeHtml(user.email)}) مسجل بنجاح وهو حالياً قيد المراجعة والاعتماد من قِبل إدارة المنصة لتفعيله وتحديد باقة اشتراكك.`;
+                                }
+                                blockingOverlay.style.display = 'flex';
+                            }
+                            return; // قفل الموقع للعميل المعلق لحين تفعيله من الإدارة
+                        } else if (statusData.status === 'suspended') {
+                            if (blockingOverlay) {
+                                if (blockingIcon) blockingIcon.textContent = '⛔';
+                                if (blockingTitle) blockingTitle.textContent = 'تم إيقاف هذا الحساب';
+                                if (blockingMessage) {
+                                    blockingMessage.innerHTML = `تم إيقاف حسابك من قِبل إدارة المنصة. للتفاصيل أو إعادة التفعيل يرجى التواصل مع الإدارة عبر واتساب.`;
+                                }
+                                blockingOverlay.style.display = 'flex';
+                            }
+                            return;
+                        } else if (statusData.status === 'expired') {
+                            if (blockingOverlay) {
+                                if (blockingIcon) blockingIcon.textContent = '⏰';
+                                if (blockingTitle) blockingTitle.textContent = 'انتهت فترة اشتراكك في المنصة';
+                                if (blockingMessage) {
+                                    blockingMessage.innerHTML = `انتهت فترة اشتراكك المحددة في المنصة. يرجى التواصل مع إدارة شركة رسلان للتسويق لتجديد الباقة ومتابعة النشر الآلي.`;
+                                }
+                                blockingOverlay.style.display = 'flex';
+                            }
+                            return;
+                        } else {
+                            if (blockingOverlay) blockingOverlay.style.display = 'none';
+                            renderSubscriptionBadgeInHeader(statusData.subscription);
+
+                            // إذا كانت المفاتيح ناقصة للعميل المفعل، نفتح معالج التهيئة الأولي
+                            if (statusData.needs_onboarding) {
+                                setTimeout(openOnboardingWizardModal, 600);
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Error checking account status:', err);
+            }
+
             // جلب بيانات وصفحات وإعدادات هذا الجيميل حصرياً من سحابة Supabase
             await loadUserSettings();
             populateActiveAccounts();
@@ -3830,14 +4250,23 @@ async function loadTelegramConfigUI() {
 
         if (data.success && data.telegram) {
             const cfg = data.telegram;
-            if (tgBotToken) tgBotToken.value = cfg.botToken || '8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8';
-            if (tgChatId) tgChatId.value = cfg.chatId || '1077637435';
+            if (tgBotToken) tgBotToken.value = cfg.botToken || '';
+            if (tgChatId) tgChatId.value = cfg.chatId || '';
             if (tgBotEnabled) {
                 tgBotEnabled.checked = cfg.enabled !== false;
                 if (tgEnabledStatusText) tgEnabledStatusText.textContent = tgBotEnabled.checked ? 'مفعّل' : 'معطّل';
             }
 
-            const isReady = Boolean((cfg.botToken || tgBotToken?.value) && (cfg.chatId || tgChatId?.value) && cfg.enabled !== false);
+            const tgBotHint = document.getElementById('tgBotHint');
+            if (tgBotHint) {
+                if (cfg.botToken && cfg.chatId) {
+                    tgBotHint.innerHTML = '✅ تم ربط بوت التيليجرام بنجاح بحسابك.';
+                } else {
+                    tgBotHint.innerHTML = 'احصل على التوكن المجاني من BotFather في 30 ثانية لتلقي الإشعارات الفورية على هاتفك.';
+                }
+            }
+
+            const isReady = Boolean(cfg.botToken && cfg.chatId && cfg.enabled !== false);
             updateTgStatusIndicator(isReady);
         }
     } catch (err) {
@@ -4344,6 +4773,651 @@ window.addNewGroupRowUI = addNewGroupRowUI;
 window.saveGroupsPoolUI = saveGroupsPoolUI;
 window.toggleTgTokenVisibility = toggleTgTokenVisibility;
 window.simulatePostNotificationUI = simulatePostNotificationUI;
+
+// ========================================================
+// 👑 نظام إدارة المشتركين والمنصة (Super Admin Management)
+// ========================================================
+let cachedAdminUsers = [];
+
+function renderSubscriptionBadgeInHeader(sub) {
+    if (!sub) return;
+    let badge = document.getElementById('userSubscriptionBadge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.id = 'userSubscriptionBadge';
+        badge.className = 'sub-header-badge';
+        const metaInfo = document.querySelector('.user-meta-info');
+        if (metaInfo) metaInfo.appendChild(badge);
+    }
+
+    if (sub.is_super_admin || sub.period === 'lifetime') {
+        badge.innerHTML = '👑 مدير المنصة (دائم)';
+        badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+        badge.style.color = '#fbbf24';
+    } else {
+        const days = sub.days_remaining !== undefined ? sub.days_remaining : 30;
+        const hours = sub.hours_remaining;
+        if (days > 1) {
+            badge.innerHTML = `🟢 مفعّل (متبقي ${days} يوم)`;
+        } else if (days === 1 && hours > 0) {
+            badge.innerHTML = `🟢 مفعّل (متبقي ${hours} ساعة)`;
+        } else {
+            badge.innerHTML = `🟢 مفعّل (${sub.period === '1_day' ? 'يوم واحد' : days + ' يوم'})`;
+        }
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        badge.style.color = '#10b981';
+    }
+}
+
+async function loadAdminUsersUI() {
+    if (!currentAuthUser) return;
+    const tbody = document.getElementById('adminUsersTableBody');
+    if (!tbody) return;
+
+    try {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading-td">جاري تحميل قائمة المشتركين وبياناتهم الحية...</td></tr>';
+        const res = await fetch(`/api/admin/users?adminUserId=${encodeURIComponent(currentAuthUser.id)}`);
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.users)) {
+            cachedAdminUsers = data.users;
+            renderAdminStats(cachedAdminUsers);
+            renderAdminUsersTable(cachedAdminUsers);
+        } else {
+            tbody.innerHTML = `<tr><td colspan="7" style="color: #ef4444; text-align: center; padding: 20px;">⚠️ ${data.message || 'تعذر جلب المستخدمين'}</td></tr>`;
+        }
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="color: #ef4444; text-align: center; padding: 20px;">⚠️ خطأ في الاتصال: ${err.message}</td></tr>`;
+    }
+}
+
+function renderAdminStats(users) {
+    const total = users.length;
+    const active = users.filter(u => u.status === 'active').length;
+    const pending = users.filter(u => u.status === 'pending').length;
+    const suspended = users.filter(u => u.status === 'suspended' || u.status === 'expired').length;
+
+    const elTotal = document.getElementById('adminStatTotal');
+    const elActive = document.getElementById('adminStatActive');
+    const elPending = document.getElementById('adminStatPending');
+    const elSuspended = document.getElementById('adminStatSuspended');
+    const elAlert = document.getElementById('adminPendingAlert');
+    const elAlertText = document.getElementById('adminPendingAlertText');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elActive) elActive.textContent = active;
+    if (elPending) elPending.textContent = pending;
+    if (elSuspended) elSuspended.textContent = suspended;
+
+    if (elAlert && elAlertText) {
+        if (pending > 0) {
+            elAlert.style.display = 'flex';
+            elAlertText.textContent = `يوجد (${pending}) عميل جديد بانتظار موافقتك لتفعيل حساباتهم!`;
+        } else {
+            elAlert.style.display = 'none';
+        }
+    }
+}
+
+function renderAdminUsersTable(users) {
+    const tbody = document.getElementById('adminUsersTableBody');
+    if (!tbody) return;
+
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 24px; color: var(--text-secondary);">لا يوجد مستخدمون مسجلون بعد.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+        const isSelf = u.is_super_admin || u.email === 'raslan.meet@gmail.com';
+        const joinDate = u.created_at ? new Date(u.created_at).toLocaleDateString('ar-EG') : 'غير محدد';
+        
+        let statusBadge = '';
+        if (u.status === 'active') statusBadge = '<span class="status-pill active">🟢 مفعّل</span>';
+        else if (u.status === 'pending') statusBadge = '<span class="status-pill pending">🟡 في الانتظار</span>';
+        else if (u.status === 'suspended') statusBadge = '<span class="status-pill suspended">⛔ موقوف</span>';
+        else if (u.status === 'expired') statusBadge = '<span class="status-pill expired">⏰ منتهي</span>';
+
+        let subPeriodText = '';
+        const p = u.subscription?.period || '1_month';
+        if (p === '1_day') subPeriodText = 'يوم واحد (تجربة)';
+        else if (p === '1_month') subPeriodText = 'شهر واحد';
+        else if (p === '3_months') subPeriodText = '3 شهور';
+        else if (p === '6_months') subPeriodText = '6 شهور';
+        else if (p === '1_year') subPeriodText = 'سنة كاملة';
+        else if (p === 'lifetime') subPeriodText = 'دائم (مدى الحياة)';
+
+        let remainingText = '';
+        if (isSelf || p === 'lifetime') {
+            remainingText = '<span style="color: #fbbf24; font-weight: bold;">دائم 👑</span>';
+        } else if (u.subscription?.days_remaining !== null && u.subscription?.days_remaining !== undefined) {
+            const days = u.subscription.days_remaining;
+            const hours = u.subscription.hours_remaining;
+            if (days > 1) {
+                remainingText = `<span style="color: #10b981; font-weight: bold;">${days} يوم</span>`;
+            } else if (days === 1 && hours > 0) {
+                remainingText = `<span style="color: #f59e0b; font-weight: bold;">${hours} ساعة</span>`;
+            } else if (days > 0) {
+                remainingText = `<span style="color: #10b981; font-weight: bold;">${days} يوم</span>`;
+            } else {
+                remainingText = '<span style="color: #ef4444; font-weight: bold;">منتهي</span>';
+            }
+        } else {
+            remainingText = '<span style="color: var(--text-secondary);">-</span>';
+        }
+
+        const chk = u.keys_checklist || {};
+        const metaTag = chk.meta ? '<span class="key-tag yes" title="توكن فيسبوك مربوط">Meta ✓</span>' : '<span class="key-tag no">Meta ✗</span>';
+        const groqTag = chk.groq ? '<span class="key-tag yes" title="مفتاح Groq موجود">Groq ✓</span>' : '<span class="key-tag no">Groq ✗</span>';
+        const cloudTag = chk.cloudinary ? '<span class="key-tag yes" title="Cloudinary مربوط">Cloud ✓</span>' : '<span class="key-tag no">Cloud ✗</span>';
+        const tgTag = chk.telegram ? '<span class="key-tag yes" title="تيليجرام مربوط">TG ✓</span>' : '<span class="key-tag no">TG ✗</span>';
+
+        let actionsHtml = '';
+        if (isSelf) {
+            actionsHtml = '<span style="color: #fbbf24; font-weight: bold; font-size: 12px;">حساب المدير الأساسي 🛡️</span>';
+        } else {
+            actionsHtml = `
+                <div class="action-btns-group">
+                    <select id="subPeriod_${u.id}" class="select-period">
+                        <option value="1_day" ${p === '1_day' ? 'selected' : ''}>1 يوم (تجربة)</option>
+                        <option value="1_month" ${p === '1_month' ? 'selected' : ''}>1 شهر</option>
+                        <option value="3_months" ${p === '3_months' ? 'selected' : ''}>3 شهور</option>
+                        <option value="6_months" ${p === '6_months' ? 'selected' : ''}>6 شهور</option>
+                        <option value="1_year" ${p === '1_year' ? 'selected' : ''}>سنة</option>
+                        <option value="lifetime" ${p === 'lifetime' ? 'selected' : ''}>دائم</option>
+                    </select>
+                    <button type="button" class="btn-activate-user" onclick="adminUserAction('${u.id}', 'activate')" title="تفعيل أو تجديد الاشتراك">
+                        <span>${u.status === 'active' ? 'تجديد' : '✓ تفعيل'}</span>
+                    </button>
+                    ${u.status === 'active' ? `
+                        <button type="button" class="btn-suspend-user" onclick="adminUserAction('${u.id}', 'suspend')" title="إيقاف الحساب مؤقتاً">
+                            <span>⛔ إيقاف</span>
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        return `
+            <tr>
+                <td>
+                    <div class="user-cell">
+                        <img src="${u.avatar_url || 'logo.png'}" alt="Avatar">
+                        <div class="user-cell-meta">
+                            <span class="user-cell-name">${escapeHtml(u.full_name || 'مستخدم')}</span>
+                            <span class="user-cell-email">${escapeHtml(u.email || '')}</span>
+                        </div>
+                    </div>
+                </td>
+                <td style="color: var(--text-secondary);">${joinDate}</td>
+                <td>${statusBadge}</td>
+                <td>${subPeriodText}</td>
+                <td>${remainingText}</td>
+                <td>
+                    <div class="keys-badges-row">
+                        ${metaTag} ${groqTag} ${cloudTag} ${tgTag}
+                    </div>
+                </td>
+                <td>${actionsHtml}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filterAdminUsersTable() {
+    const input = document.getElementById('inputSearchUsers');
+    const q = (input?.value || '').trim().toLowerCase();
+    if (!q) {
+        renderAdminUsersTable(cachedAdminUsers);
+        return;
+    }
+    const filtered = cachedAdminUsers.filter(u => 
+        (u.full_name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+    );
+    renderAdminUsersTable(filtered);
+}
+
+async function adminUserAction(targetUserId, action) {
+    if (!currentAuthUser) return;
+    const periodSelect = document.getElementById(`subPeriod_${targetUserId}`);
+    const period = periodSelect ? periodSelect.value : '1_month';
+
+    const confirmMsg = action === 'activate' 
+        ? `هل أنت متأكد من تفعيل/تجديد حساب هذا العميل لمدة (${period})؟` 
+        : 'هل أنت متأكد من إيقاف هذا الحساب؟';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const res = await fetch('/api/admin/user-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                adminUserId: currentAuthUser.id,
+                targetUserId,
+                action,
+                period
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.message);
+            await loadAdminUsersUI();
+        } else {
+            alert('❌ فشل الإجراء: ' + data.message);
+        }
+    } catch (err) {
+        alert('❌ خطأ في الاتصال: ' + err.message);
+    }
+}
+
+// ========================================================
+// 🚀 معالج التهيئة والربط الأولي (Onboarding Wizard)
+// ========================================================
+function openOnboardingWizardModal() {
+    const m = document.getElementById('onboardingWizardModal');
+    if (!m) return;
+    
+    const wGroq = document.getElementById('wizardGroqKey');
+    const wCloud = document.getElementById('wizardCloudName');
+    const wKey = document.getElementById('wizardCloudApiKey');
+    const wSec = document.getElementById('wizardCloudApiSecret');
+    const wMeta = document.getElementById('wizardMetaToken');
+    const wTgToken = document.getElementById('wizardTgToken');
+    const wTgChat = document.getElementById('wizardTgChatId');
+
+    if (wGroq) wGroq.value = userConfig.groqApiKey || '';
+    if (wCloud) wCloud.value = userConfig.cloudinary?.cloudName || '';
+    if (wKey) wKey.value = userConfig.cloudinary?.apiKey || '';
+    if (wSec) wSec.value = userConfig.cloudinary?.apiSecret || '';
+    if (wMeta) wMeta.value = userConfig.metaToken || '';
+    if (wTgToken) wTgToken.value = (userConfig.autoReplyConfig?.telegram?.botToken) || '';
+    if (wTgChat) wTgChat.value = (userConfig.autoReplyConfig?.telegram?.chatId) || '';
+
+    m.style.display = 'flex';
+}
+
+function closeOnboardingWizardModal() {
+    const m = document.getElementById('onboardingWizardModal');
+    if (m) m.style.display = 'none';
+}
+
+const btnCloseWizardModal = document.getElementById('btnCloseWizardModal');
+if (btnCloseWizardModal) btnCloseWizardModal.addEventListener('click', closeOnboardingWizardModal);
+
+async function testWizardGroqKey() {
+    const input = document.getElementById('wizardGroqKey');
+    const status = document.getElementById('wizardGroqStatus');
+    const key = (input?.value || '').trim();
+    if (!key) {
+        if (status) { status.textContent = '⚠️ يرجى إدخال المفتاح أولاً'; status.style.color = '#f59e0b'; }
+        return;
+    }
+    if (status) { status.textContent = '⏳ جاري التحقق...'; status.style.color = '#38bdf8'; }
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/models', {
+            headers: { Authorization: `Bearer ${key}` }
+        });
+        if (res.ok) {
+            status.textContent = '✅ مفتاح Groq صالح ومتصل 100%!';
+            status.style.color = '#10b981';
+        } else {
+            status.textContent = '❌ مفتاح خاطئ أو غير مصرح به';
+            status.style.color = '#ef4444';
+        }
+    } catch (e) {
+        status.textContent = '❌ تعذر الاتصال بـ Groq';
+        status.style.color = '#ef4444';
+    }
+}
+
+async function testWizardCloudinary() {
+    const cloudName = document.getElementById('wizardCloudName')?.value.trim();
+    const apiKey = document.getElementById('wizardCloudApiKey')?.value.trim();
+    const apiSecret = document.getElementById('wizardCloudApiSecret')?.value.trim();
+    const status = document.getElementById('wizardCloudStatus');
+
+    if (!cloudName || !apiKey || !apiSecret) {
+        if (status) { status.textContent = '⚠️ يرجى ملء كافة حقول Cloudinary'; status.style.color = '#f59e0b'; }
+        return;
+    }
+
+    if (status) { status.textContent = '⏳ جاري الفحص...'; status.style.color = '#38bdf8'; }
+    try {
+        const res = await fetch('/api/verify-cloudinary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cloudName, apiKey, apiSecret })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            status.textContent = '✅ الاتصال بـ Cloudinary ناجح 100%!';
+            status.style.color = '#10b981';
+        } else {
+            status.textContent = `❌ ${data.message || 'بيانات خاطئة'}`;
+            status.style.color = '#ef4444';
+        }
+    } catch (e) {
+        status.textContent = '❌ تعذر اختبار Cloudinary';
+        status.style.color = '#ef4444';
+    }
+}
+
+let wizardDiscoveredPages = [];
+
+async function fetchWizardPages() {
+    const token = document.getElementById('wizardMetaToken')?.value.trim();
+    const status = document.getElementById('wizardMetaStatus');
+    const container = document.getElementById('wizardPagesContainer');
+    const list = document.getElementById('wizardPagesList');
+
+    if (!token) {
+        if (status) { status.textContent = '⚠️ الصق رمز Meta Access Token أولاً'; status.style.color = '#f59e0b'; }
+        return;
+    }
+
+    if (status) { status.textContent = '⏳ جاري جلب الصفحات من فيسبوك...'; status.style.color = '#38bdf8'; }
+    try {
+        const res = await fetch(`/api/meta/pages?accessToken=${encodeURIComponent(token)}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.pages) && data.pages.length > 0) {
+            wizardDiscoveredPages = data.pages;
+            status.textContent = `✅ تم العثور على ${data.pages.length} صفحة بنجاح!`;
+            status.style.color = '#10b981';
+            
+            if (container && list) {
+                container.style.display = 'block';
+                list.innerHTML = data.pages.map((p, idx) => `
+                    <label style="display: flex; align-items: center; gap: 8px; padding: 6px; cursor: pointer; color: var(--text-primary);">
+                        <input type="checkbox" class="chk-wizard-page" value="${p.id}" ${idx === 0 ? 'checked' : ''}>
+                        <span>${escapeHtml(p.name)}</span>
+                    </label>
+                `).join('');
+            }
+        } else {
+            status.textContent = `❌ ${data.message || 'لم يتم العثور على صفحات'}`;
+            status.style.color = '#ef4444';
+        }
+    } catch (e) {
+        status.textContent = '❌ تعذر الاتصال بـ Meta Graph API';
+        status.style.color = '#ef4444';
+    }
+}
+
+async function submitOnboardingWizard() {
+    if (!currentAuthUser) return;
+    const btn = document.getElementById('btnSaveOnboardingWizard');
+    const feedback = document.getElementById('wizardFeedback');
+
+    const groqKey = document.getElementById('wizardGroqKey')?.value.trim();
+    const cloudName = document.getElementById('wizardCloudName')?.value.trim();
+    const cloudApiKey = document.getElementById('wizardCloudApiKey')?.value.trim();
+    const cloudApiSecret = document.getElementById('wizardCloudApiSecret')?.value.trim();
+    const metaToken = document.getElementById('wizardMetaToken')?.value.trim();
+    const tgToken = document.getElementById('wizardTgToken')?.value.trim();
+    const tgChat = document.getElementById('wizardTgChatId')?.value.trim();
+
+    if (!groqKey || !cloudName || !cloudApiKey || !cloudApiSecret || !metaToken) {
+        if (feedback) {
+            feedback.className = 'wizard-feedback error';
+            feedback.textContent = '⚠️ يرجى إدخال كافة المفاتيح الإلزامية (Groq, Cloudinary, Meta) للمتابعة.';
+            feedback.style.display = 'block';
+        }
+        return;
+    }
+
+    const selectedPageIds = Array.from(document.querySelectorAll('.chk-wizard-page:checked')).map(c => c.value);
+    const selectedPages = wizardDiscoveredPages.filter(p => selectedPageIds.includes(p.id));
+
+    try {
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الحفظ والتفعيل...'; }
+        
+        const res = await fetch('/api/user/onboarding-setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: currentAuthUser.id,
+                groqApiKey: groqKey,
+                metaToken: metaToken,
+                cloudinary: { cloudName, apiKey: cloudApiKey, apiSecret: cloudApiSecret },
+                telegram: { botToken: tgToken, chatId: tgChat, enabled: Boolean(tgToken && tgChat) },
+                selectedPages: selectedPages.length > 0 ? selectedPages : userConfig.pages
+            })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            if (feedback) {
+                feedback.className = 'wizard-feedback success';
+                feedback.textContent = '🎉 تم حفظ كافة المفاتيح بنجاح! جاري تنشيط لوحة التحكم...';
+                feedback.style.display = 'block';
+            }
+            await loadUserSettings();
+            populateActiveAccounts();
+            setTimeout(() => {
+                closeOnboardingWizardModal();
+                window.location.reload();
+            }, 1200);
+        } else {
+            if (feedback) {
+                feedback.className = 'wizard-feedback error';
+                feedback.textContent = '❌ فشل الحفظ: ' + data.message;
+                feedback.style.display = 'block';
+            }
+        }
+    } catch (e) {
+        if (feedback) {
+            feedback.className = 'wizard-feedback error';
+            feedback.textContent = '❌ خطأ في الاتصال: ' + e.message;
+            feedback.style.display = 'block';
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 حفظ وتفعيل كافة المفاتيح في حسابي والبدء فوراً 🚀'; }
+    }
+}
+
+async function testSettingsGroqKey() {
+    const input = document.getElementById('inputSettingsGroqKey');
+    const status = document.getElementById('settingsGroqStatus');
+    const key = (input?.value || '').trim();
+    if (!key) {
+        if (status) { status.textContent = '⚠️ يرجى إدخال المفتاح أولاً'; status.style.color = '#f59e0b'; }
+        return;
+    }
+    if (status) { status.textContent = '⏳ جاري التحقق...'; status.style.color = '#38bdf8'; }
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/models', {
+            headers: { Authorization: `Bearer ${key}` }
+        });
+        if (res.ok) {
+            status.textContent = '✅ مفتاح Groq صالح ومتصل بنجاح!';
+            status.style.color = '#10b981';
+        } else {
+            status.textContent = '❌ مفتاح خاطئ أو غير مصرح به';
+            status.style.color = '#ef4444';
+        }
+    } catch (e) {
+        status.textContent = '❌ تعذر الاتصال بـ Groq';
+        status.style.color = '#ef4444';
+    }
+}
+
+// تصدير دوال الإدارة والـ Wizard عالمياً
+window.loadAdminUsersUI = loadAdminUsersUI;
+window.filterAdminUsersTable = filterAdminUsersTable;
+window.adminUserAction = adminUserAction;
+window.openOnboardingWizardModal = openOnboardingWizardModal;
+window.closeOnboardingWizardModal = closeOnboardingWizardModal;
+window.testWizardGroqKey = testWizardGroqKey;
+window.testWizardCloudinary = testWizardCloudinary;
+window.fetchWizardPages = fetchWizardPages;
+window.submitOnboardingWizard = submitOnboardingWizard;
+window.testSettingsGroqKey = testSettingsGroqKey;
+
+// ═══════════════════════════════════════════════════════════════
+// ميزة تكرار المنشور المجدول على جدول ومخطط المواعيد (Repeat on Grid)
+// ═══════════════════════════════════════════════════════════════
+
+let activeRepeatPost = null;
+
+window.openRepeatPostModalById = function(id) {
+    const post = (cachedScheduledPosts || []).find(p => String(p.id) === String(id));
+    if (!post) {
+        showAlert('المنشور المطلوب غير موجود!', 'error');
+        return;
+    }
+    activeRepeatPost = post;
+
+    const modal = document.getElementById('repeatPostModal');
+    const sourceIdInput = document.getElementById('repeatSourcePostId');
+    const summaryText = document.getElementById('repeatSummaryText');
+    const summaryTime = document.getElementById('repeatSummaryTime');
+    const summaryThumb = document.getElementById('repeatSummaryThumb');
+    const countInput = document.getElementById('repeatCustomCountInput');
+    const intervalSelect = document.getElementById('repeatCustomIntervalSelect');
+
+    if (!modal) return;
+
+    if (sourceIdInput) sourceIdInput.value = post.id;
+    if (summaryText) summaryText.textContent = post.content ? post.content.slice(0, 60) + (post.content.length > 60 ? '...' : '') : 'وسائط بدون نص';
+
+    const targetTime = post.scheduledTime || post.publishedAt || post.createdAt || new Date();
+    const d = new Date(targetTime);
+    if (summaryTime) {
+        summaryTime.textContent = `⏰ توقيت المنشور الحالي: ${formatArabicSlot(d)}`;
+    }
+
+    if (summaryThumb) {
+        if (post.mediaUrl) {
+            summaryThumb.innerHTML = `<img src="${post.mediaUrl}" style="width:100%;height:100%;object-fit:cover;" alt="Thumb">`;
+        } else {
+            summaryThumb.innerHTML = `<span style="font-size:24px;">📝</span>`;
+        }
+    }
+
+    if (countInput) countInput.value = 3;
+    if (intervalSelect) intervalSelect.value = 1;
+
+    updateRepeatUpcomingSlotsPreview();
+
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('z-index', '100000', 'important');
+};
+
+function closeRepeatPostModal() {
+    const modal = document.getElementById('repeatPostModal');
+    if (modal) modal.style.setProperty('display', 'none', 'important');
+    activeRepeatPost = null;
+}
+window.closeRepeatPostModal = closeRepeatPostModal;
+
+function updateRepeatUpcomingSlotsPreview() {
+    const container = document.getElementById('repeatUpcomingSlotsList');
+    if (!container || !activeRepeatPost) return;
+
+    const countInput = document.getElementById('repeatCustomCountInput');
+    const intervalSelect = document.getElementById('repeatCustomIntervalSelect');
+    const count = Math.min(Math.max(parseInt(countInput?.value, 10) || 1, 1), 30);
+    const step = Math.max(parseInt(intervalSelect?.value, 10) || 1, 1);
+
+    const baseTimeIso = activeRepeatPost.scheduledTime || activeRepeatPost.publishedAt || activeRepeatPost.createdAt || new Date().toISOString();
+    let current = new Date(baseTimeIso);
+
+    container.innerHTML = '';
+    for (let i = 1; i <= count; i++) {
+        current = new Date(current);
+        current.setUTCDate(current.getUTCDate() + step);
+
+        const slotItem = document.createElement('div');
+        slotItem.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.06);font-size:12px;';
+        slotItem.innerHTML = `
+            <span style="color:#fff;font-weight:600;">📅 موعد تكرار #${i}</span>
+            <span style="color:#58a6ff;font-weight:700;">${formatArabicSlot(current)}</span>
+        `;
+        container.appendChild(slotItem);
+    }
+}
+
+// أزرار الاختيارات السريعة
+document.querySelectorAll('.btn-preset-repeat').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const count = e.currentTarget.dataset.count;
+        const interval = e.currentTarget.dataset.interval;
+        const countInput = document.getElementById('repeatCustomCountInput');
+        const intervalSelect = document.getElementById('repeatCustomIntervalSelect');
+        if (countInput) countInput.value = count;
+        if (intervalSelect) intervalSelect.value = interval;
+
+        document.querySelectorAll('.btn-preset-repeat').forEach(b => {
+            b.style.outline = 'none';
+            b.style.boxShadow = 'none';
+        });
+        e.currentTarget.style.outline = '2px solid #58a6ff';
+        e.currentTarget.style.boxShadow = '0 0 10px rgba(88, 166, 255, 0.4)';
+
+        updateRepeatUpcomingSlotsPreview();
+    });
+});
+
+const repeatCustomCountInputEl = document.getElementById('repeatCustomCountInput');
+const repeatCustomIntervalSelectEl = document.getElementById('repeatCustomIntervalSelect');
+if (repeatCustomCountInputEl) repeatCustomCountInputEl.addEventListener('input', updateRepeatUpcomingSlotsPreview);
+if (repeatCustomIntervalSelectEl) repeatCustomIntervalSelectEl.addEventListener('change', updateRepeatUpcomingSlotsPreview);
+
+const btnCloseRepeatModalEl = document.getElementById('btnCloseRepeatModal');
+const btnCancelRepeatModalEl = document.getElementById('btnCancelRepeatModal');
+if (btnCloseRepeatModalEl) btnCloseRepeatModalEl.addEventListener('click', closeRepeatPostModal);
+if (btnCancelRepeatModalEl) btnCancelRepeatModalEl.addEventListener('click', closeRepeatPostModal);
+
+const repeatPostModalEl = document.getElementById('repeatPostModal');
+if (repeatPostModalEl) {
+    repeatPostModalEl.addEventListener('click', (e) => {
+        if (e.target === repeatPostModalEl) closeRepeatPostModal();
+    });
+}
+
+// تأكيد التكرار وإرسال الطلب للسيرفر
+const btnConfirmRepeatOnGridEl = document.getElementById('btnConfirmRepeatOnGrid');
+if (btnConfirmRepeatOnGridEl) {
+    btnConfirmRepeatOnGridEl.addEventListener('click', async () => {
+        if (!activeRepeatPost) return;
+        const countInput = document.getElementById('repeatCustomCountInput');
+        const intervalSelect = document.getElementById('repeatCustomIntervalSelect');
+        const daysCount = parseInt(countInput?.value, 10) || 1;
+        const intervalDays = parseInt(intervalSelect?.value, 10) || 1;
+
+        btnConfirmRepeatOnGridEl.disabled = true;
+        btnConfirmRepeatOnGridEl.textContent = '⏳ جاري إنشاء النسخ على الجدول...';
+
+        try {
+            const res = await fetch('/api/scheduled/repeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    postId: activeRepeatPost.id,
+                    daysCount,
+                    intervalDays,
+                    timezoneOffset: new Date().getTimezoneOffset()
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert(`✅ ${data.message || 'تم تكرار المنشور بنجاح على الجدول!'}`, 'success');
+                closeRepeatPostModal();
+                await loadScheduledPosts();
+            } else {
+                showAlert(`❌ خطأ: ${data.message || 'تعذر تكرار المنشور'}`, 'error');
+            }
+        } catch (err) {
+            console.error('Error repeating post:', err);
+            showAlert('حدث خطأ أثناء الاتصال بالسيرفر لتكرار المنشور', 'error');
+        } finally {
+            btnConfirmRepeatOnGridEl.disabled = false;
+            btnConfirmRepeatOnGridEl.textContent = '🔁 تكرار وإضافة للجدول الآن';
+        }
+    });
+}
+
 
 
 

@@ -78,3 +78,16 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ==============================================================
+-- 4. أعمدة الصلاحيات وإدارة المشتركين والاشتراكات
+-- ==============================================================
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'client';
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS subscription_period TEXT DEFAULT '1_month';
+ALTER TABLE public.user_profiles ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+
+-- تعيين حساب رسلان كمدير رئيسي دائم
+UPDATE public.user_profiles 
+SET role = 'admin', status = 'active', subscription_period = 'lifetime'
+WHERE email = 'raslan.meet@gmail.com';
