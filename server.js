@@ -2202,7 +2202,7 @@ app.get('/api/client/sync-config', async (req, res) => {
             page_id: selectedPage?.id || null,
             telegram_bot_token: teleCfg.botToken || '',
             telegram_chat_id: teleCfg.chatId || '',
-            groq_api_key: userRow.groq_api_key || (userRow.email === 'raslan.meet@gmail.com' ? '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' : ''),
+            groq_api_key: userRow.groq_api_key || (userRow.email === 'raslan.meet@gmail.com' ? (process.env.GROQ_API_KEY || '') : ''),
             synced_at: new Date().toISOString()
         };
 
@@ -2618,7 +2618,7 @@ app.post('/api/groups/ai-discover', async (req, res) => {
                     .maybeSingle();
                 if (uRow?.groq_api_key) apiKey = uRow.groq_api_key;
                 else if (uRow?.email === 'raslan.meet@gmail.com') {
-                    apiKey = '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';
+                    apiKey = process.env.GROQ_API_KEY || '';
                 }
             } catch (e) {}
         }
