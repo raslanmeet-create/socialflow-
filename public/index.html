@@ -13,7 +13,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <link rel="stylesheet" href="vendor/cropper.min.css">
-    <link rel="stylesheet" href="style.css?v=v_1793170487630">
+    <link rel="stylesheet" href="style.css?v=v_1793283662017">
     <!-- مكتبة Supabase للواجهة الأمامية -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -153,6 +153,11 @@
                 <span class="tab-icon">📢</span>
                 <span class="tab-label">بوت التيليجرام ونشر الجروبات (AI Hunter)</span>
                 <span class="tab-badge" id="telegramGroupsBadge">6 جروبات</span>
+            </button>
+            <button type="button" class="nav-tab-btn" id="tabBtnBooster" data-tab="booster" onclick="switchTab('booster')">
+                <span class="tab-icon">🚀</span>
+                <span class="tab-label">معزز التفاعل بالحسابات (Booster)</span>
+                <span class="tab-badge" id="boosterBadgeAccounts">0 حساب</span>
             </button>
             <button type="button" class="nav-tab-btn" id="tabBtnAdmin" data-tab="admin" onclick="switchTab('admin')" style="display: none;">
                 <span class="tab-icon">👑</span>
@@ -1447,6 +1452,301 @@
                 </div>
             </div>
         </section>
+
+        <!-- قسم معزز تفاعل فيسبوك بالحسابات المتعددة (Post Booster Section) -->
+        <section class="booster-panel-section" id="boosterSection" style="display: none;">
+            <!-- Header -->
+            <div class="booster-header card">
+                <div class="booster-header-info">
+                    <div class="booster-badge">
+                        <span class="pulse-dot green"></span>
+                        <span id="boosterHeaderStatus">النظام جاهز ومحمي محلياً 🛡️</span>
+                    </div>
+                    <h2>🚀 معزز تفاعل فيسبوك بالحسابات المتعددة (FB Post Booster)</h2>
+                    <p class="booster-header-desc">
+                        قم بتعزيز وصول وتفاعل منشوراتك على فيسبوك تلقائياً (إعجاب + تعليقات حصرية متنوعة + مشاركة) باستخدام حساباتك المحفوظة بأمان محلياً مع فواصل زمنية عشوائية لحماية الحسابات من الحظر.
+                    </p>
+                </div>
+                <div class="booster-header-actions">
+                    <button type="button" class="btn-primary-gradient" id="btnOpenAddAccountModal">
+                        <span>➕ إضافة حساب فيسبوك جديد</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- بطاقة ربط برنامج الكمبيوتر للمشترك (SaaS Desktop Agent Card) -->
+            <div class="desktop-agent-card card" id="desktopAgentCard">
+                <div class="agent-card-header">
+                    <div class="agent-header-left">
+                        <div class="agent-icon-badge">💻</div>
+                        <div>
+                            <div class="agent-status-wrapper">
+                                <span class="agent-status-badge offline" id="agentOnlineBadge">
+                                    <span class="status-pulse"></span>
+                                    <span id="agentOnlineText">البرنامج غير متصل بالكمبيوتر</span>
+                                </span>
+                                <span class="agent-version-tag" id="agentStatsText">0 حسابات مربوطة</span>
+                            </div>
+                            <h3 class="agent-title">برنامج النشر والتفاعل الآلي للكمبيوتر (SocialFlow Desktop Agent)</h3>
+                            <p class="agent-subtitle">
+                                لكي يتفاعل البوت بحساباتك وينشر في الجروبات بأمان وبدون حظر، يعمل البرنامج على لابتوبك في الخلفية ويتلقى المهام تلقائياً من هذا الموقع فور نزول أي بوست.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="agent-header-actions">
+                        <button type="button" class="btn-download-agent" id="btnDownloadAgentPack" onclick="downloadClientAgentPack()">
+                            <span class="dl-icon">📥</span>
+                            <div class="dl-text">
+                                <strong>تحميل حزمة البوت لجهازك</strong>
+                                <small>جاهزة ومُعدة مسبقاً بنقرة واحدة</small>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="agent-key-container">
+                    <div class="agent-key-box">
+                        <label>🔑 مفتاح الربط الخاص باشتراكك (Agent Key):</label>
+                        <div class="key-input-wrapper">
+                            <input type="text" id="inputClientAgentKey" readonly value="جاري التحميل..." class="agent-key-input">
+                            <button type="button" class="btn-copy-key" id="btnCopyAgentKey" onclick="copyClientAgentKey()">
+                                <span>📋 نسخ المفتاح</span>
+                            </button>
+                            <button type="button" class="btn-refresh-key" id="btnRegenerateAgentKey" onclick="regenerateClientAgentKey()" title="توليد مفتاح جديد">
+                                <span>🔄 تجديد</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="agent-quick-steps">
+                        <div class="step-badge">1️⃣ فك الضغط</div>
+                        <div class="step-badge">2️⃣ افتح "إدارة الحسابات" وسجّل دخولك</div>
+                        <div class="step-badge">3️⃣ شغّل البوت وسيتصل تلقائياً 🟢</div>
+                        <div class="step-badge">4️⃣ تفعيل التشغيل مع فتح الويندوز 🚀</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Auto-Discovery Feature Banner -->
+            <div class="auto-boost-toggle-card card">
+                <div class="toggle-card-info">
+                    <span class="toggle-icon">🤖</span>
+                    <div>
+                        <h4>الاكتشاف والتفاعل التلقائي مع البوستات الجديدة (Auto-Boost Engine)</h4>
+                        <p>عند نشر أي بوست مجدول على صفحتك، سيبدأ البوت فوراً بالتفاعل معه (لايكات + تعليقات ذكية مخصصة عبر Groq AI + مشاركات) جنباً إلى جنب مع النشر في الجروبات.</p>
+                    </div>
+                </div>
+                <label class="switch-toggle">
+                    <input type="checkbox" id="chkAutoBoostDaemon" checked>
+                    <span class="slider-toggle"></span>
+                </label>
+            </div>
+
+            <!-- Two-Column Grid -->
+            <div class="booster-grid">
+                <!-- Column 1: Accounts Manager -->
+                <div class="booster-col accounts-col card">
+                    <div class="panel-card-header">
+                        <div class="title-with-badge">
+                            <h3>👥 الحسابات المسجلة</h3>
+                            <span class="count-pill" id="boosterAccountsCount">0</span>
+                        </div>
+                        <div class="header-actions-group" style="display: flex; gap: 8px;">
+                            <button type="button" class="btn-subtle-sm" id="btnCheckAccountsHealth" title="فحص صلاحية جميع الجلسات المسجلة فوراً">
+                                🩺 فحص الصلاحية
+                            </button>
+                            <button type="button" class="btn-subtle-sm" id="btnRefreshBoosterAccounts" title="تحديث قائمة الحسابات">
+                                🔄 تحديث
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="section-hint">
+                        يتم حفظ جلسات المتصفح لكل حساب بشكل مستقل ومعزول، ولا تحتاج لإدخال كلمة المرور مرة أخرى بعد أول تسجيل دخول.
+                    </p>
+
+                    <!-- Accounts List Container -->
+                    <div class="booster-accounts-list" id="boosterAccountsList">
+                        <div class="empty-state-card">
+                            <span class="empty-icon">👤</span>
+                            <h4>لا توجد حسابات مسجلة بعد</h4>
+                            <p>انقر على "إضافة حساب فيسبوك جديد" لتسجيل أول حساب بسهولة.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2: Boost Launcher & Logs -->
+                <div class="booster-col action-col card">
+                    <div class="panel-card-header">
+                        <h3>⚡ إطلاق التفاعل المباشر على منشورات</h3>
+                    </div>
+
+                    <form id="formBoosterLaunch" onsubmit="return false;">
+                        <!-- Dropdown for selecting already published posts -->
+                        <div class="form-group">
+                            <label for="selectBoosterRecentPost" class="field-label">📌 أو اختر من منشوراتك المنشورة حديثاً:</label>
+                            <select id="selectBoosterRecentPost" class="modern-input">
+                                <option value="">-- اضغط للاختيار من المنشورات المنشورة في الصفحة --</option>
+                            </select>
+                        </div>
+
+                        <!-- Post URLs Input (Supports multiple links) -->
+                        <div class="form-group">
+                            <label for="inputBoosterPostUrl" class="field-label">
+                                <span>🔗 روابط المنشورات (يمكنك وضع رابط واحد أو أكثر، رابط في كل سطر):</span>
+                                <span class="required">*</span>
+                            </label>
+                            <div class="input-with-button">
+                                <textarea id="inputBoosterPostUrl" class="modern-textarea" rows="2" placeholder="https://www.facebook.com/.../posts/...
+https://www.facebook.com/.../posts/..." required></textarea>
+                                <button type="button" class="btn-secondary-input" id="btnPastePostUrl" title="لصق من الحافظة">📋 لصق</button>
+                            </div>
+                        </div>
+
+                        <!-- Interaction Options Toggles -->
+                        <div class="booster-options-group">
+                            <label class="field-label">🎯 نوع التفاعل المطلوب من كل حساب:</label>
+                            <div class="options-pills">
+                                <label class="option-pill-checkbox">
+                                    <input type="checkbox" id="chkBoosterLike" checked>
+                                    <span class="pill-box">
+                                        <span class="pill-icon">👍</span>
+                                        <span class="pill-text">إعجاب (Like)</span>
+                                    </span>
+                                </label>
+                                <label class="option-pill-checkbox">
+                                    <input type="checkbox" id="chkBoosterComment" checked>
+                                    <span class="pill-box">
+                                        <span class="pill-icon">💬</span>
+                                        <span class="pill-text">تعليق عشوائي</span>
+                                    </span>
+                                </label>
+                                <label class="option-pill-checkbox">
+                                    <input type="checkbox" id="chkBoosterGroqAi" checked>
+                                    <span class="pill-box ai-pill">
+                                        <span class="pill-icon">🧠</span>
+                                        <span class="pill-text">توليد التعليقات بـ Groq AI</span>
+                                    </span>
+                                </label>
+                                <label class="option-pill-checkbox">
+                                    <input type="checkbox" id="chkBoosterShare" checked>
+                                    <span class="pill-box">
+                                        <span class="pill-icon">🔄</span>
+                                        <span class="pill-text">مشاركة (Share)</span>
+                                    </span>
+                                </label>
+                                <label class="option-pill-checkbox" title="توزيع عشوائي للمهام: كل حساب ينفذ تشكيلة مهام مختلفة (إعجاب/تعليق/مشاركة) في كل مرة كإنسان حقيقي">
+                                    <input type="checkbox" id="chkBoosterRandomizeTasks" checked>
+                                    <span class="pill-box randomize-pill">
+                                        <span class="pill-icon">🎲</span>
+                                        <span class="pill-text">توزيع عشوائي للمهام بين الحسابات</span>
+                                    </span>
+                                </label>
+                                <label class="option-pill-checkbox">
+                                    <input type="checkbox" id="chkBoosterHeadless">
+                                    <span class="pill-box">
+                                        <span class="pill-icon">👁️</span>
+                                        <span class="pill-text">إظهار المتصفح</span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Comments Manager Box -->
+                        <div class="comments-accordion card-sub">
+                            <div class="accordion-header" id="btnToggleCommentsBox">
+                                <span class="acc-title">📝 بنك التعليقات المقترحة (<span id="commentsCountBadge">0</span> تعليق)</span>
+                                <span class="acc-toggle-icon">▼</span>
+                            </div>
+                            <div class="accordion-body" id="commentsAccordionBody">
+                                <p class="hint-small">ضع كل تعليق في سطر منفصل. سيقوم النظام باختيار تعليق مختلف لكل حساب بالتناوب لتفادي حظر فيسبوك.</p>
+                                <textarea id="txtBoosterComments" rows="5" class="modern-textarea" placeholder="ضع تعليقاً في كل سطر..."></textarea>
+                                <div class="accordion-actions">
+                                    <button type="button" class="btn-subtle-sm" id="btnSaveComments">💾 حفظ بنك التعليقات</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Launch / Abort Action Button -->
+                        <div class="launch-actions-area">
+                            <button type="button" class="btn-boost-launch" id="btnStartBooster">
+                                <span class="launch-icon">🚀</span>
+                                <span class="launch-text">ابدأ تعزيز التفاعل الآن</span>
+                            </button>
+                            <button type="button" class="btn-boost-abort" id="btnStopBooster" style="display: none;">
+                                <span class="launch-icon">🛑</span>
+                                <span class="launch-text">إيقاف التفاعل فوراً</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Live Progress & Console Logs -->
+                    <div class="booster-live-status-box" id="boosterLiveBox">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-header">
+                                <span class="progress-title" id="boosterProgressTitle">حالة التنفيذ: جاهز</span>
+                                <span class="progress-percent" id="boosterProgressPercent">0%</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" id="boosterProgressBarFill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Live Terminal / Event Logs -->
+                        <div class="live-terminal-box">
+                            <div class="terminal-header">
+                                <span>🖥️ سجل التفاعل المباشر (Live Logs)</span>
+                                <button type="button" class="btn-clear-logs" id="btnClearBoosterLogs">مسح السجل</button>
+                            </div>
+                            <div class="terminal-logs-list" id="boosterLogsContainer">
+                                <div class="log-line info">
+                                    <span class="log-time">--:--:--</span>
+                                    <span class="log-msg">جاهز لبدء التفاعل بمجرد إدخال الرابط والضغط على "ابدأ".</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal for Adding Account -->
+            <div class="modal-overlay" id="addAccountModal" style="display: none;">
+                <div class="modal-dialog small">
+                    <div class="modal-header">
+                        <div class="modal-title-box">
+                            <span class="modal-icon">➕</span>
+                            <div>
+                                <h3>إضافة حساب فيسبوك جديد</h3>
+                                <p class="modal-subtitle">سيتم فتح نافذة متصفح Chrome مستقلة لتسجيل الدخول لمرة واحدة فقط</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close-modal" id="btnCloseAddAccountModal">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="inputNewAccountName" class="field-label">اسم تعريفي للحساب:</label>
+                            <input type="text" id="inputNewAccountName" class="modern-input" placeholder="مثال: حساب_أحمد_1">
+                        </div>
+                        <div class="info-alert-box">
+                            💡 <b>طريقة العمل:</b>
+                            <ol>
+                                <li>انقر على زر "افتح المتصفح لتسجيل الدخول" بالأسفل.</li>
+                                <li>ستفتح نافذة متصفح Chrome حقيقية أمامك.</li>
+                                <li>سجل دخولك إلى فيسبوك بحسابك بشكل طبيعي.</li>
+                                <li>سيكتشف النظام الجلسة تلقائياً ويغلق المتصفح ويضيف الحساب لقائمتك.</li>
+                            </ol>
+                        </div>
+                        <div id="addAccountLoader" class="loader-banner" style="display: none;">
+                            <span class="spinner"></span>
+                            <span>⏳ المتصفح مفتوح الآن بانتظار تسجيل الدخول...</span>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" id="btnCancelAddAccount">إلغاء</button>
+                        <button type="button" class="btn-primary" id="btnConfirmAddAccount">🚀 افتح المتصفح لتسجيل الدخول</button>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- نافذة إعدادات الربط السحابي (SaaS BYOK Settings Modal) -->
@@ -2118,6 +2418,6 @@
     </div>
 
     <script src="vendor/cropper.min.js"></script>
-    <script src="app.js?v=v_1793170487630"></script>
+    <script src="app.js?v=v_1793283662017"></script>
 </body>
 </html>

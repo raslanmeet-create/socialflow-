@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -2217,6 +2218,511 @@ app.get('/api/client/sync-config', async (req, res) => {
     }
 });
 
+// =========================================================================
+// 🌐 منصة الـ SaaS: واجهات ربط برنامج الكمبيوتر بالخادم (Desktop Agent APIs)
+// =========================================================================
+
+// خريطة في الذاكرة لتتبع الأجهزة المتصلة وحالتها اللحظية
+const activeAgentsMap = new Map();
+
+// دالة مساعدة للتحقق من هوية المشترك عبر مفتاح الربط الخاص ببرنامجه (Agent Key)
+async function findUserByAgentKey(agentKey) {
+    if (!agentKey || typeof agentKey !== 'string') return null;
+    const cleanKey = agentKey.trim();
+    if (!cleanKey) return null;
+
+    if (supabaseAdmin) {
+        try {
+            // 1. البحث بمفتاح الربط المخزن في إعدادات المستخدم
+            const { data: userByConfig, error: errConfig } = await supabaseAdmin
+                .from('user_profiles')
+                .select('*')
+                .filter('auto_reply_config->>agent_key', 'eq', cleanKey)
+                .maybeSingle();
+
+            if (userByConfig && !errConfig) return userByConfig;
+
+            // 2. البحث المباشر إذا كان المفتاح هو معرف UUID للمستخدم
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanKey);
+            if (isUuid) {
+                const { data: userById } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', cleanKey)
+                    .maybeSingle();
+                if (userById) return userById;
+            }
+        } catch (e) {
+            console.error('Error finding user by agent key in Supabase:', e.message);
+        }
+    }
+
+    // دعم الحساب المحلي الرئيسي أثناء التطوير
+    if (cleanKey === 'local_dev_key' || cleanKey === 'admin') {
+        return {
+            id: 'admin_local',
+            email: 'raslan.meet@gmail.com',
+            full_name: 'رسلان للتسويق',
+            role: 'admin',
+            status: 'active'
+        };
+    }
+
+    return null;
+}
+
+// 1. توليد أو جلب مفتاح الربط (Agent Connection Key) للمشترك
+app.post('/api/agent/get-or-create-key', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'معرف المستخدم (userId) مطلوب.' });
+        }
+
+        if (!supabaseAdmin) {
+            return res.json({ success: true, agentKey: `sf_dev_${userId.substring(0, 12)}` });
+        }
+
+        const { data: userRow, error } = await supabaseAdmin
+            .from('user_profiles')
+            .select('id, email, status, auto_reply_config')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (error || !userRow) {
+            return res.status(404).json({ success: false, message: 'المستخدم غير موجود.' });
+        }
+
+        let cfg = userRow.auto_reply_config || {};
+        if (typeof cfg !== 'object') cfg = {};
+
+        let agentKey = cfg.agent_key;
+        if (!agentKey) {
+            const randomHex = crypto.randomBytes(16).toString('hex');
+            agentKey = `sf_live_${randomHex}`;
+            cfg.agent_key = agentKey;
+
+            await supabaseAdmin
+                .from('user_profiles')
+                .update({ auto_reply_config: cfg, updated_at: new Date().toISOString() })
+                .eq('id', userId);
+        }
+
+        return res.json({ success: true, agentKey });
+    } catch (err) {
+        console.error('Error in /api/agent/get-or-create-key:', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 2. التحقق من صلاحية مفتاح الربط وجلب إعدادات العميل (Verify & Handshake)
+app.get('/api/agent/verify', async (req, res) => {
+    try {
+        const key = (req.query.key || req.headers['x-agent-key'] || '').trim();
+        if (!key) {
+            return res.status(401).json({ success: false, message: 'مفتاح الربط (Agent Key) غير متوفر.' });
+        }
+
+        const userRow = await findUserByAgentKey(key);
+        if (!userRow) {
+            return res.status(401).json({ success: false, message: 'مفتاح الربط غير صالح أو منتهي.' });
+        }
+
+        const userStatus = userRow.status || userRow.auto_reply_config?.account_status || 'pending';
+        const userSub = userRow.auto_reply_config?.subscription;
+        const now = new Date();
+        const isExpired = userSub?.expires_at && new Date(userSub.expires_at) <= now;
+
+        if (userRow.email !== 'raslan.meet@gmail.com') {
+            if (userStatus === 'pending') {
+                return res.status(403).json({ success: false, message: 'حسابك بانتظار تفعيل الاشتراك من قِبل إدارة المنصة.' });
+            }
+            if (userStatus === 'suspended') {
+                return res.status(403).json({ success: false, message: 'تم إيقاف حسابك مؤقتاً من قِبل إدارة المنصة.' });
+            }
+            if (isExpired) {
+                return res.status(403).json({ success: false, message: 'انتهت صلاحية اشتراكك في المنصة، يرجى التجديد.' });
+            }
+        }
+
+        // تسجيل نبضة النشاط
+        activeAgentsMap.set(userRow.id, {
+            lastSeen: Date.now(),
+            clientVersion: req.query.version || '1.0.0',
+            ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
+        });
+
+        const selectedPage = Array.isArray(userRow.selected_pages) && userRow.selected_pages.length > 0 
+            ? userRow.selected_pages[0] 
+            : null;
+        const teleCfg = userRow.auto_reply_config?.telegram || {};
+
+        return res.json({
+            success: true,
+            user: {
+                id: userRow.id,
+                email: userRow.email,
+                name: userRow.full_name || userRow.email,
+                pageName: selectedPage?.name || 'Raslans Marketing - رسلان للتسويق',
+                pageId: selectedPage?.id || null,
+                telegramBotToken: teleCfg.botToken || '',
+                telegramChatId: teleCfg.chatId || '',
+                groqApiKey: userRow.groq_api_key || (userRow.email === 'raslan.meet@gmail.com' ? (process.env.GROQ_API_KEY || '') : ''),
+                subscriptionStatus: userStatus,
+                expiresAt: userSub?.expires_at || null
+            }
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 3. استعلام البوت عن المهام المجدولة المستحقة لحساب هذا العميل (Pending Tasks)
+app.get('/api/agent/pending-tasks', async (req, res) => {
+    try {
+        const key = (req.query.key || req.headers['x-agent-key'] || '').trim();
+        const userRow = await findUserByAgentKey(key);
+        if (!userRow) {
+            return res.status(401).json({ success: false, message: 'مفتاح الربط غير صالح.' });
+        }
+
+        const posts = await getScheduledPosts();
+        const now = Date.now();
+        const MAX_POST_AGE_MS = 6 * 60 * 60 * 1000; // معالجة المنشورات الحديثة (آخر 6 ساعات)
+
+        const targetPosts = [];
+        for (const p of posts) {
+            const isOwner = p.userId === userRow.id || (userRow.email === 'raslan.meet@gmail.com' && (!p.userId || p.userId === userRow.id));
+            if (!isOwner) continue;
+            if (p.status !== 'PUBLISHED') continue;
+
+            const postTime = new Date(p.publishedAt || p.createdAt || 0).getTime();
+            if (now - postTime > MAX_POST_AGE_MS) continue;
+
+            const needsBooster = !p.booster_auto_done;
+            const needsGroups = !p.groups_auto_shared;
+
+            if (needsBooster || needsGroups) {
+                targetPosts.push({
+                    id: p.id,
+                    postUrl: p.postUrl || (p.publishResults?.facebook?.post_id ? `https://www.facebook.com/posts/${String(p.publishResults.facebook.post_id).replace(/.*_/, '')}` : null),
+                    content: p.content || '',
+                    publishedAt: p.publishedAt,
+                    needsBooster,
+                    needsGroups
+                });
+            }
+        }
+
+        return res.json({ success: true, count: targetPosts.length, tasks: targetPosts });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 4. استلام تقرير إنجاز المهمة وتحديث حالة المنشور في قاعدة البيانات
+app.post('/api/agent/report-task', async (req, res) => {
+    try {
+        const { key, postId, taskType, success, count, logs, error } = req.body;
+        const userRow = await findUserByAgentKey(key);
+        if (!userRow) {
+            return res.status(401).json({ success: false, message: 'مفتاح الربط غير صالح.' });
+        }
+
+        if (!postId || !taskType) {
+            return res.status(400).json({ success: false, message: 'postId و taskType مطلوبان.' });
+        }
+
+        const posts = await getScheduledPosts();
+        const post = posts.find(p => p.id === postId);
+        if (!post) {
+            return res.status(404).json({ success: false, message: 'المنشور غير موجود.' });
+        }
+
+        const isOwner = post.userId === userRow.id || (userRow.email === 'raslan.meet@gmail.com' && (!post.userId || post.userId === userRow.id));
+        if (!isOwner) {
+            return res.status(403).json({ success: false, message: 'غير مصرح بتعديل هذا المنشور.' });
+        }
+
+        const nowIso = new Date().toISOString();
+        if (taskType === 'booster') {
+            post.booster_auto_done = true;
+            post.booster_done_at = nowIso;
+            post.booster_success = Boolean(success);
+            if (logs) post.booster_logs = logs;
+        } else if (taskType === 'groups') {
+            post.groups_auto_shared = true;
+            post.groups_shared_at = nowIso;
+            post.groups_shared_count = count || 0;
+            if (error) post.groups_error = error;
+        }
+
+        await saveScheduledPosts(posts);
+
+        if (supabaseAdmin) {
+            try {
+                const { data: dbRow } = await supabaseAdmin.from('scheduled_posts').select('post_results').eq('id', postId).maybeSingle();
+                if (dbRow) {
+                    const updated = {
+                        ...(dbRow.post_results || {}),
+                        groups_auto_shared: post.groups_auto_shared,
+                        groups_shared_at: post.groups_shared_at,
+                        groups_shared_count: post.groups_shared_count,
+                        booster_auto_done: post.booster_auto_done,
+                        booster_done_at: post.booster_done_at
+                    };
+                    await supabaseAdmin.from('scheduled_posts').update({ post_results: updated }).eq('id', postId);
+                }
+            } catch (e) {
+                console.warn('Sync report to Supabase warning:', e.message);
+            }
+        }
+
+        return res.json({ success: true, message: 'تم حفظ تقرير المهمة بنجاح.' });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 5. استقبال نبضة النشاط اللحظية (Heartbeat) من جهاز العميل
+app.post('/api/agent/heartbeat', async (req, res) => {
+    try {
+        const { key, clientVersion, accountsCount, groupsCount, status, currentTask } = req.body;
+        const userRow = await findUserByAgentKey(key);
+        if (!userRow) {
+            return res.status(401).json({ success: false, message: 'مفتاح الربط غير صالح.' });
+        }
+
+        activeAgentsMap.set(userRow.id, {
+            lastSeen: Date.now(),
+            clientVersion: clientVersion || '1.0.0',
+            accountsCount: accountsCount || 0,
+            groupsCount: groupsCount || 0,
+            status: status || 'IDLE',
+            currentTask: currentTask || null,
+            ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
+        });
+
+        return res.json({ success: true, timestamp: Date.now() });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 6. استعلام لوحة تحكم الموقع عن حالة اتصال جهاز العميل (Online / Offline Status)
+app.get('/api/agent/status-summary', async (req, res) => {
+    try {
+        const userId = (req.query.userId || '').trim();
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'userId مطلوب.' });
+        }
+
+        const agentInfo = activeAgentsMap.get(userId);
+        const isOnline = agentInfo && (Date.now() - agentInfo.lastSeen < 75000);
+
+        return res.json({
+            success: true,
+            online: Boolean(isOnline),
+            lastSeen: agentInfo?.lastSeen ? new Date(agentInfo.lastSeen).toISOString() : null,
+            accountsCount: agentInfo?.accountsCount || 0,
+            groupsCount: agentInfo?.groupsCount || 0,
+            status: isOnline ? (agentInfo?.status || 'IDLE') : 'OFFLINE',
+            currentTask: isOnline ? agentInfo?.currentTask : null
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 7. توليد وتحميل حزمة البوت المخصصة للعميل (One-Click Dynamic Client Package ZIP)
+app.get('/api/agent/download-client-pack', async (req, res) => {
+    try {
+        const key = (req.query.key || '').trim();
+        const userId = (req.query.userId || '').trim();
+
+        let userRow = null;
+        if (key) {
+            userRow = await findUserByAgentKey(key);
+        } else if (userId && supabaseAdmin) {
+            const { data } = await supabaseAdmin.from('user_profiles').select('*').eq('id', userId).maybeSingle();
+            userRow = data;
+        }
+
+        if (!userRow) {
+            return res.status(401).send('مفتاح الربط أو معرف المستخدم غير صالح.');
+        }
+
+        const agentKey = userRow.auto_reply_config?.agent_key || key || `sf_live_${userRow.id.substring(0, 16)}`;
+        const archiverModule = require('archiver');
+        let archive;
+        if (typeof archiverModule === 'function') {
+            archive = archiverModule('zip', { zlib: { level: 9 } });
+        } else if (archiverModule.ZipArchive) {
+            archive = new archiverModule.ZipArchive({ zlib: { level: 9 } });
+        } else if (archiverModule.default && typeof archiverModule.default === 'function') {
+            archive = archiverModule.default('zip', { zlib: { level: 9 } });
+        } else {
+            throw new Error('تعذر تهيئة مكتبة ضغط الملفات.');
+        }
+
+        const zipFilename = `SocialFlow-Bot-${(userRow.full_name || 'Client').replace(/[^\w\u0621-\u064A]/g, '_')}.zip`;
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipFilename)}"`);
+
+        archive.on('error', err => {
+            console.error('Archive error:', err);
+            if (!res.headersSent) res.status(500).end();
+        });
+
+        archive.pipe(res);
+
+        // 1. ملف الإعدادات المخصص للعميل
+        const clientCfg = {
+            server_url: 'https://socialflow-olive.vercel.app',
+            agent_key: agentKey,
+            client_name: userRow.full_name || userRow.email,
+            page_name: (userRow.selected_pages && userRow.selected_pages[0]?.name) || 'صفحتك على فيسبوك',
+            groups_sharing_enabled: true
+        };
+        archive.append(JSON.stringify(clientCfg, null, 2), { name: 'client_config.json' });
+
+        // 2. ملفات المحرك الأساسية
+        const filesToCopy = [
+            'agent_runner.js',
+            'booster_service.js',
+            'fb_auto_worker.js',
+            'manage_fb_accounts.js',
+            'clean_groups.json',
+            'booster_comments.txt'
+        ];
+
+        for (const f of filesToCopy) {
+            const p = path.join(__dirname, f);
+            if (fs.existsSync(p)) {
+                archive.file(p, { name: f });
+            }
+        }
+
+        // 3. package.json مبسط للعميل
+        const clientPackageJson = {
+            name: "socialflow-desktop-agent",
+            version: "1.2.0",
+            description: "SocialFlow Desktop Automation Agent",
+            main: "agent_runner.js",
+            dependencies: {
+                "puppeteer-core": "^25.16.0",
+                "dotenv": "^16.4.5"
+            }
+        };
+        archive.append(JSON.stringify(clientPackageJson, null, 2), { name: 'package.json' });
+
+        // 4. سكربتات التشغيل باللغة العربية بنقرة واحدة
+        const batAccountManager = `@echo off
+title SocialFlow - ادارة حسابات التفاعل
+color 0b
+cd /d "%~dp0"
+echo ========================================================
+echo   SocialFlow - مدير حسابات التفاعل لفيسبوك
+echo ========================================================
+if not exist node_modules (
+    echo جاري فحص وتثبيت المتطلبات لاول مرة، يرجى الانتظار...
+    call npm install --omit=dev
+)
+node manage_fb_accounts.js
+pause
+`;
+        archive.append(batAccountManager, { name: '1-إدارة_حسابات_التفاعل.bat' });
+
+        const batRunner = `@echo off
+title SocialFlow Bot Agent
+color 0a
+cd /d "%~dp0"
+echo ========================================================
+echo   SocialFlow Desktop Agent - البوت نشط وفي وضع المراقبة
+echo ========================================================
+if not exist node_modules (
+    echo جاري فحص وتثبيت المتطلبات لاول مرة، يرجى الانتظار...
+    call npm install --omit=dev
+)
+node agent_runner.js
+pause
+`;
+        archive.append(batRunner, { name: '2-تشغيل_البوت_التلقائي.bat' });
+
+        const vbsSilent = `Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run "cmd /c ""%~dp02-تشغيل_البوت_التلقائي.bat""", 0, False
+`;
+        archive.append(vbsSilent, { name: '3-تشغيل_صامت_بالخلفية.vbs' });
+
+        // 5. سكربت تفعيل التشغيل التلقائي مع فتح الويندوز
+        const batEnableStartup = `@echo off
+title SocialFlow - تفعيل التشغيل التلقائي مع الويندوز
+color 0a
+cd /d "%~dp0"
+echo ========================================================
+echo   🚀 تفعيل تشغيل البوت تلقائياً مع فتح الويندوز
+echo ========================================================
+echo.
+echo جاري إضافة اختصار تشغيل البوت في مجلد بدء تشغيل الويندوز (Startup)...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; $target = Join-Path '%~dp0' '3-تشغيل_صامت_بالخلفية.vbs'; $s = $ws.CreateShortcut([Environment]::GetFolderPath('Startup') + '\\SocialFlowAgent.lnk'); $s.TargetPath = $target; $s.WorkingDirectory = '%~dp0'; $s.Description = 'SocialFlow Desktop Agent'; $s.Save()"
+
+if %ERRORLEVEL% EQU 0 (
+    echo.
+    echo [OK] تم تفعيل التشغيل التلقائي بنجاح!
+    echo من الان، كلما فتحت جهاز الكمبيوتر سيبدأ البوت العمل في الخلفية بصمت تام.
+    echo وسيرسل لك اشعاراً على التيليجرام بان جهازك متصل ومستعد للمنشورات.
+) else (
+    echo [ERROR] حدث خطأ اثناء تفعيل التشغيل التلقائي.
+)
+echo.
+pause
+`;
+        archive.append(batEnableStartup, { name: '4-تفعيل_التشغيل_التلقائي_مع_الويندوز.bat' });
+
+        // 6. سكربت إلغاء التشغيل التلقائي
+        const batDisableStartup = `@echo off
+title SocialFlow - الغاء التشغيل التلقائي
+color 0c
+cd /d "%~dp0"
+echo ========================================================
+echo   الغاء تشغيل البوت تلقائياً مع فتح الويندوز
+echo ========================================================
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$link = [Environment]::GetFolderPath('Startup') + '\\SocialFlowAgent.lnk'; if (Test-Path $link) { Remove-Item $link -Force; Write-Host '[OK] تم حذف الاختصار والغاء التشغيل التلقائي بنجاح.' } else { Write-Host '[INFO] لم يتم العثور على اختصار مسبق.' }"
+echo.
+pause
+`;
+        archive.append(batDisableStartup, { name: '5-إلغاء_التشغيل_التلقائي.bat' });
+
+        const instructions = `========================================================
+   دليل تشغيل بوت النشر والتفاعل الآلي (SocialFlow Agent)
+========================================================
+
+أهلاً بك! لقد تم تجهيز هذه الحزمة برمز الربط الخاص باشتراكك تلقائياً.
+
+خطوات البدء السريع:
+----------------------------------------
+1. فك ضغط هذا الملف على جهاز الكمبيوتر الخاص بك.
+2. اضغط مرتين على: "1-إدارة_حسابات_التفاعل.bat"
+   - سيفتح لك متصفح Chrome لتسجيل دخول حسابات فيسبوك الخاصة بك بأمان تام.
+3. اضغط مرتين على: "2-تشغيل_البوت_التلقائي.bat"
+   - سيتصل البوت تلقائياً بحسابك على موقع SocialFlow.
+   - بمجرد نشر أو جدولة أي منشور في الموقع، سيتولى البوت تعزيزه ونشره في الجروبات من جهازك في موعده!
+
+* للتشغيل الصامت بدون ظهور أي شاشة:
+  يمكنك تشغيل "3-تشغيل_صامت_بالخلفية.vbs".
+
+* للتشغيل التلقائي بدون أن تتذكر فتح البوت:
+  اضغط مرتين على "4-تفعيل_التشغيل_التلقائي_مع_الويندوز.bat"، وسيبدأ البوت العمل تلقائياً بصمت فور فتح جهاز الكمبيوتر ويرسل لك إشعاراً على التيليجرام!
+`;
+        archive.append(instructions, { name: 'تعليمات_البدء_السريع.txt' });
+
+        await archive.finalize();
+    } catch (err) {
+        console.error('Error generating client pack:', err);
+        if (!res.headersSent) res.status(500).send('تعذر إنشاء حزمة البوت: ' + err.message);
+    }
+});
 
 // 3. حفظ إعدادات التيليجرام
 app.post('/api/telegram/config', async (req, res) => {
@@ -2256,6 +2762,150 @@ app.post('/api/telegram/config', async (req, res) => {
         res.json({ success: true, message: 'تم حفظ إعدادات التيليجرام بنجاح!' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'تعذر حفظ إعدادات التيليجرام.' });
+    }
+});
+
+// ========================================================
+// 🚀 مسارات معزز تفاعل فيسبوك بالحسابات المتعددة (Post Booster)
+// ========================================================
+const boosterService = require('./booster_service');
+
+app.get('/api/booster/status', (req, res) => {
+    try {
+        res.json({ success: true, data: boosterService.getBoosterStatus() });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/add-account', async (req, res) => {
+    try {
+        const { name } = req.body;
+        const result = await boosterService.addAccountWizard(name);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/toggle-account', (req, res) => {
+    try {
+        const { accountId, enabled } = req.body;
+        const result = boosterService.toggleAccount(accountId, enabled);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/delete-account', (req, res) => {
+    try {
+        const { accountId } = req.body;
+        const result = boosterService.deleteAccount(accountId);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/open-browser', async (req, res) => {
+    try {
+        const { accountId } = req.body;
+        const result = await boosterService.openAccountBrowser(accountId);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.get('/api/booster/comments', (req, res) => {
+    try {
+        const comments = boosterService.loadComments();
+        res.json({ success: true, comments });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/comments', (req, res) => {
+    try {
+        const { comments } = req.body;
+        boosterService.saveComments(comments);
+        res.json({ success: true, message: 'تم حفظ قائمة التعليقات بنجاح!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.get('/api/booster/config', (req, res) => {
+    try {
+        res.json({ success: true, config: boosterService.loadBoosterConfig() });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/config', (req, res) => {
+    try {
+        boosterService.saveBoosterConfig(req.body.config || {});
+        res.json({ success: true, message: 'تم حفظ إعدادات المعزز بنجاح!' });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/start', async (req, res) => {
+    try {
+        const { postUrls, postUrl, postContent, useGroqAi, doLike, doComment, doShare, randomizeTasks, isHeadless } = req.body;
+        const result = await boosterService.startBoosterCycle({ 
+            postUrls, 
+            postUrl, 
+            postContent, 
+            useGroqAi, 
+            doLike, 
+            doComment, 
+            doShare, 
+            randomizeTasks: randomizeTasks !== false,
+            isHeadless 
+        });
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/stop', (req, res) => {
+    try {
+        const result = boosterService.stopBoosterCycle();
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/check-health', async (req, res) => {
+    try {
+        const result = await boosterService.checkAllAccountsHealth();
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/booster/check-single-health', async (req, res) => {
+    try {
+        const { accountId } = req.body;
+        const accounts = boosterService.loadAccounts();
+        const acc = accounts.find(a => a.id === accountId);
+        if (!acc) return res.status(404).json({ success: false, message: 'الحساب غير موجود' });
+        const checkRes = await boosterService.checkAccountSession(acc);
+        acc.sessionStatus = checkRes.status;
+        acc.sessionMessage = checkRes.message;
+        acc.lastCheckedAt = checkRes.lastCheckedAt;
+        boosterService.saveAccounts(accounts);
+        res.json({ success: true, result: checkRes, account: acc });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
     }
 });
 

@@ -91,12 +91,15 @@ const tabBtnComposer = document.getElementById('tabBtnComposer');
 const tabBtnPlanner = document.getElementById('tabBtnPlanner');
 const tabBtnAutoReply = document.getElementById('tabBtnAutoReply');
 const tabBtnTelegramGroups = document.getElementById('tabBtnTelegramGroups');
+const tabBtnBooster = document.getElementById('tabBtnBooster');
 const tabBtnAdmin = document.getElementById('tabBtnAdmin');
 const plannerBadgeCount = document.getElementById('plannerBadgeCount');
+const boosterBadgeAccounts = document.getElementById('boosterBadgeAccounts');
 const composerSection = document.getElementById('composerSection');
 const plannerSection = document.getElementById('plannerSection');
 const autoReplySection = document.getElementById('autoReplySection');
 const telegramGroupsSection = document.getElementById('telegramGroupsSection');
+const boosterSection = document.getElementById('boosterSection');
 const adminSection = document.getElementById('adminSection');
 
 // عناصر الرد التلقائي الذكي (AI Auto-Reply Bot)
@@ -1256,12 +1259,14 @@ function switchTab(tabName) {
     if (tabBtnPlanner) tabBtnPlanner.classList.remove('active');
     if (tabBtnAutoReply) tabBtnAutoReply.classList.remove('active');
     if (tabBtnTelegramGroups) tabBtnTelegramGroups.classList.remove('active');
+    if (tabBtnBooster) tabBtnBooster.classList.remove('active');
     if (tabBtnAdmin) tabBtnAdmin.classList.remove('active');
 
     if (composerSection) composerSection.style.display = 'none';
     if (plannerSection) plannerSection.style.display = 'none';
     if (autoReplySection) autoReplySection.style.display = 'none';
     if (telegramGroupsSection) telegramGroupsSection.style.display = 'none';
+    if (boosterSection) boosterSection.style.display = 'none';
     if (adminSection) adminSection.style.display = 'none';
 
     if (tabName === 'planner') {
@@ -1287,6 +1292,14 @@ function switchTab(tabName) {
         }
         loadTelegramConfigUI();
         loadTargetGroupsUI();
+    } else if (tabName === 'booster') {
+        if (tabBtnBooster) tabBtnBooster.classList.add('active');
+        if (boosterSection) {
+            boosterSection.style.display = 'flex';
+            boosterSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        loadBoosterUI();
+        if (typeof initClientAgentSync === 'function') initClientAgentSync();
     } else if (tabName === 'admin') {
         if (tabBtnAdmin) tabBtnAdmin.classList.add('active');
         if (adminSection) {
@@ -1308,6 +1321,7 @@ if (tabBtnComposer) tabBtnComposer.addEventListener('click', () => switchTab('co
 if (tabBtnPlanner) tabBtnPlanner.addEventListener('click', () => switchTab('planner'));
 if (tabBtnAutoReply) tabBtnAutoReply.addEventListener('click', () => switchTab('autoreply'));
 if (tabBtnTelegramGroups) tabBtnTelegramGroups.addEventListener('click', () => switchTab('telegram-groups'));
+if (tabBtnBooster) tabBtnBooster.addEventListener('click', () => switchTab('booster'));
 if (tabBtnAdmin) tabBtnAdmin.addEventListener('click', () => switchTab('admin'));
 if (btnOpenPlannerCta) btnOpenPlannerCta.addEventListener('click', () => switchTab('planner'));
 
@@ -4160,6 +4174,7 @@ async function initSupabaseAuth() {
             await loadAutoReplyConfigUI(pageToLoad);
             await loadScheduledPosts();
             await loadTelegramConfigUI();
+            await initClientAgentSync();
             await loadTargetGroupsUI();
         } else {
             currentAuthUser = null;
@@ -5417,6 +5432,632 @@ if (btnConfirmRepeatOnGridEl) {
         }
     });
 }
+
+// ========================================================
+// 🚀 معزز تفاعل فيسبوك بالحسابات المتعددة (FB Post Booster)
+// ========================================================
+let boosterPollingTimer = null;
+
+async function loadBoosterUI() {
+    try {
+        const res = await fetch('/api/booster/status');
+        const data = await res.json();
+        if (data && data.success) {
+            const st = data.data;
+            renderBoosterAccounts(st.accounts || []);
+            renderBoosterComments(st.comments || []);
+            renderBoosterStatus(st);
+
+            const chkAutoBoost = document.getElementById('chkAutoBoostDaemon');
+            if (chkAutoBoost && st.config) {
+                chkAutoBoost.checked = st.config.autoBoostNewPosts !== false;
+            }
+            const chkRandomize = document.getElementById('chkBoosterRandomizeTasks');
+            if (chkRandomize && st.config && st.config.randomizeTasks !== undefined) {
+                chkRandomize.checked = st.config.randomizeTasks !== false;
+            }
+        }
+    } catch (e) {
+        console.error('Error loading booster status:', e);
+    }
+
+    loadBoosterRecentPosts();
+}
+
+async function loadBoosterRecentPosts() {
+    const sel = document.getElementById('selectBoosterRecentPost');
+    if (!sel) return;
+
+    try {
+        const res = await fetch('/api/scheduled?all=true');
+        const posts = await res.json();
+        if (Array.isArray(posts)) {
+            const published = posts.filter(p => p.status === 'PUBLISHED');
+            sel.innerHTML = '<option value="">-- اضغط للاختيار من المنشورات المنشورة في الصفحة --</option>';
+            published.slice(0, 20).forEach(p => {
+                const opt = document.createElement('option');
+                const title = (p.content || p.hook || 'منشور بدون نص').substring(0, 48) + '...';
+                let fbUrl = p.postUrl || '';
+                if (!fbUrl && p.publishResults?.facebook?.post_id) {
+                    const pid = String(p.publishResults.facebook.post_id).includes('_') ? p.publishResults.facebook.post_id.split('_')[1] : p.publishResults.facebook.post_id;
+                    fbUrl = `https://www.facebook.com/RaslansMarketing/posts/${pid}`;
+                }
+                opt.value = fbUrl;
+                opt.dataset.content = p.content || p.hook || '';
+                const dateStr = p.scheduledTime ? new Date(p.scheduledTime).toLocaleDateString('ar-EG') : 'منشور';
+                opt.textContent = `[${dateStr}] ${title}`;
+                sel.appendChild(opt);
+            });
+        }
+    } catch (e) {}
+}
+
+// تفاعل تغيير المنشور المختار
+const selectBoosterRecentPost = document.getElementById('selectBoosterRecentPost');
+if (selectBoosterRecentPost) {
+    selectBoosterRecentPost.addEventListener('change', () => {
+        const val = selectBoosterRecentPost.value;
+        const txtUrl = document.getElementById('inputBoosterPostUrl');
+        if (val && txtUrl) {
+            txtUrl.value = val;
+            const opt = selectBoosterRecentPost.options[selectBoosterRecentPost.selectedIndex];
+            if (opt && opt.dataset.content) {
+                txtUrl.dataset.postContent = opt.dataset.content;
+            }
+        }
+    });
+}
+
+// زر لصق الرابط من الحافظة
+const btnPastePostUrl = document.getElementById('btnPastePostUrl');
+if (btnPastePostUrl) {
+    btnPastePostUrl.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            const txtUrl = document.getElementById('inputBoosterPostUrl');
+            if (text && txtUrl) {
+                if (txtUrl.value.trim()) {
+                    txtUrl.value += '\n' + text.trim();
+                } else {
+                    txtUrl.value = text.trim();
+                }
+                showAlert('تم لصق الرابط بنجاح!', 'success');
+            }
+        } catch (e) {
+            showAlert('يرجى لصق الرابط يدوياً (Ctrl + V)', 'info');
+        }
+    });
+}
+
+// عرض بطاقات الحسابات
+function renderBoosterAccounts(accounts) {
+    const listEl = document.getElementById('boosterAccountsList');
+    const badgeEl = document.getElementById('boosterBadgeAccounts');
+    const countEl = document.getElementById('boosterAccountsCount');
+
+    if (badgeEl) badgeEl.textContent = `${accounts.length} حساب`;
+    if (countEl) countEl.textContent = accounts.length;
+
+    if (!listEl) return;
+
+    if (accounts.length === 0) {
+        listEl.innerHTML = `
+            <div class="empty-state-card">
+                <span class="empty-icon">👤</span>
+                <h4>لا توجد حسابات مسجلة بعد</h4>
+                <p>انقر على "إضافة حساب فيسبوك جديد" لتسجيل أول حساب وسيحفظ النظام جلسته للأبد.</p>
+            </div>
+        `;
+        return;
+    }
+
+    listEl.innerHTML = '';
+    accounts.forEach(acc => {
+        let statusBadgeHtml = '<span class="session-badge gray" title="لم يتم فحص صلاحية هذا الحساب بعد">⚪ غير مفحوص</span>';
+        if (acc.sessionStatus === 'ACTIVE') {
+            statusBadgeHtml = '<span class="session-badge green" title="الجلسة نشطة ومتصلة بنجاح">🟢 نشط</span>';
+        } else if (acc.sessionStatus === 'EXPIRED') {
+            statusBadgeHtml = '<span class="session-badge red" title="الجلسة منتهية، يرجى الضغط على تصفح لتسجيل الدخول">🔴 تسجيل دخول مطلوب</span>';
+        } else if (acc.sessionStatus === 'CHECKPOINT') {
+            statusBadgeHtml = '<span class="session-badge yellow" title="يتطلب تأكيد أمان أو كود تحقق">🟡 قفل مؤقت</span>';
+        }
+
+        const card = document.createElement('div');
+        card.className = 'booster-account-card';
+        card.innerHTML = `
+            <div class="booster-acc-main">
+                <div class="booster-acc-avatar">👤</div>
+                <div class="booster-acc-details">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <h4>${escapeHtml(acc.name)}</h4>
+                        ${statusBadgeHtml}
+                    </div>
+                    <p>UID: ${acc.uid || 'غير محدد'}</p>
+                </div>
+            </div>
+            <div class="booster-acc-actions">
+                <button type="button" class="btn-icon-subtle" title="فتح المتصفح للحساب" onclick="openBoosterAccountBrowser('${acc.id}')">🌐 تصفح</button>
+                <label class="switch-toggle" title="تفعيل/تعطيل الحساب">
+                    <input type="checkbox" ${acc.enabled !== false ? 'checked' : ''} onchange="toggleBoosterAccount('${acc.id}', this.checked)">
+                    <span class="slider-toggle"></span>
+                </label>
+                <button type="button" class="btn-icon-delete" title="حذف الحساب" onclick="deleteBoosterAccount('${acc.id}', '${escapeHtml(acc.name)}')">🗑️</button>
+            </div>
+        `;
+        listEl.appendChild(card);
+    });
+}
+
+function renderBoosterComments(comments) {
+    const txt = document.getElementById('txtBoosterComments');
+    const countBadge = document.getElementById('commentsCountBadge');
+    if (countBadge) countBadge.textContent = comments.length;
+    if (txt && !txt.dataset.userEdited) {
+        txt.value = comments.join('\n');
+    }
+}
+
+function renderBoosterStatus(st) {
+    const btnStart = document.getElementById('btnStartBooster');
+    const btnStop = document.getElementById('btnStopBooster');
+    const progressTitle = document.getElementById('boosterProgressTitle');
+    const progressPercent = document.getElementById('boosterProgressPercent');
+    const progressBarFill = document.getElementById('boosterProgressBarFill');
+    const headerStatus = document.getElementById('boosterHeaderStatus');
+
+    if (st.isRunning) {
+        if (btnStart) btnStart.style.display = 'none';
+        if (btnStop) btnStop.style.display = 'flex';
+        if (headerStatus) headerStatus.textContent = '⏳ جاري التفاعل النشط مع المنشورات...';
+
+        let percent = 0;
+        if (st.totalAccounts > 0) {
+            percent = Math.round((st.currentAccountIndex / st.totalAccounts) * 100);
+        }
+        if (progressPercent) progressPercent.textContent = `${percent}%`;
+        if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+        if (progressTitle) progressTitle.textContent = st.statusText || 'جاري التفاعل...';
+
+        if (!boosterPollingTimer) {
+            boosterPollingTimer = setInterval(pollBoosterStatus, 2000);
+        }
+    } else {
+        if (btnStart) btnStart.style.display = 'flex';
+        if (btnStop) btnStop.style.display = 'none';
+        if (headerStatus) headerStatus.textContent = 'النظام جاهز ومحمي محلياً 🛡️';
+        if (progressTitle) progressTitle.textContent = st.statusText || 'حالة التنفيذ: جاهز';
+
+        if (boosterPollingTimer) {
+            clearInterval(boosterPollingTimer);
+            boosterPollingTimer = null;
+        }
+    }
+
+    renderBoosterLogs(st.logs || []);
+}
+
+function renderBoosterLogs(logs) {
+    const container = document.getElementById('boosterLogsContainer');
+    if (!container) return;
+
+    if (logs.length === 0) {
+        container.innerHTML = `
+            <div class="log-line info">
+                <span class="log-time">--:--:--</span>
+                <span class="log-msg">جاهز لبدء التفاعل بمجرد إدخال الرابط والضغط على "ابدأ".</span>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = logs.map(l => `
+        <div class="log-line ${l.type || 'info'}">
+            <span class="log-time">[${l.time}]</span>
+            <span class="log-msg">${escapeHtml(l.message)}</span>
+        </div>
+    `).join('');
+}
+
+async function pollBoosterStatus() {
+    try {
+        const res = await fetch('/api/booster/status');
+        const data = await res.json();
+        if (data && data.success) {
+            renderBoosterStatus(data.data);
+        }
+    } catch (e) {}
+}
+
+// تشغيل متصفح لحساب
+async function openBoosterAccountBrowser(accountId) {
+    showAlert('جاري فتح متصفح Chrome للحساب...', 'info');
+    try {
+        const res = await fetch('/api/booster/open-browser', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showAlert('تم فتح المتصفح بنجاح! يمكنك تصفحه وإغلاقه عند الانتهاء.', 'success');
+        } else {
+            showAlert(data.message || 'فشل فتح المتصفح', 'error');
+        }
+    } catch (e) {
+        showAlert('خطأ أثناء فتح المتصفح', 'error');
+    }
+}
+
+// تفعيل أو تعطيل حساب
+async function toggleBoosterAccount(accountId, enabled) {
+    try {
+        await fetch('/api/booster/toggle-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId, enabled })
+        });
+    } catch (e) {}
+}
+
+// حذف حساب
+async function deleteBoosterAccount(accountId, accountName) {
+    if (!confirm(`هل أنت متأكد من حذف الحساب "${accountName}"؟`)) return;
+    try {
+        const res = await fetch('/api/booster/delete-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showAlert('تم حذف الحساب بنجاح', 'success');
+            loadBoosterUI();
+        }
+    } catch (e) {
+        showAlert('تعذر حذف الحساب', 'error');
+    }
+}
+
+// حفظ بنك التعليقات
+const btnSaveComments = document.getElementById('btnSaveComments');
+if (btnSaveComments) {
+    btnSaveComments.addEventListener('click', async () => {
+        const txt = document.getElementById('txtBoosterComments');
+        if (!txt) return;
+        const comments = txt.value.split('\n').map(l => l.trim()).filter(Boolean);
+        try {
+            const res = await fetch('/api/booster/comments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comments })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert('تم حفظ بنك التعليقات بنجاح!', 'success');
+                txt.dataset.userEdited = 'true';
+                const countBadge = document.getElementById('commentsCountBadge');
+                if (countBadge) countBadge.textContent = comments.length;
+            }
+        } catch (e) {
+            showAlert('فشل حفظ التعليقات', 'error');
+        }
+    });
+}
+
+// فتح / إغلاق صندوق التعليقات
+const btnToggleCommentsBox = document.getElementById('btnToggleCommentsBox');
+const commentsAccordionBody = document.getElementById('commentsAccordionBody');
+if (btnToggleCommentsBox && commentsAccordionBody) {
+    btnToggleCommentsBox.addEventListener('click', () => {
+        const isHidden = commentsAccordionBody.style.display === 'none';
+        commentsAccordionBody.style.display = isHidden ? 'flex' : 'none';
+        const icon = btnToggleCommentsBox.querySelector('.acc-toggle-icon');
+        if (icon) icon.textContent = isHidden ? '▲' : '▼';
+    });
+}
+
+// زر إضافة حساب جديد (Modal)
+const btnOpenAddAccountModal = document.getElementById('btnOpenAddAccountModal');
+const addAccountModal = document.getElementById('addAccountModal');
+const btnCloseAddAccountModal = document.getElementById('btnCloseAddAccountModal');
+const btnCancelAddAccount = document.getElementById('btnCancelAddAccount');
+const btnConfirmAddAccount = document.getElementById('btnConfirmAddAccount');
+const inputNewAccountName = document.getElementById('inputNewAccountName');
+const addAccountLoader = document.getElementById('addAccountLoader');
+
+if (btnOpenAddAccountModal && addAccountModal) {
+    btnOpenAddAccountModal.addEventListener('click', () => {
+        addAccountModal.style.display = 'flex';
+        if (inputNewAccountName) {
+            inputNewAccountName.value = '';
+            inputNewAccountName.focus();
+        }
+        if (addAccountLoader) addAccountLoader.style.display = 'none';
+        if (btnConfirmAddAccount) btnConfirmAddAccount.disabled = false;
+    });
+}
+
+function closeAddAccountModal() {
+    if (addAccountModal) addAccountModal.style.display = 'none';
+}
+if (btnCloseAddAccountModal) btnCloseAddAccountModal.addEventListener('click', closeAddAccountModal);
+if (btnCancelAddAccount) btnCancelAddAccount.addEventListener('click', closeAddAccountModal);
+
+if (btnConfirmAddAccount) {
+    btnConfirmAddAccount.addEventListener('click', async () => {
+        const name = (inputNewAccountName?.value || '').trim();
+        if (!name) {
+            showAlert('يرجى إدخال اسم تعريفي للحساب أولاً', 'warning');
+            return;
+        }
+
+        if (addAccountLoader) addAccountLoader.style.display = 'flex';
+        btnConfirmAddAccount.disabled = true;
+        showAlert('🚀 جاري فتح متصفح Chrome الآن... يرجى تسجيل الدخول إلى فيسبوك.', 'info');
+
+        try {
+            const res = await fetch('/api/booster/add-account', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert(`🎉 ${data.account?.name || 'تم تسجيل الحساب'}: تم حفظ الجلسة بنجاح للأبد!`, 'success');
+                closeAddAccountModal();
+                loadBoosterUI();
+            } else {
+                showAlert(data.message || 'تعذر تسجيل الحساب', 'error');
+            }
+        } catch (e) {
+            showAlert('حدث خطأ أثناء فتح المتصفح', 'error');
+        } finally {
+            if (addAccountLoader) addAccountLoader.style.display = 'none';
+            btnConfirmAddAccount.disabled = false;
+        }
+    });
+}
+
+// زر تحديث الحسابات يدوياً
+const btnRefreshBoosterAccounts = document.getElementById('btnRefreshBoosterAccounts');
+if (btnRefreshBoosterAccounts) {
+    btnRefreshBoosterAccounts.addEventListener('click', () => {
+        loadBoosterUI();
+        showAlert('تم تحديث قائمة الحسابات', 'info');
+    });
+}
+
+// زر فحص صلاحية الحسابات
+const btnCheckAccountsHealth = document.getElementById('btnCheckAccountsHealth');
+if (btnCheckAccountsHealth) {
+    btnCheckAccountsHealth.addEventListener('click', async () => {
+        btnCheckAccountsHealth.disabled = true;
+        btnCheckAccountsHealth.textContent = '⏳ جاري الفحص...';
+        showAlert('🩺 جاري فحص صلاحية جميع الجلسات في الخلفية...', 'info');
+
+        try {
+            const res = await fetch('/api/booster/check-health', { method: 'POST' });
+            const data = await res.json();
+            if (data && data.success) {
+                renderBoosterAccounts(data.accounts || []);
+                const activeCount = (data.results || []).filter(r => r.status === 'ACTIVE').length;
+                showAlert(`🏁 اكتمل الفحص: ${activeCount} حساب نشط من أصل ${data.results.length}`, 'success');
+            } else {
+                showAlert(data.message || 'تعذر فحص الحسابات', 'error');
+            }
+        } catch (e) {
+            showAlert('حدث خطأ أثناء فحص الحسابات', 'error');
+        } finally {
+            btnCheckAccountsHealth.disabled = false;
+            btnCheckAccountsHealth.textContent = '🩺 فحص الصلاحية';
+        }
+    });
+}
+
+// مسح السجل
+const btnClearBoosterLogs = document.getElementById('btnClearBoosterLogs');
+if (btnClearBoosterLogs) {
+    btnClearBoosterLogs.addEventListener('click', () => {
+        const c = document.getElementById('boosterLogsContainer');
+        if (c) c.innerHTML = '<div class="log-line info"><span class="log-msg">تم مسح السجل من الشاشة.</span></div>';
+    });
+}
+
+// تغيير سويتش الاكتشاف التلقائي
+const chkAutoBoostDaemon = document.getElementById('chkAutoBoostDaemon');
+if (chkAutoBoostDaemon) {
+    chkAutoBoostDaemon.addEventListener('change', async () => {
+        try {
+            await fetch('/api/booster/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    config: { autoBoostNewPosts: chkAutoBoostDaemon.checked }
+                })
+            });
+            showAlert(chkAutoBoostDaemon.checked ? '✅ تم تفعيل الاكتشاف والتفاعل التلقائي مع البوستات المجدولة' : '⏸️ تم إيقاف الاكتشاف التلقائي مؤقتاً', 'info');
+        } catch (e) {}
+    });
+}
+
+// زر بدء التفاعل اليدوي
+const btnStartBooster = document.getElementById('btnStartBooster');
+if (btnStartBooster) {
+    btnStartBooster.addEventListener('click', async () => {
+        const txtUrl = document.getElementById('inputBoosterPostUrl');
+        const urlsInput = (txtUrl?.value || '').trim();
+        if (!urlsInput) {
+            showAlert('يرجى وضع رابط منشور واحد على الأقل على فيسبوك', 'warning');
+            txtUrl?.focus();
+            return;
+        }
+
+        const doLike = document.getElementById('chkBoosterLike')?.checked !== false;
+        const doComment = document.getElementById('chkBoosterComment')?.checked !== false;
+        const useGroqAi = document.getElementById('chkBoosterGroqAi')?.checked !== false;
+        const doShare = document.getElementById('chkBoosterShare')?.checked !== false;
+        const randomizeTasks = document.getElementById('chkBoosterRandomizeTasks')?.checked !== false;
+        const isHeadless = !document.getElementById('chkBoosterHeadless')?.checked;
+        const postContent = txtUrl.dataset.postContent || '';
+
+        showAlert('🚀 جاري بدء عملية تعزيز المنشور بالحسابات المتعددة...', 'info');
+
+        try {
+            const res = await fetch('/api/booster/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    postUrls: urlsInput,
+                    postContent,
+                    useGroqAi,
+                    doLike,
+                    doComment,
+                    doShare,
+                    randomizeTasks,
+                    isHeadless
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showAlert('🎉 ' + data.message, 'success');
+                pollBoosterStatus();
+            } else {
+                showAlert(data.message || 'تعذر بدء التفاعل', 'error');
+            }
+        } catch (e) {
+            showAlert('خطأ في الاتصال بالخادم', 'error');
+        }
+    });
+}
+
+// زر إيقاف التفاعل
+const btnStopBooster = document.getElementById('btnStopBooster');
+if (btnStopBooster) {
+    btnStopBooster.addEventListener('click', async () => {
+        if (!confirm('هل تريد إيقاف عملية التفاعل الحالية فوراً؟')) return;
+        try {
+            const res = await fetch('/api/booster/stop', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showAlert('🛑 تم إيقاف العملية', 'warning');
+                pollBoosterStatus();
+            }
+        } catch (e) {}
+    });
+}
+
+window.openBoosterAccountBrowser = openBoosterAccountBrowser;
+window.toggleBoosterAccount = toggleBoosterAccount;
+window.deleteBoosterAccount = deleteBoosterAccount;
+window.loadBoosterUI = loadBoosterUI;
+
+// =========================================================================
+// 💻 دوال إدارة برنامج الكمبيوتر المكتبي للمشترك (SaaS Desktop Agent UI)
+// =========================================================================
+
+let agentStatusInterval = null;
+
+async function initClientAgentSync() {
+    if (!currentAuthUser) return;
+    const keyInput = document.getElementById('inputClientAgentKey');
+    if (!keyInput) return;
+
+    try {
+        // 1. جلب أو توليد مفتاح الربط الخاص بالمشترك
+        const res = await fetch('/api/agent/get-or-create-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentAuthUser.id })
+        });
+        const data = await res.json();
+        if (data.success && data.agentKey) {
+            keyInput.value = data.agentKey;
+        }
+
+        // 2. فحص حالة اتصال جهاز العميل وتحديث الشارة
+        await refreshClientAgentStatus();
+
+        if (agentStatusInterval) clearInterval(agentStatusInterval);
+        agentStatusInterval = setInterval(refreshClientAgentStatus, 15000);
+    } catch (e) {
+        console.warn('Agent sync init note:', e);
+    }
+}
+
+async function refreshClientAgentStatus() {
+    if (!currentAuthUser) return;
+    const badge = document.getElementById('agentOnlineBadge');
+    const text = document.getElementById('agentOnlineText');
+    const stats = document.getElementById('agentStatsText');
+    if (!badge || !text) return;
+
+    try {
+        const res = await fetch(`/api/agent/status-summary?userId=${encodeURIComponent(currentAuthUser.id)}`);
+        const data = await res.json();
+
+        if (data.success && data.online) {
+            badge.className = 'agent-status-badge online';
+            text.textContent = 'متصل ونشط الآن 🟢 (اللابتوب جاهز)';
+            if (stats) stats.textContent = `${data.accountsCount || 0} حسابات مربوطة`;
+        } else {
+            badge.className = 'agent-status-badge offline';
+            text.textContent = 'البرنامج غير متصل بالكمبيوتر 🔴';
+            if (stats) stats.textContent = 'مغلق على جهازك';
+        }
+    } catch (e) {}
+}
+
+function copyClientAgentKey() {
+    const keyInput = document.getElementById('inputClientAgentKey');
+    if (!keyInput || !keyInput.value || keyInput.value.includes('جاري')) return;
+
+    navigator.clipboard.writeText(keyInput.value).then(() => {
+        showAlert('📋 تم نسخ مفتاح الربط بنجاح!', 'success');
+    }).catch(() => {
+        keyInput.select();
+        document.execCommand('copy');
+        showAlert('📋 تم نسخ مفتاح الربط!', 'success');
+    });
+}
+
+async function regenerateClientAgentKey() {
+    if (!currentAuthUser) return;
+    if (!confirm('هل أنت متأكد من رغبتك في تجديد مفتاح الربط؟ ستحتاج إلى تحديث المفتاح في ملف إعدادات البوت على جهازك.')) return;
+
+    try {
+        const keyInput = document.getElementById('inputClientAgentKey');
+        if (keyInput) keyInput.value = 'جاري التوليد...';
+
+        const res = await fetch('/api/agent/get-or-create-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentAuthUser.id, forceNew: true })
+        });
+        const data = await res.json();
+        if (data.success && data.agentKey) {
+            if (keyInput) keyInput.value = data.agentKey;
+            showAlert('✨ تم توليد مفتاح ربط جديد بنجاح!', 'success');
+        }
+    } catch (e) {
+        showAlert('حدث خطأ أثناء تجديد المفتاح', 'error');
+    }
+}
+
+function downloadClientAgentPack() {
+    if (!currentAuthUser) {
+        showAlert('يرجى تسجيل الدخول أولاً لتحميل حزمة البوت الخاصة بك', 'warning');
+        return;
+    }
+    showAlert('⏳ جاري تجهيز وتحميل حزمة البوت المخصصة لحسابك...', 'info');
+    window.location.href = `/api/agent/download-client-pack?userId=${encodeURIComponent(currentAuthUser.id)}`;
+}
+
+window.initClientAgentSync = initClientAgentSync;
+window.refreshClientAgentStatus = refreshClientAgentStatus;
+window.copyClientAgentKey = copyClientAgentKey;
+window.regenerateClientAgentKey = regenerateClientAgentKey;
+window.downloadClientAgentPack = downloadClientAgentPack;
+
 
 
 

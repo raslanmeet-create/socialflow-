@@ -1,0 +1,18 @@
+{
+  "html.validate.styles": false,
+  "htmlhint.options": {
+    "inline-style-disabled": false,
+    "style-disabled": false
+  },
+  "sonarlint.rules": {
+    "Web:InlineStyleCheck": {
+      "level": "off"
+    },
+    "html:S1077": {
+      "level": "off"
+    },
+    "Web:S1077": {
+      "level": "off"
+    }
+  }
+}

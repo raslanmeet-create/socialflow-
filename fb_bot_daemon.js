@@ -1,4 +1,5 @@
 const { shareToGroups, sendTelegramAlert, abortCurrentSharing } = require('./fb_auto_worker');
+const boosterService = require('./booster_service');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -191,9 +192,12 @@ async function pollTelegramCommands() {
                         `💡 <b>ملاحظة:</b> إذا أردت إيقاف أي منشور أثناء نشره، أرسل كلمة (<b>وقف</b>)، وسيتوقف فوراً ويتخطاه، ويكمل عمله التلقائي للمنشورات القادمة بدون أي تدخل منك!`;
                     await sendTelegramAlert(statusReply);
                     console.log('✅ تم الرد على استفسار الحالة على تيليجرام.');
-                } else if (text === '/stop' || text.includes('وقف') || text.includes('ايقاف') || text.includes('إيقاف') || text === 'بس' || text === '/pause' || text.includes('الغاء') || text.includes('إلغاء')) {
-                    if (isProcessing) {
-                        abortCurrentSharing();
+                } else if (text === '/stop' || text.includes('وقف') || text.includes('توقف') || text.includes('ايقاف') || text.includes('إيقاف') || text === 'stop' || text === 'بس' || text === '/pause' || text.includes('الغاء') || text.includes('إلغاء')) {
+                    const wasBoosterRunning = boosterService.getBoosterStatus().isRunning;
+                    boosterService.stopBoosterCycle();
+
+                    if (isProcessing || wasBoosterRunning) {
+                        if (isProcessing) abortCurrentSharing();
                         if (currentProcessingPostId && fs.existsSync(POSTS_FILE)) {
                             try {
                                 const posts = JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8'));
@@ -201,17 +205,18 @@ async function pollTelegramCommands() {
                                 if (p) {
                                     p.groups_auto_shared = true;
                                     p.stopped_by_user = true;
+                                    p.booster_auto_done = true;
                                     p.groups_shared_at = new Date().toISOString();
                                     fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2), 'utf8');
                                 }
                             } catch (e) {}
                         }
                         await sendTelegramAlert(
-                            `🛑 <b>تم إيقاف نشر المنشور الحالي وتخطيه نهائياً!</b>\n` +
+                            `🛑 <b>تم إيقاف العمليات وتخطي المنشور الحالي فوراً!</b>\n` +
                             `━━━━━━━━━━━━━━━━━━━━\n` +
-                            `🚫 <b>المنشور الحالي:</b> تم إلغاؤه وتخطيه ولن يعود البوت إليه أبداً.\n` +
-                            `🟢 <b>حالة البوت:</b> ما زال يعمل بنشاط في الخلفية.\n` +
-                            `🚀 <b>المنشورات القادمة:</b> بمجرد نزول أي منشور جديد، سيتولى البوت نشره تلقائياً في موعده بدون أي تدخل منك وبدون الحاجة لإرسال أي أمر!`
+                            `🚫 <b>المنشور الحالي:</b> تم إيقاف نشر الجروبات وتعزيز الحسابات وتخطيه نهائياً.\n` +
+                            `🟢 <b>حالة البوت:</b> مستمر في العمل والمراقبة بالخلفية.\n` +
+                            `🚀 <b>المنشورات القادمة:</b> بمجرد نزول أي منشور جديد، سيتولى البوت التعامل معه تلقائياً في موعده.`
                         );
                     } else {
                         if (fs.existsSync(POSTS_FILE)) {
@@ -355,52 +360,104 @@ async function checkAndSharePendingPosts() {
 
     try {
         const posts = JSON.parse(fs.readFileSync(POSTS_FILE, 'utf8'));
-        // البحث عن أي منشور منشور رسمياً ولم يُشارك في الجروبات بعد
-        const targetPost = posts.find(p => p.status === 'PUBLISHED' && !p.groups_auto_shared);
+        const now = Date.now();
+        const MAX_POST_AGE_MS = 3 * 60 * 60 * 1000; // معالجة المنشورات الحديثة فقط (آخر 3 ساعات)
+
+        // البحث عن أي منشور جديد منشور رسمياً ولم يُعزز أو لم يُشارك بعد
+        const targetPost = posts.find(p => {
+            if (p.status !== 'PUBLISHED') return false;
+            const postTime = new Date(p.publishedAt || p.createdAt || 0).getTime();
+            const isRecent = (now - postTime) < MAX_POST_AGE_MS;
+
+            // إذا كان المنشور قديماً جداً (أكثر من 3 ساعات)، نعلّمه كمكتمل لتفادي تكراره
+            if (!isRecent) {
+                p.booster_auto_done = true;
+                p.groups_auto_shared = true;
+                return false;
+            }
+
+            return (!p.groups_auto_shared || !p.booster_auto_done);
+        });
 
         if (targetPost) {
             isProcessing = true;
             currentProcessingPostId = targetPost.id;
-            console.log(`\n📢 تم اكتشاف منشور جديد بحاجة للنشر في الجروبات: ${targetPost.id}`);
+            console.log(`\n📢 تم اكتشاف منشور جديد: ${targetPost.id}`);
 
             const postUrl = getValidPostUrl(targetPost);
             const postContent = targetPost.content || '';
 
             console.log(`🔗 رابط المنشور: ${postUrl}`);
 
-            const result = await shareToGroups({
-                url: postUrl,
-                content: postContent,
-                hook: postContent
-            });
+            // 1. 🚀 تشغيل معزز التفاعل التلقائي بالحسابات المتعددة وتوليد تعليقات Groq AI
+            const boosterCfg = boosterService.loadBoosterConfig();
+            if (boosterCfg.autoBoostNewPosts && !targetPost.booster_auto_done) {
+                console.log(`🚀 [Auto-Booster] بدء تعزيز المنشور تلقائياً بالحسابات المتعددة وتوليد تعليقات Groq AI...`);
+                try {
+                    await sendTelegramAlert(
+                        `🚀 <b>تم اكتشاف منشور جديد!</b>\n` +
+                        `━━━━━━━━━━━━━━━━━━━━\n` +
+                        `🤖 <b>بدء التفاعل الآلي الذكي:</b>\n` +
+                        `👍 إعجابات + 💬 تعليقات فريدة بذكاء Groq AI + 🔄 مشاركات للحسابات الشخصية.`
+                    );
+                    await boosterService.startBoosterCycle({
+                        postUrls: [postUrl],
+                        postContent: postContent,
+                        useGroqAi: boosterCfg.useGroqAi !== false,
+                        doLike: boosterCfg.doLike !== false,
+                        doComment: boosterCfg.doComment !== false,
+                        doShare: boosterCfg.doShare !== false,
+                        randomizeTasks: boosterCfg.randomizeTasks !== false,
+                        isHeadless: !boosterCfg.showBrowser
+                    });
+                    targetPost.booster_auto_done = true;
+                    targetPost.booster_done_at = new Date().toISOString();
+                    fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2), 'utf8');
+                } catch (bErr) {
+                    console.warn('⚠️ تعذر تشغيل المعزز التلقائي:', bErr.message);
+                }
+            }
 
-            if (result && result.success) {
-                targetPost.groups_auto_shared = true;
-                targetPost.groups_shared_at = new Date().toISOString();
-                targetPost.groups_shared_count = result.count;
-                if (result.stoppedByUser) targetPost.stopped_by_user = true;
-                fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2), 'utf8');
-                console.log(`✅ تم تحديث حالة المنشور بنجاح (تم النشر في الجروبات).`);
+            // 2. 📢 النشر في مجموعات فيسبوك (AI Hunter Groups)
+            if (!targetPost.groups_auto_shared && isGroupSharingEnabled()) {
+                const result = await shareToGroups({
+                    url: postUrl,
+                    content: postContent,
+                    hook: postContent
+                });
 
-                // مزامنة حالة النشر في قاعدة بيانات Supabase أيضاً
-                if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-                    try {
-                        const { createClient } = require('@supabase/supabase-js');
-                        const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-                        const { data: dbRow } = await sb.from('scheduled_posts').select('post_results').eq('id', targetPost.id).maybeSingle();
-                        if (dbRow) {
-                            const updatedPostResults = {
-                                ...(dbRow.post_results || {}),
-                                groups_auto_shared: true,
-                                groups_shared_at: targetPost.groups_shared_at,
-                                groups_shared_count: result.count
-                            };
-                            await sb.from('scheduled_posts').update({ post_results: updatedPostResults }).eq('id', targetPost.id);
+                if (result && result.success) {
+                    targetPost.groups_auto_shared = true;
+                    targetPost.groups_shared_at = new Date().toISOString();
+                    targetPost.groups_shared_count = result.count;
+                    if (result.stoppedByUser) targetPost.stopped_by_user = true;
+                    fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2), 'utf8');
+                    console.log(`✅ تم تحديث حالة المنشور بنجاح (تم النشر في الجروبات).`);
+
+                    // مزامنة حالة النشر في قاعدة بيانات Supabase أيضاً
+                    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+                        try {
+                            const { createClient } = require('@supabase/supabase-js');
+                            const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+                            const { data: dbRow } = await sb.from('scheduled_posts').select('post_results').eq('id', targetPost.id).maybeSingle();
+                            if (dbRow) {
+                                const updatedPostResults = {
+                                    ...(dbRow.post_results || {}),
+                                    groups_auto_shared: true,
+                                    groups_shared_at: targetPost.groups_shared_at,
+                                    groups_shared_count: result.count,
+                                    booster_auto_done: targetPost.booster_auto_done
+                                };
+                                await sb.from('scheduled_posts').update({ post_results: updatedPostResults }).eq('id', targetPost.id);
+                            }
+                        } catch (sbErr) {
+                            console.warn('Could not sync group share to Supabase:', sbErr.message);
                         }
-                    } catch (sbErr) {
-                        console.warn('Could not sync group share to Supabase:', sbErr.message);
                     }
                 }
+            } else if (!isGroupSharingEnabled()) {
+                targetPost.groups_auto_shared = true;
+                fs.writeFileSync(POSTS_FILE, JSON.stringify(posts, null, 2), 'utf8');
             }
         }
     } catch (err) {

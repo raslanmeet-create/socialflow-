@@ -1,5 +1,177 @@
 [
   {
+    "id": "post_1793251570420",
+    "pageId": "1036372629556993",
+    "status": "PUBLISHED",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "test",
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/122138795714889779",
+    "comments": [],
+    "igUserId": "17841439656746504",
+    "mediaUrl": null,
+    "createdAt": "2026-10-29T05:26:10.42+00:00",
+    "mediaPath": null,
+    "mediaType": "image",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook"
+    ],
+    "mediaWidth": null,
+    "aspectRatio": "auto",
+    "isRecurring": false,
+    "mediaHeight": null,
+    "publishedAt": "2026-10-29T05:31:20.435Z",
+    "repeatEvery": 1,
+    "firstComment": "",
+    "scheduledTime": "2026-10-29T05:31:00+00:00",
+    "customCaptions": null,
+    "publishResults": {
+      "facebook": {
+        "id": "1036372629556993_122138795714889779",
+        "feed": {
+          "id": "1036372629556993_122138795714889779",
+          "success": true
+        },
+        "success": true
+      }
+    },
+    "repeatInterval": "none",
+    "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "facebookPlacements": [
+      "feed"
+    ],
+    "instagramPlacements": [
+      "feed"
+    ],
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-10-29T05:32:38.460Z",
+    "groups_shared_count": 1,
+    "stopped_by_user": true,
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:46:01.665Z"
+  },
+  {
+    "id": "post_1793236313068",
+    "pageId": "1036372629556993",
+    "status": "PUBLISHED",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "منشور اختبار",
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/122138779820889779",
+    "comments": [],
+    "igUserId": "17841439656746504",
+    "mediaUrl": null,
+    "createdAt": "2026-10-29T01:11:53.068+00:00",
+    "mediaPath": null,
+    "mediaType": "image",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook"
+    ],
+    "mediaWidth": null,
+    "aspectRatio": "auto",
+    "isRecurring": false,
+    "mediaHeight": null,
+    "publishedAt": "2026-10-29T01:16:23.264Z",
+    "repeatEvery": 1,
+    "firstComment": "",
+    "scheduledTime": "2026-10-29T01:16:00+00:00",
+    "customCaptions": null,
+    "publishResults": {
+      "facebook": {
+        "id": "1036372629556993_122138779820889779",
+        "feed": {
+          "id": "1036372629556993_122138779820889779",
+          "success": true
+        },
+        "success": true
+      }
+    },
+    "repeatInterval": "none",
+    "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "facebookPlacements": [
+      "feed"
+    ],
+    "instagramPlacements": [
+      "feed"
+    ],
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-10-29T01:17:43.625Z",
+    "groups_shared_count": 1,
+    "stopped_by_user": true,
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:46:31.069Z"
+  },
+  {
+    "id": "post_1793234410190",
+    "pageId": "1036372629556993",
+    "status": "PUBLISHED",
+    "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
+    "content": "منشور اختبار",
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/122138777888889779",
+    "comments": [],
+    "igUserId": "17841439656746504",
+    "mediaUrl": null,
+    "createdAt": "2026-10-29T00:40:10.19+00:00",
+    "mediaPath": null,
+    "mediaType": "image",
+    "metaToken": "EAANs09LAvTcBS0vKXRIIwUfU7ZAqc7JYlPKj4UC1nIJtgWxlvpS9gXaf7jkCtIi4JSUofYuJpbv4DsPpanhBLLPswEWi32wFczXMUZAaM4yFE4c6AOzE4kN7syC54LC9DXZC3rm7J6abfrcaVAW2wYChnnKw71m5ja8uyyZBIvsZCdgTaVW9KhgOFIjOUKwZDZD",
+    "platforms": [
+      "facebook",
+      "instagram"
+    ],
+    "mediaWidth": null,
+    "aspectRatio": "auto",
+    "isRecurring": false,
+    "mediaHeight": null,
+    "publishedAt": "2026-10-29T00:44:43.135Z",
+    "repeatEvery": 1,
+    "firstComment": "",
+    "scheduledTime": "2026-10-29T00:44:00+00:00",
+    "customCaptions": null,
+    "publishResults": {
+      "facebook": {
+        "id": "1036372629556993_122138777888889779",
+        "feed": {
+          "id": "1036372629556993_122138777888889779",
+          "success": true
+        },
+        "story": {
+          "error": "فيسبوك يشترط إرفاق صورة أو فيديو لنشر الستوري.",
+          "success": false
+        },
+        "success": true
+      },
+      "instagram": {
+        "feed": {
+          "error": "انستجرام يشترط إرفاق صورة أو فيديو لنشر البوست.",
+          "success": false
+        },
+        "error": "انستجرام يشترط إرفاق صورة أو فيديو لنشر البوست.",
+        "story": {
+          "error": "انستجرام يشترط إرفاق صورة أو فيديو لنشر الستوري.",
+          "success": false
+        },
+        "success": false
+      }
+    },
+    "repeatInterval": "none",
+    "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "facebookPlacements": [
+      "feed",
+      "story"
+    ],
+    "instagramPlacements": [
+      "feed",
+      "story"
+    ],
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-10-29T01:11:09.982Z",
+    "groups_shared_count": 1,
+    "stopped_by_user": true,
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:47:01.268Z"
+  },
+  {
     "id": "post_1793142152998",
     "pageId": "",
     "status": "PUBLISHED",
@@ -33,7 +205,9 @@
     "postUrl": "https://www.facebook.com/RaslansMarketing/posts/1793142152998",
     "groups_auto_shared": true,
     "groups_shared_at": "2026-10-27T23:13:16.189Z",
-    "groups_shared_count": 5
+    "groups_shared_count": 5,
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:47:31.367Z"
   },
   {
     "id": "test_workflow_1793129404800",
@@ -83,7 +257,9 @@
     "instagramPlacements": [],
     "groups_auto_shared": true,
     "groups_shared_at": "2026-10-27T19:39:57.199Z",
-    "groups_shared_count": 5
+    "groups_shared_count": 5,
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:48:01.289Z"
   },
   {
     "id": "post_1793128316709",
@@ -167,7 +343,7 @@
     "pageId": "1036372629556993",
     "status": "PENDING",
     "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
-    "content": "مش كل اللي بيشوفك هو عميلك… مين اللي بتكلمه؟ 🎯\r\n\r\nالإعلان القوي مش مجرد صورة بتظهر على الشاشة؛ هو رسالة بتوصل للجمهور المناسب، وتخليه يهتم بنشاطك ويتعرف على اللي بتقدمه.\r\n\r\nمع Meta Ads من Raslans، بنبني حملات إعلانية على فيسبوك وإنستجرام حسب هدف نشاطك، مع الاهتمام بـ:\r\n\r\n🎯 استهداف الجمهور المناسب\r\n💬 جذب العملاء المحتملين\r\n🔁 إعادة استهداف المهتمين\r\n🎨 اختبار أفكار وتصميمات إعلانية مختلفة\r\n\r\nكل نشاط له جمهوره، وكل حملة محتاجة استراتيجية تناسب هدفها.\r\n\r\n📲 عايز تعرف إزاي إعلانات فيسبوك وإنستجرام ممكن تخدم نشاطك؟\r\nتواصل معانا على واتساب:\r\n01020942335\r\n\r\n🌐 https://raslans.net\r\n\r\nRaslans Marketing Company\r\nYour success… our mission\r\n\r\n#Raslans #MetaAds #إعلانات_فيسبوك #إعلانات_إنستجرام #التسويق_الرقمي #إدارة_الإعلانات",
+    "content": "مش كل اللي بيشوفك هو عميلك… مين اللي بتكلمه؟ 🎯\n\nالإعلان القوي مش مجرد صورة بتظهر على الشاشة؛ هو رسالة بتوصل للجمهور المناسب، وتخليه يهتم بنشاطك ويتعرف على اللي بتقدمه.\n\nمع Meta Ads من Raslans، بنبني حملات إعلانية على فيسبوك وإنستجرام حسب هدف نشاطك، مع الاهتمام بـ:\n\n🎯 استهداف الجمهور المناسب\n💬 جذب العملاء المحتملين\n🔁 إعادة استهداف المهتمين\n🎨 اختبار أفكار وتصميمات إعلانية مختلفة\n\nكل نشاط له جمهوره، وكل حملة محتاجة استراتيجية تناسب هدفها.\n\n📲 عايز تعرف إزاي إعلانات فيسبوك وإنستجرام ممكن تخدم نشاطك؟\nتواصل معانا على واتساب:\n01020942335\n\n🌐 https://raslans.net\n\nRaslans Marketing Company\nYour success… our mission\n\n#Raslans #MetaAds #إعلانات_فيسبوك #إعلانات_إنستجرام #التسويق_الرقمي #إدارة_الإعلانات",
     "comments": [
       {
         "text": "لو هتعمل حملة إعلانية لنشاطك، إيه أهم هدف بالنسبة لك؟ 👇\n\nزيادة معرفة الناس بعلامتك التجارية؟\nجذب عملاء محتملين؟\nولا الوصول لأشخاص مهتمين بالفعل بخدماتك؟"
@@ -212,9 +388,10 @@
   {
     "id": "post_1793102303924",
     "pageId": "1036372629556993",
-    "status": "PENDING",
+    "status": "PUBLISHED",
     "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
     "content": "لما العميل يدور على الحل… هل هيلاقيك؟ 🔎\n\nفي اللحظة اللي عميلك بيبحث فيها عن خدمة بتقدمها، عندك فرصة تظهر قدامه وتعرّفه بنشاطك.\n\nمع Google Ads من Raslans، بنساعدك في بناء حملات إعلانية مخصصة لنشاطك، مع استهداف مناسب، وتقارير واضحة، وتحسين مستمر لأداء الحملات.\n\n🎯 استهداف كلمات البحث المناسبة\n📊 متابعة أداء الحملات بتقارير واضحة\n⚙️ تحسين مستمر بناءً على الأداء\n\nمش الهدف إن إعلانك يظهر وخلاص… الهدف إنك توصل للأشخاص اللي بيدوروا على خدماتك.\n\n📲 للاستفسار عن إعلانات جوجل:\nواتساب 01020942335\n\n🌐 https://raslans.net\n\nRaslans Marketing Company\nYour success… our mission\n\n#Raslans #GoogleAds #إعلانات_جوجل #التسويق_الرقمي #إدارة_الإعلانات #التسويق_الإلكتروني",
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/122138776724889779",
     "comments": [
       {
         "text": "لو عميل بحث على جوجل عن خدمتك النهارده، إيه أهم حاجة تحب يشوفها عن نشاطك؟ 👇\n\nالسعر؟ مميزات الخدمة؟ ولا سبب يخليه يثق فيك ويتواصل معاك؟"
@@ -242,19 +419,97 @@
     "mediaWidth": 1121,
     "aspectRatio": "auto",
     "mediaHeight": 1402,
+    "publishedAt": "2026-10-29T00:35:43.502Z",
     "firstComment": "لو عميل بحث على جوجل عن خدمتك النهارده، إيه أهم حاجة تحب يشوفها عن نشاطك؟ 👇\n\nالسعر؟ مميزات الخدمة؟ ولا سبب يخليه يثق فيك ويتواصل معاك؟",
-    "scheduledTime": "2026-10-28T16:00:00.000Z",
+    "scheduledTime": "2026-10-28T16:00:00+00:00",
     "customCaptions": null,
+    "publishResults": {
+      "facebook": {
+        "id": "122138776700889779",
+        "feed": {
+          "id": "122138776700889779",
+          "post_id": "1036372629556993_122138776724889779",
+          "success": true
+        },
+        "story": {
+          "id": "122138776808889779",
+          "post_id": "1769802380770425",
+          "success": true
+        },
+        "post_id": "1036372629556993_122138776724889779",
+        "success": true,
+        "comments": [
+          {
+            "id": "122138776724889779_1790744768816015",
+            "success": true
+          },
+          {
+            "id": "122138776724889779_1572330738270659",
+            "success": true
+          },
+          {
+            "id": "122138776724889779_1687270349579812",
+            "success": true
+          },
+          {
+            "id": "122138776724889779_1079620488232768",
+            "success": true
+          }
+        ],
+        "firstComment": {
+          "id": "122138776724889779_1790744768816015",
+          "success": true
+        }
+      },
+      "instagram": {
+        "id": "18573254524077856",
+        "feed": {
+          "id": "18573254524077856",
+          "success": true
+        },
+        "story": {
+          "id": "17864868480695352",
+          "success": true
+        },
+        "success": true,
+        "comments": [
+          {
+            "id": "18233357677323162",
+            "success": true
+          },
+          {
+            "id": "18221838574352344",
+            "success": true
+          },
+          {
+            "id": "18106050905265080",
+            "success": true
+          },
+          {
+            "id": "18422826760153128",
+            "success": true
+          }
+        ],
+        "firstComment": {
+          "id": "18233357677323162",
+          "success": true
+        }
+      }
+    },
     "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
     "facebookPlacements": [
       "feed",
       "story"
     ],
+    "groups_auto_shared": true,
+    "groups_shared_count": 7,
     "instagramPlacements": [
       "feed",
       "story"
     ],
-    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/1793102303924"
+    "groups_shared_at": "2026-10-29T00:51:11.990Z",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:48:31.072Z"
   },
   {
     "id": "post_1793099249624",
@@ -316,7 +571,9 @@
     "instagramPlacements": [
       "feed",
       "story"
-    ]
+    ],
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:49:01.261Z"
   },
   {
     "id": "post_1792812630348",
@@ -334,7 +591,9 @@
     "status": "PUBLISHED",
     "publishedAt": "2026-10-24T03:34:04.547Z",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-10-24T03:34:04.547Z"
+    "groups_shared_at": "2026-10-24T03:34:04.547Z",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:49:31.569Z"
   },
   {
     "id": "1036372629556993_122107818044889779",
@@ -353,7 +612,9 @@
     "publishedAt": "2026-04-30T18:00:49+0000",
     "createdAt": "2026-04-30T18:00:49+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-30T18:00:49+0000"
+    "groups_shared_at": "2026-04-30T18:00:49+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:50:01.309Z"
   },
   {
     "id": "1036372629556993_122107701320889779",
@@ -372,7 +633,9 @@
     "publishedAt": "2026-04-29T18:00:51+0000",
     "createdAt": "2026-04-29T18:00:51+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-29T18:00:51+0000"
+    "groups_shared_at": "2026-04-29T18:00:51+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:50:31.321Z"
   },
   {
     "id": "1036372629556993_122107541918889779",
@@ -391,7 +654,9 @@
     "publishedAt": "2026-04-28T18:01:49+0000",
     "createdAt": "2026-04-28T18:01:49+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-28T18:01:49+0000"
+    "groups_shared_at": "2026-04-28T18:01:49+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:51:01.457Z"
   },
   {
     "id": "1036372629556993_122107376180889779",
@@ -410,7 +675,9 @@
     "publishedAt": "2026-04-27T18:01:56+0000",
     "createdAt": "2026-04-27T18:01:56+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-27T18:01:56+0000"
+    "groups_shared_at": "2026-04-27T18:01:56+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:51:31.568Z"
   },
   {
     "id": "1036372629556993_122107208612889779",
@@ -429,7 +696,9 @@
     "publishedAt": "2026-04-26T18:00:28+0000",
     "createdAt": "2026-04-26T18:00:28+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-26T18:00:28+0000"
+    "groups_shared_at": "2026-04-26T18:00:28+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:52:01.336Z"
   },
   {
     "id": "1036372629556993_122107049438889779",
@@ -448,7 +717,9 @@
     "publishedAt": "2026-04-25T18:00:36+0000",
     "createdAt": "2026-04-25T18:00:36+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-25T18:00:36+0000"
+    "groups_shared_at": "2026-04-25T18:00:36+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:52:31.216Z"
   },
   {
     "id": "1036372629556993_122106880430889779",
@@ -467,7 +738,9 @@
     "publishedAt": "2026-04-24T18:01:17+0000",
     "createdAt": "2026-04-24T18:01:17+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-24T18:01:17+0000"
+    "groups_shared_at": "2026-04-24T18:01:17+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:53:01.405Z"
   },
   {
     "id": "1036372629556993_122106742880889779",
@@ -486,7 +759,9 @@
     "publishedAt": "2026-04-23T19:00:47+0000",
     "createdAt": "2026-04-23T19:00:47+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-23T19:00:47+0000"
+    "groups_shared_at": "2026-04-23T19:00:47+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:53:31.483Z"
   },
   {
     "id": "1036372629556993_122106591410889779",
@@ -505,7 +780,9 @@
     "publishedAt": "2026-04-22T19:00:28+0000",
     "createdAt": "2026-04-22T19:00:28+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-22T19:00:28+0000"
+    "groups_shared_at": "2026-04-22T19:00:28+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:54:01.418Z"
   },
   {
     "id": "1036372629556993_122106443960889779",
@@ -524,7 +801,9 @@
     "publishedAt": "2026-04-21T19:00:22+0000",
     "createdAt": "2026-04-21T19:00:22+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-21T19:00:22+0000"
+    "groups_shared_at": "2026-04-21T19:00:22+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:54:31.530Z"
   },
   {
     "id": "1036372629556993_122106281144889779",
@@ -543,7 +822,9 @@
     "publishedAt": "2026-04-20T19:00:49+0000",
     "createdAt": "2026-04-20T19:00:49+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-20T19:00:49+0000"
+    "groups_shared_at": "2026-04-20T19:00:49+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:55:01.387Z"
   },
   {
     "id": "1036372629556993_122106126314889779",
@@ -562,7 +843,9 @@
     "publishedAt": "2026-04-19T19:00:40+0000",
     "createdAt": "2026-04-19T19:00:40+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-19T19:00:40+0000"
+    "groups_shared_at": "2026-04-19T19:00:40+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:55:31.427Z"
   },
   {
     "id": "1036372629556993_122105967038889779",
@@ -581,7 +864,9 @@
     "publishedAt": "2026-04-18T19:00:44+0000",
     "createdAt": "2026-04-18T19:00:44+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-18T19:00:44+0000"
+    "groups_shared_at": "2026-04-18T19:00:44+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:56:01.489Z"
   },
   {
     "id": "1036372629556993_122105806220889779",
@@ -600,7 +885,9 @@
     "publishedAt": "2026-04-17T19:00:15+0000",
     "createdAt": "2026-04-17T19:00:15+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-17T19:00:15+0000"
+    "groups_shared_at": "2026-04-17T19:00:15+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:56:31.448Z"
   },
   {
     "id": "1036372629556993_122105657984889779",
@@ -619,7 +906,9 @@
     "publishedAt": "2026-04-16T19:00:11+0000",
     "createdAt": "2026-04-16T19:00:11+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-16T19:00:11+0000"
+    "groups_shared_at": "2026-04-16T19:00:11+0000",
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T05:57:01.504Z"
   },
   {
     "id": "1036372629556993_122105424998889779",
@@ -638,7 +927,8 @@
     "publishedAt": "2026-04-15T19:00:25+0000",
     "createdAt": "2026-04-15T19:00:25+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-15T19:00:25+0000"
+    "groups_shared_at": "2026-04-15T19:00:25+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122105269466889779",
@@ -657,7 +947,8 @@
     "publishedAt": "2026-04-14T19:00:23+0000",
     "createdAt": "2026-04-14T19:00:23+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-14T19:00:23+0000"
+    "groups_shared_at": "2026-04-14T19:00:23+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122105109284889779",
@@ -676,7 +967,8 @@
     "publishedAt": "2026-04-13T19:00:35+0000",
     "createdAt": "2026-04-13T19:00:35+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-13T19:00:35+0000"
+    "groups_shared_at": "2026-04-13T19:00:35+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122104899314889779",
@@ -695,7 +987,8 @@
     "publishedAt": "2026-04-12T19:00:30+0000",
     "createdAt": "2026-04-12T19:00:30+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-12T19:00:30+0000"
+    "groups_shared_at": "2026-04-12T19:00:30+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122104751606889779",
@@ -714,7 +1007,8 @@
     "publishedAt": "2026-04-11T19:00:44+0000",
     "createdAt": "2026-04-11T19:00:44+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-11T19:00:44+0000"
+    "groups_shared_at": "2026-04-11T19:00:44+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122104588088889779",
@@ -733,7 +1027,8 @@
     "publishedAt": "2026-04-10T19:01:05+0000",
     "createdAt": "2026-04-10T19:01:05+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-10T19:01:05+0000"
+    "groups_shared_at": "2026-04-10T19:01:05+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122104406852889779",
@@ -752,7 +1047,8 @@
     "publishedAt": "2026-04-09T19:00:29+0000",
     "createdAt": "2026-04-09T19:00:29+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-09T19:00:29+0000"
+    "groups_shared_at": "2026-04-09T19:00:29+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122104224524889779",
@@ -771,7 +1067,8 @@
     "publishedAt": "2026-04-08T19:01:31+0000",
     "createdAt": "2026-04-08T19:01:31+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-08T19:01:31+0000"
+    "groups_shared_at": "2026-04-08T19:01:31+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122103924656889779",
@@ -790,7 +1087,8 @@
     "publishedAt": "2026-04-07T19:00:01+0000",
     "createdAt": "2026-04-07T19:00:01+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-07T19:00:01+0000"
+    "groups_shared_at": "2026-04-07T19:00:01+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122103749246889779",
@@ -809,7 +1107,8 @@
     "publishedAt": "2026-04-06T20:00:17+0000",
     "createdAt": "2026-04-06T20:00:17+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-06T20:00:17+0000"
+    "groups_shared_at": "2026-04-06T20:00:17+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122103533552889779",
@@ -828,7 +1127,8 @@
     "publishedAt": "2026-04-05T19:00:28+0000",
     "createdAt": "2026-04-05T19:00:28+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-05T19:00:28+0000"
+    "groups_shared_at": "2026-04-05T19:00:28+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122103305588889779",
@@ -847,7 +1147,8 @@
     "publishedAt": "2026-04-04T19:00:45+0000",
     "createdAt": "2026-04-04T19:00:45+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-04T19:00:45+0000"
+    "groups_shared_at": "2026-04-04T19:00:45+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122103088082889779",
@@ -866,7 +1167,8 @@
     "publishedAt": "2026-04-03T19:01:58+0000",
     "createdAt": "2026-04-03T19:01:58+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-03T19:01:58+0000"
+    "groups_shared_at": "2026-04-03T19:01:58+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122102843516889779",
@@ -885,7 +1187,8 @@
     "publishedAt": "2026-04-02T19:01:25+0000",
     "createdAt": "2026-04-02T19:01:25+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-02T19:01:25+0000"
+    "groups_shared_at": "2026-04-02T19:01:25+0000",
+    "booster_auto_done": true
   },
   {
     "id": "1036372629556993_122102545376889779",
@@ -904,6 +1207,7 @@
     "publishedAt": "2026-04-01T19:00:51+0000",
     "createdAt": "2026-04-01T19:00:51+0000",
     "groups_auto_shared": true,
-    "groups_shared_at": "2026-04-01T19:00:51+0000"
+    "groups_shared_at": "2026-04-01T19:00:51+0000",
+    "booster_auto_done": true
   }
 ]
