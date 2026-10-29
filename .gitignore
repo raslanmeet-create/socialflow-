@@ -10,4 +10,7 @@ auto_reply_activity.json
 bot.lock
 debug_*.png
 fb_profiles/
+fb_chrome_session/
 fb_booster_accounts.json
+scratch/
+client_config.json

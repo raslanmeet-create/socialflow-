@@ -2,3 +2,15 @@ node_modules
 .env
 uploads
 *.log
+scratch
+fb_chrome_session
+fb_profiles
+*.bat
+*.vbs
+debug_*.png
+client_config.json
+fb_booster_accounts.json
+scheduled_posts.json
+auto_reply_config.json
+auto_reply_activity.json
+bot.lock
