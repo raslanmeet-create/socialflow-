@@ -2259,8 +2259,18 @@ async function findUserByAgentKey(agentKey) {
 
     // دعم الحساب المحلي الرئيسي أثناء التطوير
     if (cleanKey === 'local_dev_key' || cleanKey === 'admin') {
+        if (supabaseAdmin) {
+            try {
+                const { data } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('email', 'raslan.meet@gmail.com')
+                    .maybeSingle();
+                if (data) return data;
+            } catch (e) {}
+        }
         return {
-            id: 'admin_local',
+            id: '36a81f14-e396-4670-9cc5-3206c55f2596',
             email: 'raslan.meet@gmail.com',
             full_name: 'رسلان للتسويق',
             role: 'admin',
@@ -2493,7 +2503,7 @@ app.post('/api/agent/heartbeat', async (req, res) => {
             return res.status(401).json({ success: false, message: 'مفتاح الربط غير صالح.' });
         }
 
-        activeAgentsMap.set(userRow.id, {
+        const agentData = {
             lastSeen: Date.now(),
             clientVersion: clientVersion || '1.0.0',
             accountsCount: accountsCount || 0,
@@ -2501,7 +2511,22 @@ app.post('/api/agent/heartbeat', async (req, res) => {
             status: status || 'IDLE',
             currentTask: currentTask || null,
             ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
-        });
+        };
+
+        activeAgentsMap.set(userRow.id, agentData);
+
+        if (supabaseAdmin && userRow.id) {
+            try {
+                const cfg = userRow.auto_reply_config || {};
+                cfg.agent_status = agentData;
+                await supabaseAdmin
+                    .from('user_profiles')
+                    .update({ auto_reply_config: cfg, updated_at: new Date().toISOString() })
+                    .eq('id', userRow.id);
+            } catch (e) {
+                console.warn('Sync agent heartbeat to Supabase warning:', e.message);
+            }
+        }
 
         return res.json({ success: true, timestamp: Date.now() });
     } catch (err) {
@@ -2517,7 +2542,21 @@ app.get('/api/agent/status-summary', async (req, res) => {
             return res.status(400).json({ success: false, message: 'userId مطلوب.' });
         }
 
-        const agentInfo = activeAgentsMap.get(userId);
+        let agentInfo = activeAgentsMap.get(userId);
+
+        if (!agentInfo && supabaseAdmin) {
+            try {
+                const { data } = await supabaseAdmin
+                    .from('user_profiles')
+                    .select('auto_reply_config')
+                    .eq('id', userId)
+                    .maybeSingle();
+                if (data?.auto_reply_config?.agent_status) {
+                    agentInfo = data.auto_reply_config.agent_status;
+                }
+            } catch (e) {}
+        }
+
         const isOnline = agentInfo && (Date.now() - agentInfo.lastSeen < 75000);
 
         return res.json({
