@@ -1296,6 +1296,7 @@ function switchTab(tabName) {
         if (tabBtnBooster) tabBtnBooster.classList.add('active');
         if (boosterSection) {
             boosterSection.style.display = 'flex';
+            boosterSection.style.flexDirection = 'column';
             boosterSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         loadBoosterUI();
