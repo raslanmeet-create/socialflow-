@@ -185,6 +185,42 @@ async function ensurePageProfileActive(page) {
     }
 }
 
+// استخراج المجموعات التي تم النشر فيها حديثاً (آخر 48 ساعة أو آخر 5 دفعات) لمنع تكرارها نهائياً
+function getRecentlySharedGroupNames() {
+    const historyFile = path.join(__dirname, 'share_history.json');
+    const recentNames = new Set();
+    if (!fs.existsSync(historyFile)) return recentNames;
+    try {
+        const history = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+        const now = Date.now();
+        const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
+        const recentBatches = history.slice(0, 5);
+        for (const batch of recentBatches) {
+            const batchTime = new Date(batch.date).getTime();
+            if (now - batchTime < TWO_DAYS_MS || recentNames.size < 25) {
+                if (Array.isArray(batch.groups)) {
+                    for (const g of batch.groups) {
+                        if (g.name && g.name.length > 2) {
+                            recentNames.add(g.name.trim());
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+    return recentNames;
+}
+
+// خلط عشوائي ذكي (Fisher-Yates Shuffle) لتنويع المجموعات في كل تشغيل
+function shuffleArray(arr) {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+}
+
 async function shareToGroups(post) {
     console.log(`\n======================================================`);
     console.log(`🚀 بدء المشاركة الرسمية في المجموعات باسم (Raslans Marketing)...`);
@@ -196,7 +232,20 @@ async function shareToGroups(post) {
         return { success: false };
     }
 
-    const allGroups = JSON.parse(fs.readFileSync(CLEAN_GROUPS_PATH, 'utf8'));
+    const allGroupsRaw = JSON.parse(fs.readFileSync(CLEAN_GROUPS_PATH, 'utf8'));
+    const recentlySharedGroups = getRecentlySharedGroupNames();
+    console.log(`🛡️ [Smart Rotation] تم فحص سجل المشاركات السابقة: ${recentlySharedGroups.size} مجموعات نُشر فيها حديثاً سيتم تجنبها لضمان التجديد 100%.`);
+
+    // فصل المجموعات غير المستخدمة حديثاً لتقديمها أولاً
+    let freshGroups = allGroupsRaw.filter(g => !recentlySharedGroups.has((g.name || '').trim()));
+    let usedGroups = allGroupsRaw.filter(g => recentlySharedGroups.has((g.name || '').trim()));
+
+    // خلط عشوائي لكلا القائمتين لضمان عدم وجود أي تسلسل ثابت نهائياً
+    freshGroups = shuffleArray(freshGroups);
+    usedGroups = shuffleArray(usedGroups);
+
+    const allGroups = [...freshGroups, ...usedGroups];
+
     let cfg = {};
     try {
         cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
@@ -207,7 +256,7 @@ async function shareToGroups(post) {
 
     // تحديد هدف عدد المشاركات عشوائياً بين 10 إلى 15 مشاركة ناجحة ومؤكدة (متفاوت وليس ثابتاً)
     const TARGET_SUCCESS_COUNT = Math.floor(Math.random() * (15 - 10 + 1)) + 10;
-    const MAX_ATTEMPTS = Math.min(50, allGroups.length);
+    const MAX_ATTEMPTS = Math.min(60, allGroups.length);
 
     // 1. 🤖 توليد الخطاف التسويقي الذكي بالذكاء الاصطناعي من كابشن المنشور
     const headline = await generateViralHookWithGroq(post.content || post.hook);
@@ -397,9 +446,30 @@ async function shareToGroups(post) {
                 await new Promise(r => setTimeout(r, 800));
             }
 
+            // التمرير داخل نافذة المجموعات لتحميل مجموعات جديدة غير المعروضة في البداية
+            await page.evaluate((attemptNum) => {
+                const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
+                const picker = dialogs.find(d => {
+                    const t = d.innerText || '';
+                    return t.includes('مشاركة في مجموعة') || t.includes('كل المجموعات');
+                });
+                if (!picker) return;
+                const scrollables = Array.from(picker.querySelectorAll('*')).filter(el => {
+                    const s = window.getComputedStyle(el);
+                    return (s.overflowY === 'auto' || s.overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
+                });
+                for (const sc of scrollables) {
+                    sc.scrollTop = (attemptNum * 350) % (sc.scrollHeight || 1000);
+                }
+            }, attemptCount);
+            await new Promise(r => setTimeout(r, 1200));
+
+            // تجميع أسماء كل المجموعات المستبعدة (سجل الأيام السابقة + الجلسة الحالية)
+            const excludedList = Array.from(recentlySharedGroups).concat(sharedGroupNames.map(g => g.name));
+
             const cleanSearchQuery = (group.name || '').replace(/مجموعة \d+/g, '').replace(/[\(\)\d]/g, '').trim();
 
-            let selected = await page.evaluate((targetQuery, attemptNum) => {
+            let selected = await page.evaluate((targetQuery, excludedArr, attemptNum) => {
                 const clean = (t) => (t || '').replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '').trim();
                 const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
                 const picker = dialogs.find(d => {
@@ -434,12 +504,26 @@ async function shareToGroups(post) {
                     }
                 }
 
+                // فلترة المجموعات: استبعاد أي مجموعة نُشر فيها في الأيام السابقة أو اليوم لضمان التجديد اليومي
+                const unsharedRows = rows.filter(r => {
+                    return !excludedArr.some(ex => ex && ex.length >= 3 && (r.name.includes(ex) || ex.includes(r.name)));
+                });
+
                 let chosen = null;
+                // أ) محاولة مطابقة الهدف المحدد أولاً إذا كان غير مكرر
                 if (targetQuery && targetQuery.length >= 3) {
-                    chosen = rows.find(r => r.name.includes(targetQuery) || targetQuery.includes(r.name));
+                    chosen = unsharedRows.find(r => r.name.includes(targetQuery) || targetQuery.includes(r.name));
                 }
+
+                // ب) اختيار مجموعة جديدة عشوائية غير مستخدمة من القائمة
+                if (!chosen && unsharedRows.length > 0) {
+                    const randIndex = Math.floor(Math.random() * unsharedRows.length);
+                    chosen = unsharedRows[randIndex];
+                }
+
+                // ج) كحل أخير إذا كانت كل المجموعات الظاهرة مستخدمة
                 if (!chosen && rows.length > 0) {
-                    chosen = rows[attemptNum % rows.length];
+                    chosen = rows[(attemptNum * 3) % rows.length];
                 }
 
                 if (chosen) {
@@ -449,9 +533,15 @@ async function shareToGroups(post) {
                 }
 
                 return { found: false };
-            }, cleanSearchQuery, attemptCount);
+            }, cleanSearchQuery, excludedList, attemptCount);
 
-            if (!selected.found && cleanSearchQuery.length >= 3) {
+            // إذا لم يتم العثور على مجموعة غير مكررة في القائمة المباشرة، نبحث في شريط البحث بكلمة جديدة
+            const fallbackKeywords = ['تسويق', 'عقارات', 'مشاريع', 'تجارة', 'اكتوبر', 'مدينة نصر', 'الهرم', 'المعادي', 'استيراد', 'شغل', 'زايد', 'أفكار', 'خدمات', 'مصر', 'دعاية'];
+            const searchQuery = (cleanSearchQuery && cleanSearchQuery.length >= 3) 
+                ? cleanSearchQuery 
+                : fallbackKeywords[(attemptCount + new Date().getDate()) % fallbackKeywords.length];
+
+            if (!selected.found) {
                 const searchInput = await page.$('input[placeholder*="بحث عن مجموعات"]');
                 if (searchInput) {
                     await searchInput.click();
@@ -459,10 +549,10 @@ async function shareToGroups(post) {
                     await page.keyboard.press('KeyA');
                     await page.keyboard.up('Control');
                     await page.keyboard.press('Backspace');
-                    await page.keyboard.type(cleanSearchQuery, { delay: 35 });
+                    await page.keyboard.type(searchQuery, { delay: 35 });
                     await new Promise(r => setTimeout(r, 2000));
 
-                    selected = await page.evaluate((targetQuery) => {
+                    selected = await page.evaluate((excludedArr) => {
                         const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
                         const picker = dialogs.find(d => (d.innerText || '').includes('مشاركة في مجموعة') || (d.innerText || '').includes('كل المجموعات'));
                         if (!picker) return { found: false };
@@ -472,6 +562,7 @@ async function shareToGroups(post) {
                             return (t.includes('مجموعة عامة') || t.includes('مجموعة خاصة')) && el.children.length === 0;
                         });
 
+                        const matchingRows = [];
                         for (const badge of badges) {
                             let container = badge.parentElement;
                             while (container && container !== picker) {
@@ -479,18 +570,25 @@ async function shareToGroups(post) {
                                 const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
                                 if (lines.length >= 2) {
                                     const rect = container.getBoundingClientRect();
-                                    return {
-                                        found: true,
+                                    matchingRows.push({
                                         name: lines[0],
                                         x: rect.left + rect.width / 2,
                                         y: rect.top + rect.height / 2
-                                    };
+                                    });
+                                    break;
                                 }
                                 container = container.parentElement;
                             }
                         }
+
+                        // تفضيل المجموعات غير المنشور فيها حديثاً
+                        const freshMatch = matchingRows.find(r => !excludedArr.some(ex => ex && ex.length >= 3 && (r.name.includes(ex) || ex.includes(r.name))));
+                        const pick = freshMatch || matchingRows[0];
+                        if (pick) {
+                            return { found: true, name: pick.name, x: pick.x, y: pick.y };
+                        }
                         return { found: false };
-                    }, cleanSearchQuery);
+                    }, excludedList);
                 }
             }
 
