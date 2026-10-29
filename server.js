@@ -2553,13 +2553,21 @@ app.get('/api/agent/download-client-pack', async (req, res) => {
         }
 
         const agentKey = userRow.auto_reply_config?.agent_key || key || `sf_live_${userRow.id.substring(0, 16)}`;
-        const archiverModule = require('archiver');
+        let archiverModule;
+        try {
+            archiverModule = require('archiver');
+        } catch (e) {
+            const dynamicImport = new Function('specifier', 'return import(specifier)');
+            const mod = await dynamicImport('archiver');
+            archiverModule = mod.default || mod;
+        }
+
         let archive;
         if (typeof archiverModule === 'function') {
             archive = archiverModule('zip', { zlib: { level: 9 } });
-        } else if (archiverModule.ZipArchive) {
+        } else if (archiverModule && archiverModule.ZipArchive) {
             archive = new archiverModule.ZipArchive({ zlib: { level: 9 } });
-        } else if (archiverModule.default && typeof archiverModule.default === 'function') {
+        } else if (archiverModule && archiverModule.default && typeof archiverModule.default === 'function') {
             archive = archiverModule.default('zip', { zlib: { level: 9 } });
         } else {
             throw new Error('تعذر تهيئة مكتبة ضغط الملفات.');
