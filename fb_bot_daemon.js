@@ -1,4 +1,4 @@
-const { shareToGroups, sendTelegramAlert } = require('./fb_auto_worker');
+const { shareToGroups, sendTelegramAlert, abortCurrentSharing } = require('./fb_auto_worker');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -30,6 +30,29 @@ const CLIENT_CONFIG_PATH = path.join(__dirname, 'client_config.json');
 let clientCfg = {};
 if (fs.existsSync(CLIENT_CONFIG_PATH)) {
     try { clientCfg = JSON.parse(fs.readFileSync(CLIENT_CONFIG_PATH, 'utf8')); } catch (e) {}
+}
+
+function isGroupSharingEnabled() {
+    try {
+        if (fs.existsSync(CLIENT_CONFIG_PATH)) {
+            const cfg = JSON.parse(fs.readFileSync(CLIENT_CONFIG_PATH, 'utf8'));
+            return cfg.groups_sharing_enabled !== false;
+        }
+    } catch (e) {}
+    return true;
+}
+
+function setGroupSharingEnabled(enabled) {
+    try {
+        let cfg = {};
+        if (fs.existsSync(CLIENT_CONFIG_PATH)) {
+            cfg = JSON.parse(fs.readFileSync(CLIENT_CONFIG_PATH, 'utf8'));
+        }
+        cfg.groups_sharing_enabled = enabled;
+        fs.writeFileSync(CLIENT_CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+        clientCfg = cfg;
+        console.log(`⚙️ [إعدادات المجموعات] تم ضبط ميزة مشاركة الجروبات: ${enabled ? 'مفعلة ✅' : 'موقوفة مؤقتاً ⏸️'}`);
+    } catch (e) {}
 }
 const PAGE_NAME = clientCfg.page_name || 'Raslans Marketing - رسلان للتسويق';
 
@@ -152,21 +175,63 @@ async function pollTelegramCommands() {
                 const text = msg.text.trim();
                 console.log(`📩 رسالة جديدة على تيليجرام: "${text}" من ${msg.from?.first_name || 'مستخدم'}`);
 
-                if (text === '/status' || text.includes('شغال') || text.includes('حالة') || text === 'status' || text === 'ازيك' || text === '/start') {
+                if (text === '/status' || text.includes('شغال') || text.includes('حالة') || text === 'status' || text === 'ازيك' || text === '/start' || text === '/help') {
+                    const groupsStatus = isGroupSharingEnabled() 
+                        ? `🟢 <b>مفعلة وتعمل تلقائياً</b>`
+                        : `⏸️ <b>موقوفة مؤقتاً</b> (أرسل "شغل" للتفعيل)`;
+                    const runningStatus = isProcessing 
+                        ? `⏳ <b>جاري النشر في المجموعات حالياً!</b>` 
+                        : `💤 في وضع الاستعداد والمراقبة`;
+
                     const statusReply = `🟢 <b>أنا شغال تمام وبصحة جيدة! 🚀</b>\n` +
                         `━━━━━━━━━━━━━━━━━━━━\n` +
                         `💻 اللابتوب متصل والبوت يعمل بصمت في الخلفية.\n` +
-                        `⏱️ <b>مدة العمل المتواصل:</b> ${formatUptime()}\n` +
+                        `⏱️ <b>مدة العمل:</b> ${formatUptime()}\n` +
                         `🏢 <b>الهوية النشطة:</b> ${PAGE_NAME}\n` +
-                        `🤖 <b>الذكاء الاصطناعي:</b> Groq (openai/gpt-oss-120b) جاهز\n` +
-                        `🎯 <b>نظام النشر:</b> يحاول حتى الوصول إلى هدف متفاوت (من 10 إلى 15 مجموعة ناجحة ومؤكدة) مع فواصل أمان ذكية (من 30 إلى 60 ثانية).\n\n` +
-                        `💡 <i>يمكنك إرسال كلمة <b>انشر</b> أو <b>/share</b> لبدء النشر في الجروبات يدوياً في أي لحظة!</i>`;
+                        `👥 <b>نشر الجروبات:</b> ${groupsStatus}\n` +
+                        `⚙️ <b>النشاط الحالي:</b> ${runningStatus}\n` +
+                        `🤖 <b>الذكاء الاصطناعي:</b> Groq (openai/gpt-oss-120b) جاهز\n\n` +
+                        `📋 <b>أوامر التحكم السريعة:</b>\n` +
+                        `🛑 أرسل <b>وقف</b> أو <b>/stop</b> : لإيقاف النشر في الجروبات فوراً.\n` +
+                        `▶️ أرسل <b>شغل</b> أو <b>/resume</b> : لتفعيل النشر التلقائي مجدداً.\n` +
+                        `🚀 أرسل <b>انشر</b> أو <b>/share</b> : لبدء النشر في الجروبات يدوياً.\n` +
+                        `🟢 أرسل <b>شغال؟</b> : لفحص الحالة في أي لحظة.`;
                     await sendTelegramAlert(statusReply);
                     console.log('✅ تم الرد على استفسار الحالة على تيليجرام.');
+                } else if (text === '/stop' || text.includes('وقف') || text.includes('ايقاف') || text.includes('إيقاف') || text === 'بس' || text === '/pause' || text.includes('تعطيل') || text.includes('الغاء') || text.includes('إلغاء')) {
+                    setGroupSharingEnabled(false);
+                    if (isProcessing) {
+                        abortCurrentSharing();
+                        await sendTelegramAlert(
+                            `🛑 <b>تم استلام أمر الإيقاف!</b>\n` +
+                            `━━━━━━━━━━━━━━━━━━━━\n` +
+                            `⏳ جاري إيقاف عملية المشاركة الجارية فوراً وإغلاق المتصفح...\n` +
+                            `⏸️ تم أيضاً <b>تعطيل نشر الجروبات</b> التلقائي حتى إشعار آخر.\n\n` +
+                            `💡 <i>عندما تريد إعادة تفعيل النشر في أي وقت، أرسل كلمة <b>شغل</b> أو <b>/resume</b>.</i>`
+                        );
+                    } else {
+                        await sendTelegramAlert(
+                            `⏸️ <b>تم إيقاف المشاركة في الجروبات!</b>\n` +
+                            `━━━━━━━━━━━━━━━━━━━━\n` +
+                            `لن يقوم البوت بالمشاركة في أي مجموعات فيسبوك حتى ترسل أمر التفعيل.\n\n` +
+                            `💡 <i>لإعادة تفعيل النشر لاحقاً، أرسل كلمة <b>شغل</b> أو <b>/resume</b>.</i>`
+                        );
+                    }
+                    console.log('🛑 تم استقبال أمر إيقاف النشر في الجروبات من المستخدم.');
+                } else if (text === '/resume' || text.includes('شغل') || text.includes('تفعيل') || text.includes('استئناف') || text === '/enable' || text === '/start_groups') {
+                    setGroupSharingEnabled(true);
+                    await sendTelegramAlert(
+                        `▶️ <b>تم إعادة تفعيل المشاركة التلقائية في الجروبات!</b>\n` +
+                        `━━━━━━━━━━━━━━━━━━━━\n` +
+                        `سيتولى البوت الآن مشاركة أي منشور رسمي جديد في المجموعات تلقائياً.\n\n` +
+                        `💡 <i>إذا كنت تريد نشر أحدث منشور في المجموعات الآن، أرسل كلمة <b>انشر</b>.</i>`
+                    );
+                    console.log('▶️ تم استقبال أمر تفعيل النشر في الجروبات من المستخدم.');
                 } else if (text === '/share' || text.includes('انشر') || text === '/share_latest') {
                     if (isProcessing) {
                         await sendTelegramAlert('⚠️ <b>تنبيه:</b> البوت يقوم بعملية نشر حالياً بالفعل! يرجى الانتظار حتى تنتهي.');
                     } else {
+                        setGroupSharingEnabled(true); // تفعيل المشاركة إذا كانت موقوفة
                         await sendTelegramAlert('⏳ <b>تم استلام أمر النشر!</b> جاري جلب المنشور وتجهيز الخطاف التسويقي لبدء المشاركة في الجروبات...');
                         try {
                             await syncPostsFromCloud();
@@ -263,6 +328,9 @@ async function triggerCloudScheduler() {
 // 6. 🔍 فحص ومشاركة المنشورات المنشورة في الجروبات تلقائياً
 async function checkAndSharePendingPosts() {
     if (isProcessing) return;
+    if (!isGroupSharingEnabled()) {
+        return;
+    }
 
     // مزامنة أحدث حالة من السحابة أولاً
     await syncPostsFromCloud();

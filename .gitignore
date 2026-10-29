@@ -7,3 +7,5 @@ deploy_now.js
 scheduled_posts.json
 auto_reply_config.json
 auto_reply_activity.json
+bot.lock
+debug_*.png

@@ -27,6 +27,17 @@ const CHAT_ID = clientCfg.telegram_chat_id || (!isClient ? (process.env.TELEGRAM
 const GROQ_API_KEY = clientCfg.groq_api_key || (!isClient ? (process.env.GROQ_API_KEY || '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') : '');
 const PAGE_NAME = clientCfg.page_name || (!isClient ? 'Raslans Marketing - رسلان للتسويق' : 'صفحتك على فيسبوك');
 
+let isAbortRequested = false;
+let activeBrowser = null;
+
+function abortCurrentSharing() {
+    isAbortRequested = true;
+    console.log('🛑 [Abort Signal] تم استلام أمر إيقاف النشر من المستخدم.');
+    if (activeBrowser) {
+        try { activeBrowser.close(); } catch (e) {}
+    }
+}
+
 async function sendTelegramAlert(text) {
     if (!BOT_TOKEN || !CHAT_ID) {
         console.log('[Telegram Alert Skipped]: لم يتم ضبط توكن البوت أو معرف الدردشة في إعدادات العميل.');
@@ -199,6 +210,7 @@ async function shareToGroups(post) {
         `⏳ <i>سأرسل لك إشعاراً فورياً بعد كل نشر ناجح...</i>`;
     await sendTelegramAlert(startMsg);
 
+    isAbortRequested = false;
     const browser = await puppeteer.launch({
         executablePath: CHROME_PATH,
         userDataDir: SESSION_DIR,
@@ -210,6 +222,7 @@ async function shareToGroups(post) {
             '--window-size=1280,1000'
         ]
     });
+    activeBrowser = browser;
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 950 });
@@ -224,8 +237,13 @@ async function shareToGroups(post) {
     const sharedGroupNames = [];
     const targetPostUrl = post.url;
 
-    // حلقة تكرارية مستمرة حتى نصل إلى 5 مرات نشر ناجحة
+    // حلقة تكرارية مستمرة حتى نصل إلى الهدف
     while (successCount < TARGET_SUCCESS_COUNT && attemptCount < MAX_ATTEMPTS) {
+        if (isAbortRequested) {
+            console.log('\n🛑 [إيقاف فوري] تم استلام أمر إيقاف النشر في المجموعات من المستخدم.');
+            break;
+        }
+
         const group = allGroups[currentGroupIndex % allGroups.length];
         currentGroupIndex++;
         attemptCount++;
@@ -765,7 +783,11 @@ async function shareToGroups(post) {
             if (successCount < TARGET_SUCCESS_COUNT) {
                 const randomSec = Math.floor(Math.random() * (60 - 30 + 1)) + 30; // 30 إلى 60 ثانية عشوائياً
                 console.log(`⏳ انتظار فاصل أمان عشوائي ${randomSec} ثانية قبل الانتقال للمجموعة التالية...`);
-                await new Promise(r => setTimeout(r, randomSec * 1000));
+                for (let s = 0; s < randomSec; s++) {
+                    if (isAbortRequested) break;
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+                if (isAbortRequested) break;
             }
 
 
@@ -781,7 +803,21 @@ async function shareToGroups(post) {
         fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
     } catch (e) {}
 
-    await browser.close();
+    try { await browser.close(); } catch (e) {}
+    activeBrowser = null;
+
+    if (isAbortRequested) {
+        console.log(`\n🛑 تم إيقاف المشاركة يدوياً بواسطة المستخدم. تم التوقف بعد ${successCount} مجموعة.`);
+        const abortMsg = `🛑 <b>تم إيقاف المشاركة في مجموعات فيسبوك بنجاح!</b>\n` +
+            `━━━━━━━━━━━━━━━━━━━━\n` +
+            `⏹️ تم إيقاف العملية فوراً بناءً على طلبك.\n` +
+            `📊 <b>ما تم إنجازه قبل الإيقاف:</b> نُشر في <b>${successCount} مجموعات</b> بنجاح.\n` +
+            `🛡️ تم إغلاق المتصفح وحفظ التقدم بأمان.\n\n` +
+            `💡 <i>عندما تريد النشر مجدداً، أرسل كلمة <b>انشر</b> أو <b>شغل</b>.</i>`;
+        await sendTelegramAlert(abortMsg);
+        return { success: true, count: successCount, stoppedByUser: true };
+    }
+
     console.log(`\n🎉 اكتملت المهمة! نجحت المشاركة في ${successCount} مجموعات من أصل ${attemptCount} محاولات.`);
 
     // حفظ سجل التتبع في ملف share_history.json
@@ -821,7 +857,7 @@ async function shareToGroups(post) {
 
 }
 
-module.exports = { shareToGroups, generateViralHookWithGroq, sendTelegramAlert };
+module.exports = { shareToGroups, generateViralHookWithGroq, sendTelegramAlert, abortCurrentSharing };
 
 if (require.main === module) {
     const samplePost = {
