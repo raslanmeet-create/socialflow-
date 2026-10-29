@@ -3,5 +3,6 @@
   "page_name": "Raslans Marketing - رسلان للتسويق",
   "telegram_chat_id": "1077637435",
   "telegram_bot_token": "8946209406:AAFBRxNoA-bqkymvDddkOik2I6QUjMvRaa8",
-  "groq_api_key": "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"
+  "groq_api_key": "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",
+  "groups_sharing_enabled": true
 }
