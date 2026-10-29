@@ -2768,9 +2768,10 @@ app.post('/api/telegram/config', async (req, res) => {
 // ========================================================
 // 🚀 مسارات معزز تفاعل فيسبوك بالحسابات المتعددة (Post Booster)
 let rawBoosterService = null;
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
     try {
-        rawBoosterService = require('./booster_service');
+        const boosterMod = './booster_service';
+        rawBoosterService = require(boosterMod);
     } catch (e) {
         console.warn('Booster service could not be loaded locally:', e.message);
     }

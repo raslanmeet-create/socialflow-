@@ -1,8 +1,16 @@
-let puppeteer = null;
-try {
-    puppeteer = require('puppeteer-core');
-} catch (e) {
-    // Puppeteer might be ESM or environment is cloud-based
+let puppeteerInstance = null;
+async function getPuppeteer() {
+    if (!puppeteerInstance) {
+        try {
+            const dynamicImport = new Function('specifier', 'return import(specifier)');
+            const mod = await dynamicImport('puppeteer-core');
+            puppeteerInstance = mod.default || mod;
+        } catch (e) {
+            console.error('Puppeteer dynamic load failed in fb_auto_worker:', e.message);
+            throw new Error('تعذر تحميل محرك المتصفح Puppeteer.');
+        }
+    }
+    return puppeteerInstance;
 }
 const fs = require('fs');
 const path = require('path');
@@ -216,6 +224,7 @@ async function shareToGroups(post) {
     await sendTelegramAlert(startMsg);
 
     isAbortRequested = false;
+    const puppeteer = await getPuppeteer();
     const browser = await puppeteer.launch({
         executablePath: CHROME_PATH,
         userDataDir: SESSION_DIR,

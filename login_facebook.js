@@ -1,4 +1,17 @@
-const puppeteer = require('puppeteer-core');
+let puppeteerInstance = null;
+async function getPuppeteer() {
+    if (!puppeteerInstance) {
+        try {
+            const dynamicImport = new Function('specifier', 'return import(specifier)');
+            const mod = await dynamicImport('puppeteer-core');
+            puppeteerInstance = mod.default || mod;
+        } catch (e) {
+            console.error('Puppeteer load error:', e.message);
+            throw new Error('تعذر تحميل محرك المتصفح Puppeteer.');
+        }
+    }
+    return puppeteerInstance;
+}
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -18,6 +31,7 @@ async function loginFlow() {
     console.log('👉 سجّل دخولك إلى فيسبوك وسيقوم البوت باكتشاف الجلسة فوراً!');
     console.log('======================================================\n');
 
+    const puppeteer = await getPuppeteer();
     const browser = await puppeteer.launch({
         executablePath: chromePath,
         userDataDir: sessionDir,

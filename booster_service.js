@@ -1,8 +1,16 @@
-let puppeteer = null;
-try {
-    puppeteer = require('puppeteer-core');
-} catch (e) {
-    // Puppeteer might be ESM or environment is cloud-based
+let puppeteerInstance = null;
+async function getPuppeteer() {
+    if (!puppeteerInstance) {
+        try {
+            const dynamicImport = new Function('specifier', 'return import(specifier)');
+            const mod = await dynamicImport('puppeteer-core');
+            puppeteerInstance = mod.default || mod;
+        } catch (e) {
+            console.error('Puppeteer dynamic load failed:', e.message);
+            throw new Error('تعذر تحميل محرك المتصفح Puppeteer.');
+        }
+    }
+    return puppeteerInstance;
 }
 const path = require('path');
 const os = require('os');
@@ -235,6 +243,7 @@ async function addAccountWizard(name) {
 
     let browser;
     try {
+        const puppeteer = await getPuppeteer();
         browser = await puppeteer.launch({
             executablePath: CHROME_PATH,
             userDataDir: profileFolder,
@@ -349,6 +358,7 @@ function deleteAccount(accountId) {
 async function boostOneAccountOnPost(account, postUrl, options, commentText) {
     let browser;
     try {
+        const puppeteer = await getPuppeteer();
         browser = await puppeteer.launch({
             executablePath: CHROME_PATH,
             userDataDir: account.profileFolder,
@@ -935,6 +945,7 @@ function getBoosterStatus() {
 async function checkAccountSession(account) {
     let browser;
     try {
+        const puppeteer = await getPuppeteer();
         browser = await puppeteer.launch({
             executablePath: CHROME_PATH,
             userDataDir: account.profileFolder,
