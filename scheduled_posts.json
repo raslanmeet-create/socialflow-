@@ -37,18 +37,16 @@
     },
     "repeatInterval": "none",
     "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
+    "groups_shared_at": "2026-10-29T05:32:38.460Z",
     "facebookPlacements": [
       "feed"
     ],
+    "groups_auto_shared": true,
+    "groups_shared_count": 1,
     "instagramPlacements": [
       "feed"
     ],
-    "groups_auto_shared": true,
-    "groups_shared_at": "2026-10-29T05:32:38.460Z",
-    "groups_shared_count": 1,
-    "stopped_by_user": true,
-    "booster_auto_done": true,
-    "booster_done_at": "2026-10-29T05:46:01.665Z"
+    "booster_auto_done": true
   },
   {
     "id": "post_1793236313068",
@@ -341,9 +339,10 @@
   {
     "id": "post_1793102412568",
     "pageId": "1036372629556993",
-    "status": "PENDING",
+    "status": "PUBLISHED",
     "userId": "36a81f14-e396-4670-9cc5-3206c55f2596",
     "content": "مش كل اللي بيشوفك هو عميلك… مين اللي بتكلمه؟ 🎯\n\nالإعلان القوي مش مجرد صورة بتظهر على الشاشة؛ هو رسالة بتوصل للجمهور المناسب، وتخليه يهتم بنشاطك ويتعرف على اللي بتقدمه.\n\nمع Meta Ads من Raslans، بنبني حملات إعلانية على فيسبوك وإنستجرام حسب هدف نشاطك، مع الاهتمام بـ:\n\n🎯 استهداف الجمهور المناسب\n💬 جذب العملاء المحتملين\n🔁 إعادة استهداف المهتمين\n🎨 اختبار أفكار وتصميمات إعلانية مختلفة\n\nكل نشاط له جمهوره، وكل حملة محتاجة استراتيجية تناسب هدفها.\n\n📲 عايز تعرف إزاي إعلانات فيسبوك وإنستجرام ممكن تخدم نشاطك؟\nتواصل معانا على واتساب:\n01020942335\n\n🌐 https://raslans.net\n\nRaslans Marketing Company\nYour success… our mission\n\n#Raslans #MetaAds #إعلانات_فيسبوك #إعلانات_إنستجرام #التسويق_الرقمي #إدارة_الإعلانات",
+    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/122138850068889779",
     "comments": [
       {
         "text": "لو هتعمل حملة إعلانية لنشاطك، إيه أهم هدف بالنسبة لك؟ 👇\n\nزيادة معرفة الناس بعلامتك التجارية؟\nجذب عملاء محتملين؟\nولا الوصول لأشخاص مهتمين بالفعل بخدماتك؟"
@@ -371,9 +370,83 @@
     "mediaWidth": 1121,
     "aspectRatio": "auto",
     "mediaHeight": 1402,
+    "publishedAt": "2026-10-29T16:00:40.307Z",
     "firstComment": "لو هتعمل حملة إعلانية لنشاطك، إيه أهم هدف بالنسبة لك؟ 👇\n\nزيادة معرفة الناس بعلامتك التجارية؟\nجذب عملاء محتملين؟\nولا الوصول لأشخاص مهتمين بالفعل بخدماتك؟",
     "scheduledTime": "2026-10-29T16:00:00+00:00",
     "customCaptions": null,
+    "publishResults": {
+      "facebook": {
+        "id": "122138850038889779",
+        "feed": {
+          "id": "122138850038889779",
+          "post_id": "1036372629556993_122138850068889779",
+          "success": true
+        },
+        "story": {
+          "id": "122138850296889779",
+          "post_id": "1641392987636962",
+          "success": true
+        },
+        "post_id": "1036372629556993_122138850068889779",
+        "success": true,
+        "comments": [
+          {
+            "id": "122138850068889779_1122800973478940",
+            "success": true
+          },
+          {
+            "id": "122138850068889779_1649990063258701",
+            "success": true
+          },
+          {
+            "id": "122138850068889779_1125816703329174",
+            "success": true
+          },
+          {
+            "id": "122138850068889779_1125224613322435",
+            "success": true
+          }
+        ],
+        "firstComment": {
+          "id": "122138850068889779_1122800973478940",
+          "success": true
+        }
+      },
+      "instagram": {
+        "id": "18106927631570292",
+        "feed": {
+          "id": "18106927631570292",
+          "success": true
+        },
+        "story": {
+          "id": "17913144297489409",
+          "success": true
+        },
+        "success": true,
+        "comments": [
+          {
+            "id": "18134984857672282",
+            "success": true
+          },
+          {
+            "id": "18136086016776169",
+            "success": true
+          },
+          {
+            "id": "18088090811701685",
+            "success": true
+          },
+          {
+            "id": "18464704375143171",
+            "success": true
+          }
+        ],
+        "firstComment": {
+          "id": "18134984857672282",
+          "success": true
+        }
+      }
+    },
     "pageAccessToken": "EAANs09LAvTcBSw3ZCodoDhWVYUlEcZAZBfHBGKfI0PBoyFuZC588aerCvtmNOtCvT2yu79EShdF5wDngrPlOVZA0IgrbTIuanyyEkPZCSr7nboE9ZClhgbe2ZBU9kZBkUrf6EIjNKZAPhcTC1olu7hKTifZACD7ZCALh4k8AGWr36ag0gYNhiGO6wUrur79NfN4aqxqVJhP4TklG",
     "facebookPlacements": [
       "feed",
@@ -383,7 +456,11 @@
       "feed",
       "story"
     ],
-    "postUrl": "https://www.facebook.com/RaslansMarketing/posts/1793102412568"
+    "booster_auto_done": true,
+    "booster_done_at": "2026-10-29T16:02:14.357Z",
+    "groups_auto_shared": true,
+    "groups_shared_at": "2026-10-29T16:18:24.049Z",
+    "groups_shared_count": 11
   },
   {
     "id": "post_1793102303924",
@@ -507,9 +584,7 @@
       "feed",
       "story"
     ],
-    "groups_shared_at": "2026-10-29T00:51:11.990Z",
-    "booster_auto_done": true,
-    "booster_done_at": "2026-10-29T05:48:31.072Z"
+    "groups_shared_at": "2026-10-29T00:51:11.990Z"
   },
   {
     "id": "post_1793099249624",
@@ -571,9 +646,7 @@
     "instagramPlacements": [
       "feed",
       "story"
-    ],
-    "booster_auto_done": true,
-    "booster_done_at": "2026-10-29T05:49:01.261Z"
+    ]
   },
   {
     "id": "post_1792812630348",
