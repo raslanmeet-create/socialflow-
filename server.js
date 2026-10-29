@@ -2767,8 +2767,32 @@ app.post('/api/telegram/config', async (req, res) => {
 
 // ========================================================
 // 🚀 مسارات معزز تفاعل فيسبوك بالحسابات المتعددة (Post Booster)
-// ========================================================
-const boosterService = require('./booster_service');
+let rawBoosterService = null;
+if (!process.env.VERCEL) {
+    try {
+        rawBoosterService = require('./booster_service');
+    } catch (e) {
+        console.warn('Booster service could not be loaded locally:', e.message);
+    }
+}
+
+const boosterService = rawBoosterService || {
+    getBoosterStatus: () => ({ accounts: [], activeCount: 0, isServerless: true, message: 'معزز التفاعل يعمل عبر تطبيق الديسكتوب الخاص بك (SocialFlow Desktop Agent).' }),
+    addAccountWizard: async () => ({ success: false, message: 'إدارة حسابات التفاعل تتم عبر تطبيق الديسكتوب المحمول.' }),
+    toggleAccount: () => ({ success: false, message: 'إدارة حسابات التفاعل تتم عبر تطبيق الديسكتوب المحمول.' }),
+    deleteAccount: () => ({ success: false, message: 'إدارة حسابات التفاعل تتم عبر تطبيق الديسكتوب المحمول.' }),
+    openAccountBrowser: async () => ({ success: false, message: 'فتح المتصفح يتم محلياً على جهاز الديسكتوب فقط.' }),
+    loadAccounts: () => [],
+    saveAccounts: () => false,
+    checkAccountSession: async () => ({ status: 'UNKNOWN', message: 'الفحص يتم محلياً عبر جهاز الديسكتوب.' }),
+    checkAllAccountsHealth: async () => ({ success: false, message: 'الفحص يتم محلياً عبر جهاز الديسكتوب.' }),
+    loadComments: () => [],
+    saveComments: () => ({ success: false, message: 'حفظ التعليقات يتم محلياً أو عبر لوحة العميل.' }),
+    loadBoosterConfig: () => ({ doLike: true, doComment: true, doShare: false, useGroqAi: true, isHeadless: true }),
+    saveBoosterConfig: () => ({ success: true }),
+    startBoosterCycle: async () => ({ success: false, message: 'تشغيل المعزز يتم عبر البوت المكتبي المربوط بحسابك.' }),
+    stopBoosterCycle: () => ({ success: true })
+};
 
 app.get('/api/booster/status', (req, res) => {
     try {

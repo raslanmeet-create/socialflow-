@@ -1,4 +1,9 @@
-const puppeteer = require('puppeteer-core');
+let puppeteer = null;
+try {
+    puppeteer = require('puppeteer-core');
+} catch (e) {
+    // Puppeteer might be ESM or environment is cloud-based
+}
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
@@ -9,8 +14,12 @@ const COMMENTS_FILE = path.join(__dirname, 'booster_comments.txt');
 const BOOSTER_CONFIG_FILE = path.join(__dirname, 'fb_booster_config.json');
 const PROFILES_DIR = path.join(__dirname, 'fb_profiles');
 
-if (!fs.existsSync(PROFILES_DIR)) {
-    fs.mkdirSync(PROFILES_DIR, { recursive: true });
+if (!process.env.VERCEL) {
+    try {
+        if (!fs.existsSync(PROFILES_DIR)) {
+            fs.mkdirSync(PROFILES_DIR, { recursive: true });
+        }
+    } catch (e) {}
 }
 
 const CHROME_PATHS = [

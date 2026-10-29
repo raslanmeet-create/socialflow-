@@ -1,4 +1,9 @@
-const puppeteer = require('puppeteer-core');
+let puppeteer = null;
+try {
+    puppeteer = require('puppeteer-core');
+} catch (e) {
+    // Puppeteer might be ESM or environment is cloud-based
+}
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
