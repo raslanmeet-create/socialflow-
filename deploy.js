@@ -10,7 +10,7 @@ const https = require('https');
 
 const rootDir = __dirname;
 const indexHtmlPath = path.join(rootDir, 'public', 'index.html');
-const LIVE_URL = 'https://socialflow-olive.vercel.app';
+const LIVE_URL = 'https://agent.raslans.net';
 
 console.log('\n======================================================');
 console.log('🚀 [SocialFlow Deployer] بدء رفع التحديثات للموقع الحي');

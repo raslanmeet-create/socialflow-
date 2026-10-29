@@ -33,7 +33,7 @@ console.error = (...args) => {
 // قراءة إعدادات الربط للعميل
 function loadClientConfig() {
     let cfg = {
-        server_url: process.env.SERVER_URL || 'https://socialflow-olive.vercel.app',
+        server_url: process.env.SERVER_URL || 'https://agent.raslans.net',
         agent_key: process.env.AGENT_KEY || 'local_dev_key',
         groups_sharing_enabled: true
     };
@@ -46,7 +46,7 @@ function loadClientConfig() {
 }
 
 let clientConfig = loadClientConfig();
-let activeServerUrl = (clientConfig.server_url || 'https://socialflow-olive.vercel.app').replace(/\/+$/, '');
+let activeServerUrl = (clientConfig.server_url || 'https://agent.raslans.net').replace(/\/+$/, '');
 let agentKey = clientConfig.agent_key || 'local_dev_key';
 
 let isProcessingTask = false;

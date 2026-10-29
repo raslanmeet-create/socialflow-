@@ -2586,7 +2586,7 @@ app.get('/api/agent/download-client-pack', async (req, res) => {
 
         // 1. ملف الإعدادات المخصص للعميل
         const clientCfg = {
-            server_url: 'https://socialflow-olive.vercel.app',
+            server_url: process.env.BASE_URL || 'https://agent.raslans.net',
             agent_key: agentKey,
             client_name: userRow.full_name || userRow.email,
             page_name: (userRow.selected_pages && userRow.selected_pages[0]?.name) || 'صفحتك على فيسبوك',
