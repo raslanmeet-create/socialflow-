@@ -631,16 +631,22 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
                         const container = getPostContainer();
                         const snippet = (targetSnippet || '').substring(0, 25).trim();
 
-                        // البحث عن عنصر التعليق المطابق للنص
+                        // البحث عن عنصر التعليق المطابق للنص تحديداً
                         const allNodes = Array.from(container.querySelectorAll('div[dir="auto"], span[dir="auto"], div[role="article"]'));
                         let matchedEl = null;
                         if (snippet) {
                             matchedEl = allNodes.find(el => (el.innerText || '').includes(snippet));
                         }
 
-                        let searchScope = matchedEl ? (matchedEl.closest('div[role="article"]') || matchedEl.parentElement?.parentElement || container) : container;
+                        // إذا لم يتم العثور على التعليق المطابق، لا نضغط على رد في أي تعليق عشوائي آخر!
+                        if (!matchedEl) {
+                            return { found: false, reason: 'snippet_not_matched' };
+                        }
 
-                        // البحث عن زر "رد" أو "Reply"
+                        const searchScope = matchedEl.closest('div[role="article"]') || matchedEl.parentElement?.parentElement || matchedEl.parentElement;
+                        if (!searchScope) return { found: false };
+
+                        // البحث عن زر "رد" أو "Reply" الخاص بهذا التعليق المطابق فقط
                         const buttons = Array.from(searchScope.querySelectorAll('div[role="button"], span[role="button"], span, div'));
                         const replyBtn = buttons.find(b => {
                             const txt = (b.innerText || '').trim().toLowerCase();
