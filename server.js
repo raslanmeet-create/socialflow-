@@ -2928,7 +2928,7 @@ app.post('/api/booster/config', (req, res) => {
 
 app.post('/api/booster/start', async (req, res) => {
     try {
-        const { postUrls, postUrl, postContent, useGroqAi, doLike, doComment, doShare, randomizeTasks, isHeadless } = req.body;
+        const { postUrls, postUrl, postContent, useGroqAi, doLike, doComment, doShare, randomizeTasks, conversationThreads, isHeadless } = req.body;
         const result = await boosterService.startBoosterCycle({ 
             postUrls, 
             postUrl, 
@@ -2938,6 +2938,7 @@ app.post('/api/booster/start', async (req, res) => {
             doComment, 
             doShare, 
             randomizeTasks: randomizeTasks !== false,
+            conversationThreads: conversationThreads !== false,
             isHeadless 
         });
         res.json(result);

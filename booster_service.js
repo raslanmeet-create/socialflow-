@@ -79,6 +79,7 @@ function getGroqApiKey() {
 function loadBoosterConfig() {
     const defaults = {
         autoBoostNewPosts: true,
+        conversationThreads: true,
         randomizeTasks: true,
         useGroqAi: true,
         doLike: true,
@@ -223,6 +224,94 @@ async function generateGroqComment(postContent = '', toneIndex = 0) {
         }
     }
     return null;
+}
+
+// أزواج محادثات تفاعلية ذكية معدة مسبقاً باللهجة المصرية كبديل فوري في حال انقطاع الذكاء الاصطناعي
+const DEFAULT_CONVERSATION_PAIRS = [
+    {
+        question: 'ممكن تفاصيل أكتر عن باقات التسويق وإدارة الصفحات وطريقة الاشتراك؟',
+        review: 'أنا اتعاملت مع فريق العمل من شهرين وبجد مجهودهم ممتاز والنتائج فرقت معايا جداً في المبيعات'
+    },
+    {
+        question: 'هو العرض ده لسه شغال يا شباب؟ وبكام الباقة الشهرية لو سمحت؟',
+        review: 'عن تجربة يا غالي شغلهم محترم جداً وسريعين في الرد وهيفيدوك جداً، اتواصل معاهم'
+    },
+    {
+        question: 'خدمة توثيق الحسابات الإعلانية دي بتاخد وقت قد إيه وبتتطلب إيه؟',
+        review: 'الشباب وثقولي الحساب الإعلاني في وقت قياسي ومرتبين جداً، اتوكل على الله تعاملهم ممتاز'
+    },
+    {
+        question: 'لو سمحت في باقات مخصصة للشركات والأنشطة الصغيرة لسه بتبدأ؟',
+        review: 'الناس دي شاطرة أوي وعندهم باقات بتناسب كل الأحجام، عن تجربة هتستفاد منهم كتير'
+    },
+    {
+        question: 'بكام تفاصيل العرض ده يا رجالة وهل شامل الإعلانات الممولة؟',
+        review: 'أنا مجرب شغلهم في الإعلانات والتصاميم، بصراحة ناس أمينة وملتزمة بالمواعيد على الفرازة'
+    },
+    {
+        question: 'ممكن أعرف تفاصيل أكتر عن خطة العمل وهل في تقارير دورية؟',
+        review: 'بيبعتوا تقارير مفصلة بالأرقام ومتابعين أول بأول، فريق عمل مجتهد ومحترف'
+    }
+];
+
+// توليد حوار تفاعلي ثنائي (سؤال بيعي استفساري + رد بتجربة عميل إيجابية حقيقية)
+async function generateGroqConversationPair(postContent = '') {
+    const apiKey = getGroqApiKey();
+    if (!apiKey) {
+        return DEFAULT_CONVERSATION_PAIRS[Math.floor(Math.random() * DEFAULT_CONVERSATION_PAIRS.length)];
+    }
+
+    const systemPrompt = `أنت خبير سيكولوجية مبيعات وسوشيال ميديا في السوق المصري.
+المهمة: ابتكر "حواراً تفاعلياً ثنائياً واقعياً وذكياً جداً" (2-Person Social Proof Thread) بين شخصين مصريين عاديين على منشور فيسبوك لصفحة تجارية/تسويقية.
+
+- الشخص الأول (حساب أ - استفسار بيعي فضولي): يسأل سؤالاً ذكياً بلهجة مصرية عامية عادية عن الأسعار أو الباقات أو تفاصيل الخدمة المطروحة في كابشن المنشور، يثير اهتمام المتابعين.
+- الشخص الثاني (حساب ب - عميل سابق جرب الخدمة): يرد عليه في نفس التعليق بلهجة مصرية عامية طبيعية 100% يشهد بجودة الشغل وتجربته الناجحة مع فريق العمل وسرعة ردهم ويوصيه بالتواصل معهم.
+
+الشروط الصارمة:
+1. لهجة مصرية عامية 100% طبيعية عفوية بدون أي كلمات فصحى نهائياً (ممنوع: متقن، باهر، أرجو، نرجو، إلى الأمام، حيال، تبارك، تفاصيلكم).
+2. عدم ذكر اسم "Raslans" نهائياً، واستخدام "فريق العمل" أو "الشباب" أو "الناس دي" أو "شغلهم".
+3. ممنوع منعاً باتاً أي إيموجي أو رموز تعبيرية نهائياً (حروف وكلمات فقط).
+4. الرد بصيغة JSON حصراً بالشكل:
+{
+  "question": "نص استفسار الحساب أ",
+  "review": "نص شهادة وتجربة الحساب ب رداً عليه"
+}`;
+
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'openai/gpt-oss-120b',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: postContent ? `كابشن المنشور:\n${postContent.substring(0, 350)}` : 'منشور عن خدمات التسويق وتوثيق الحسابات الإعلانية' }
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.9,
+                max_tokens: 800
+            })
+        });
+
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+            const parsed = JSON.parse(content);
+            if (parsed.question && parsed.review) {
+                return {
+                    question: removeEmojis(parsed.question.replace(/^["']|["']$/g, '').trim()),
+                    review: removeEmojis(parsed.review.replace(/^["']|["']$/g, '').trim())
+                };
+            }
+        }
+    } catch (e) {
+        console.warn('[Groq AI Conversation Pair Error]:', e.message);
+    }
+
+    return DEFAULT_CONVERSATION_PAIRS[Math.floor(Math.random() * DEFAULT_CONVERSATION_PAIRS.length)];
 }
 
 // محاكاة كتابة إنسانية واقعية
@@ -513,55 +602,135 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
             await sleep(randomBetween(2000, 3500));
         }
 
-        // 2. التعليق (Comment)
+        // 2. التعليق (Comment or Nested Reply in Thread)
         if (options.doComment && commentText && !boosterState.isAbortRequested) {
             commentText = removeEmojis(commentText);
-            addLog(`[${account.name}] 💬 كتابة تعليق: "${commentText}"...`);
-            let commentBox = await page.$('div[role="dialog"] div[role="textbox"][contenteditable="true"], div[role="main"] div[role="textbox"][contenteditable="true"], div[role="textbox"][contenteditable="true"]');
-            
-            if (!commentBox) {
-                // الضغط على زر "كتابة تعليق" بشريط المنشور لإظهار صندوق التعليق
-                await page.evaluate(() => {
-                    function getPostContainer() {
-                        const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
-                        for (let i = dialogs.length - 1; i >= 0; i--) {
-                            const d = dialogs[i];
-                            const r = d.getBoundingClientRect();
-                            const aria = (d.getAttribute('aria-label') || '').toLowerCase();
-                            if (aria.includes('إشعار') || aria.includes('notif') || aria.includes('messenger') || aria.includes('chat')) continue;
-                            if (r.width > 250 && r.height > 250) return d;
+            let isNestedReplyDone = false;
+
+            // إذا كان هذا الحساب يقوم بدور الرد التفاعلي على تعليق حساب آخر في نفس الخيط (Thread Mode)
+            if (options.replyToSnippet) {
+                addLog(`[${account.name}] 🎭 [محادثة تفاعلية] البحث عن استفسار العميل للرد عليه مباشرة في نفس الخيط...`);
+                try {
+                    // التمرير لرؤية قسم التعليقات جيداً
+                    await page.evaluate(() => window.scrollBy({ top: 400, behavior: 'instant' }));
+                    await sleep(1500);
+
+                    const replyCoords = await page.evaluate((targetSnippet) => {
+                        function getPostContainer() {
+                            const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
+                            for (let i = dialogs.length - 1; i >= 0; i--) {
+                                const d = dialogs[i];
+                                const r = d.getBoundingClientRect();
+                                const aria = (d.getAttribute('aria-label') || '').toLowerCase();
+                                if (aria.includes('إشعار') || aria.includes('notif') || aria.includes('messenger') || aria.includes('chat')) continue;
+                                if (r.width > 250 && r.height > 250) return d;
+                            }
+                            return document.querySelector('div[role="main"]') || document.body;
                         }
-                        return document.querySelector('div[role="main"]') || document.body;
-                    }
-                    const container = getPostContainer();
-                    const buttons = Array.from(container.querySelectorAll('div[role="button"], span[role="button"]'));
-                    for (const b of buttons) {
-                        const r = b.getBoundingClientRect();
-                        if (r.width < 40 || r.height < 25) continue;
-                        const label = (b.getAttribute('aria-label') || '').trim().toLowerCase();
-                        const text = (b.innerText || '').trim().toLowerCase();
-                        if (label.includes('كتابة تعليق') || label.includes('comment') || label.includes('تعليق') || text === 'comment' || text === 'تعليق') {
-                            b.scrollIntoView({ behavior: 'instant', block: 'center' });
-                            b.click();
-                            break;
+
+                        const container = getPostContainer();
+                        const snippet = (targetSnippet || '').substring(0, 25).trim();
+
+                        // البحث عن عنصر التعليق المطابق للنص
+                        const allNodes = Array.from(container.querySelectorAll('div[dir="auto"], span[dir="auto"], div[role="article"]'));
+                        let matchedEl = null;
+                        if (snippet) {
+                            matchedEl = allNodes.find(el => (el.innerText || '').includes(snippet));
+                        }
+
+                        let searchScope = matchedEl ? (matchedEl.closest('div[role="article"]') || matchedEl.parentElement?.parentElement || container) : container;
+
+                        // البحث عن زر "رد" أو "Reply"
+                        const buttons = Array.from(searchScope.querySelectorAll('div[role="button"], span[role="button"], span, div'));
+                        const replyBtn = buttons.find(b => {
+                            const txt = (b.innerText || '').trim().toLowerCase();
+                            const aria = (b.getAttribute('aria-label') || '').trim().toLowerCase();
+                            return (txt === 'رد' || txt === 'reply' || aria.includes('رد على') || aria.includes('reply to')) && b.children.length === 0;
+                        });
+
+                        if (replyBtn) {
+                            const clickable = replyBtn.closest('div[role="button"]') || replyBtn;
+                            clickable.scrollIntoView({ behavior: 'instant', block: 'center' });
+                            const r = clickable.getBoundingClientRect();
+                            if (r.width > 0 && r.height > 0) {
+                                return { found: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                            }
+                        }
+                        return { found: false };
+                    }, options.replyToSnippet);
+
+                    if (replyCoords && replyCoords.found) {
+                        await page.mouse.click(replyCoords.x, replyCoords.y);
+                        await sleep(1500);
+
+                        // البحث عن صندوق الرد الفرعي المتفرع
+                        let replyInput = await page.$('div[role="dialog"] div[role="textbox"][contenteditable="true"]:focus, div[role="textbox"][contenteditable="true"]:focus, div[role="textbox"][contenteditable="true"]');
+                        if (replyInput) {
+                            await replyInput.click();
+                            await sleep(500);
+                            await humanType(page, commentText);
+                            await sleep(randomBetween(1200, 2000));
+                            await page.keyboard.press('Enter');
+                            didComment = true;
+                            isNestedReplyDone = true;
+                            addLog(`[${account.name}] 🎭 ✅ تم نشر الرد التفاعلي بنجاح تحت استفسار العميل مباشرة!`, 'success');
+                            await sleep(3500);
                         }
                     }
-                });
-                await sleep(2000);
-                commentBox = await page.$('div[role="dialog"] div[role="textbox"][contenteditable="true"], div[role="main"] div[role="textbox"][contenteditable="true"], div[role="textbox"][contenteditable="true"]');
+                } catch (repErr) {
+                    addLog(`[${account.name}] ℹ️ تعذر الرد الفرعي داخل الخيط، جاري النشر كتعليق رئيسي...`, 'info');
+                }
             }
 
-            if (commentBox) {
-                await commentBox.click();
-                await sleep(700);
-                await humanType(page, commentText);
-                await sleep(randomBetween(1200, 2000));
-                await page.keyboard.press('Enter');
-                didComment = true;
-                addLog(`[${account.name}] ✅ تم نشر التعليق بنجاح!`, 'success');
-                await sleep(3500);
-            } else {
-                addLog(`[${account.name}] ⚠️ تعذر العثور على صندوق التعليق.`, 'warning');
+            // إذا لم يكن رداً فرعياً أو تعذر النقر على "رد"، ننشره في صندوق التعليقات العام
+            if (!isNestedReplyDone) {
+                addLog(`[${account.name}] 💬 كتابة تعليق: "${commentText}"...`);
+                let commentBox = await page.$('div[role="dialog"] div[role="textbox"][contenteditable="true"], div[role="main"] div[role="textbox"][contenteditable="true"], div[role="textbox"][contenteditable="true"]');
+                
+                if (!commentBox) {
+                    // الضغط على زر "كتابة تعليق" بشريط المنشور لإظهار صندوق التعليق
+                    await page.evaluate(() => {
+                        function getPostContainer() {
+                            const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
+                            for (let i = dialogs.length - 1; i >= 0; i--) {
+                                const d = dialogs[i];
+                                const r = d.getBoundingClientRect();
+                                const aria = (d.getAttribute('aria-label') || '').toLowerCase();
+                                if (aria.includes('إشعار') || aria.includes('notif') || aria.includes('messenger') || aria.includes('chat')) continue;
+                                if (r.width > 250 && r.height > 250) return d;
+                            }
+                            return document.querySelector('div[role="main"]') || document.body;
+                        }
+                        const container = getPostContainer();
+                        const buttons = Array.from(container.querySelectorAll('div[role="button"], span[role="button"]'));
+                        for (const b of buttons) {
+                            const r = b.getBoundingClientRect();
+                            if (r.width < 40 || r.height < 25) continue;
+                            const label = (b.getAttribute('aria-label') || '').trim().toLowerCase();
+                            const text = (b.innerText || '').trim().toLowerCase();
+                            if (label.includes('كتابة تعليق') || label.includes('comment') || label.includes('تعليق') || text === 'comment' || text === 'تعليق') {
+                                b.scrollIntoView({ behavior: 'instant', block: 'center' });
+                                b.click();
+                                break;
+                            }
+                        }
+                    });
+                    await sleep(2000);
+                    commentBox = await page.$('div[role="dialog"] div[role="textbox"][contenteditable="true"], div[role="main"] div[role="textbox"][contenteditable="true"], div[role="textbox"][contenteditable="true"]');
+                }
+
+                if (commentBox) {
+                    await commentBox.click();
+                    await sleep(700);
+                    await humanType(page, commentText);
+                    await sleep(randomBetween(1200, 2000));
+                    await page.keyboard.press('Enter');
+                    didComment = true;
+                    addLog(`[${account.name}] ✅ تم نشر التعليق بنجاح!`, 'success');
+                    await sleep(3500);
+                } else {
+                    addLog(`[${account.name}] ⚠️ تعذر العثور على صندوق التعليق.`, 'warning');
+                }
             }
         }
 
@@ -689,6 +858,7 @@ async function startBoosterCycle({
     doComment = true, 
     doShare = true, 
     randomizeTasks = true,
+    conversationThreads = true,
     isHeadless = false 
 }) {
     if (boosterState.isRunning) {
@@ -719,6 +889,9 @@ async function startBoosterCycle({
     if (randomizeTasks) {
         addLog(`🎲 ميزة التوزيع العشوائي للمهام مفعّلة: كل حساب سينفذ تشكيلة مهام مختلفة (إعجاب/تعليق/مشاركة) بنسب عشوائية واقعية.`);
     }
+    if (conversationThreads) {
+        addLog(`🎭 ميزة الخيوط التفاعلية مفعّلة: حساب (أ) يطرح استفساراً بيعياً وحساب (ب) يرد بتجربة عميل إيجابية.`);
+    }
 
     // تشغيل غير متزامن
     (async () => {
@@ -744,11 +917,27 @@ async function startBoosterCycle({
 
             let postSuccessCount = 0;
 
+            // إعداد خيط المحادثة التفاعلية (استفسار بيعي + رد بتجربة عميل إيجابية)
+            let conversationPair = null;
+            let lastQuestionSnippet = '';
+            if (conversationThreads && doComment && postAccounts.length >= 2) {
+                if (useGroqAi) {
+                    addLog(`🎭 جاري استدعاء Groq AI لتوليد محادثة تفاعلية مصرية واقعية (سؤال بيعي + تزكية عميل)...`);
+                    conversationPair = await generateGroqConversationPair(postContent);
+                }
+                if (!conversationPair) {
+                    const pick = DEFAULT_CONVERSATION_PAIRS[Math.floor(Math.random() * DEFAULT_CONVERSATION_PAIRS.length)];
+                    conversationPair = { question: pick.q, review: pick.a };
+                }
+                addLog(`🎭 تم تجهيز الخيط التفاعلي بنجاح:\n   👤 [حساب أ - استفسار]: "${conversationPair.question}"\n   👤 [حساب ب - تزكية]: "${conversationPair.review}"`);
+            }
+
             await notifyTelegram(
                 `🚀 <b>بدء تعزيز المنشور بالحسابات المتعددة!</b>\n` +
                 `━━━━━━━━━━━━━━━━━━━━\n` +
                 `🔗 <b>رابط المنشور:</b> <a href="${currentUrl}">اضغط هنا لفتح المنشور</a>\n` +
                 `👥 <b>عدد الحسابات:</b> ${postAccounts.length} حساب (${postAccounts.map(a => a.name).join(', ')})\n` +
+                `🎭 <b>المحادثة التفاعلية:</b> ${conversationPair ? 'مفعّلة (سؤال بيعي + تزكية عميل)' : 'تعليقات فردية'}\n` +
                 `🎲 <b>التوزيع:</b> مهام عشوائية ذكية بفواصل زمنية أمنية`
             );
 
@@ -767,15 +956,36 @@ async function startBoosterCycle({
                 let accountDoLike = doLike;
                 let accountDoComment = doComment;
                 let accountDoShare = doShare;
+                let accountReplyToSnippet = '';
+                let isThreadAccount = false;
 
                 if (randomizeTasks) {
                     // احتمالات واقعية تحاكي السلوك البشري الطبيعي
                     accountDoLike = doLike ? (Math.random() < 0.85) : false;     // ~85% احتمال إعجاب
                     accountDoComment = doComment ? (Math.random() < 0.55) : false; // ~55% احتمال تعليق
                     accountDoShare = doShare ? (Math.random() < 0.35) : false;     // ~35% احتمال مشاركة
+                }
 
-                    // ضمان تنفيذ مهمة واحدة على الأقل لكل حساب طالما يوجد خيار مفعّل
-                    if (!accountDoLike && !accountDoComment && !accountDoShare) {
+                // تخصيص أدوار المحادثة التفاعلية لحساب 0 وحساب 1
+                let commentText = '';
+                if (conversationPair && aIdx === 0) {
+                    // حساب (أ): استفسار العميل البيعي (إجباري التعليق)
+                    isThreadAccount = true;
+                    accountDoComment = true;
+                    commentText = conversationPair.question;
+                    lastQuestionSnippet = conversationPair.question;
+                    accountReplyToSnippet = '';
+                    addLog(`[${acc.name}] 🎭 [حساب أ]: مخصص لطرح استفسار بيعي جذاب: "${commentText}"`);
+                } else if (conversationPair && aIdx === 1) {
+                    // حساب (ب): الرد بتجربة إيجابية مباشرة داخل نفس الخيط (إجباري التعليق)
+                    isThreadAccount = true;
+                    accountDoComment = true;
+                    commentText = conversationPair.review;
+                    accountReplyToSnippet = lastQuestionSnippet || conversationPair.question;
+                    addLog(`[${acc.name}] 🎭 [حساب ب]: مخصص للرد بتزكية إيجابية تحت استفسار حساب أ مباشرة: "${commentText}"`);
+                } else {
+                    // الحسابات الأخرى: ضمان تنفيذ مهمة واحدة على الأقل إذا كانت العشوائية قد أغلقت كل شيء
+                    if (randomizeTasks && !accountDoLike && !accountDoComment && !accountDoShare) {
                         const enabledPool = [];
                         if (doLike) enabledPool.push('like');
                         if (doComment) enabledPool.push('comment');
@@ -788,54 +998,55 @@ async function startBoosterCycle({
                             if (picked === 'share') accountDoShare = true;
                         }
                     }
+
+                    // توليد تعليق للحسابات الإضافية (إن تقرر لها التعليق)
+                    if (accountDoComment) {
+                        if (useGroqAi) {
+                            addLog(`[${acc.name}] 🤖 جاري استدعاء Groq AI لتوليد تعليق ذكي وغير مكرر...`);
+                            let candidate = await generateGroqComment(postContent, aIdx);
+                            if (candidate && !usedCommentsThisPost.has(candidate)) {
+                                commentText = candidate;
+                            } else if (candidate) {
+                                candidate = await generateGroqComment(postContent, aIdx + 7);
+                                if (candidate && !usedCommentsThisPost.has(candidate)) {
+                                    commentText = candidate;
+                                }
+                            }
+                            if (commentText) {
+                                addLog(`[${acc.name}] ✨ تعليق Groq AI الفريد: "${commentText}"`);
+                            }
+                        }
+
+                        if (!commentText) {
+                            const availableManual = manualComments.filter(c => !usedCommentsThisPost.has(c));
+                            if (availableManual.length > 0) {
+                                const pickIdx = Math.floor(Math.random() * availableManual.length);
+                                commentText = availableManual[pickIdx];
+                            } else if (manualComments.length > 0) {
+                                const base = manualComments[aIdx % manualComments.length];
+                                const variations = ['بالتوفيق يا رب', 'عاش والله', 'تحياتي لكم', 'كل الدعم والتقدير', 'ألف مبروك', 'دمتم متميزين'];
+                                const v = variations[aIdx % variations.length];
+                                commentText = `${base} - ${v}`;
+                            }
+                        }
+                    }
+                }
+
+                if (commentText) {
+                    commentText = removeEmojis(commentText);
+                    usedCommentsThisPost.add(commentText);
                 }
 
                 const assignedTasksSummary = [];
                 if (accountDoLike) assignedTasksSummary.push('👍 إعجاب');
-                if (accountDoComment) assignedTasksSummary.push('💬 تعليق');
+                if (accountDoComment) {
+                    if (conversationPair && aIdx === 0) assignedTasksSummary.push('🎭 استفسار بيعي (أ)');
+                    else if (conversationPair && aIdx === 1) assignedTasksSummary.push('🎭 رد بتزكية إيجابية (ب)');
+                    else assignedTasksSummary.push('💬 تعليق');
+                }
                 if (accountDoShare) assignedTasksSummary.push('🔄 مشاركة');
 
                 addLog(`[${acc.name}] 🎯 مهام الحساب في هذا المنشور: [${assignedTasksSummary.join(' + ') || 'تخطي'}]`);
-
-                // تحديد نص التعليق: فقط إذا كان الحساب مخصصاً له التعليق مع منع التكرار قطيعاً
-                let commentText = '';
-                if (accountDoComment) {
-                    if (useGroqAi) {
-                        addLog(`[${acc.name}] 🤖 جاري استدعاء Groq AI لتوليد تعليق ذكي وغير مكرر...`);
-                        let candidate = await generateGroqComment(postContent, aIdx);
-                        if (candidate && !usedCommentsThisPost.has(candidate)) {
-                            commentText = candidate;
-                        } else if (candidate) {
-                            // محاولة ثانية بنمط مختلف لتجنب أي تشابه
-                            candidate = await generateGroqComment(postContent, aIdx + 7);
-                            if (candidate && !usedCommentsThisPost.has(candidate)) {
-                                commentText = candidate;
-                            }
-                        }
-                        if (commentText) {
-                            addLog(`[${acc.name}] ✨ تعليق Groq AI الفريد: "${commentText}"`);
-                        }
-                    }
-
-                    // في حال عدم استخدام الذكاء أو فشله، نأخذ تعليقاً يدوياً غير مستخدم نهائياً على هذا المنشور
-                    if (!commentText) {
-                        const availableManual = manualComments.filter(c => !usedCommentsThisPost.has(c));
-                        if (availableManual.length > 0) {
-                            const pickIdx = Math.floor(Math.random() * availableManual.length);
-                            commentText = availableManual[pickIdx];
-                            // إذا استُنفذت جميع التعليقات الـ 30، نضيف تنويعاً نصياً طبيعياً بدون أي إيموجي
-                            const base = manualComments[aIdx % manualComments.length];
-                            const variations = ['بالتوفيق يا رب', 'عاش والله', 'تحياتي لكم', 'كل الدعم والتقدير', 'ألف مبروك', 'دمتم متميزين'];
-                            const v = variations[aIdx % variations.length];
-                            commentText = `${base} - ${v}`;
-                        }
-                    }
-
-                    if (commentText) {
-                        commentText = removeEmojis(commentText);
-                        usedCommentsThisPost.add(commentText);
-                    }
-                }
 
                 // إشعار بدء تنفيذ مهام الحساب
                 await notifyTelegram(
@@ -847,7 +1058,8 @@ async function startBoosterCycle({
                     doLike: accountDoLike,
                     doComment: accountDoComment,
                     doShare: accountDoShare,
-                    headless: isHeadless ? 'new' : false
+                    headless: isHeadless ? 'new' : false,
+                    replyToSnippet: accountReplyToSnippet
                 }, commentText);
 
                 if (boostRes && boostRes.success) {
@@ -855,7 +1067,11 @@ async function startBoosterCycle({
                     const executedTasks = [];
                     if (boostRes.didLike) executedTasks.push('👍 إعجاب');
                     else if (boostRes.wasAlreadyLiked) executedTasks.push('👍 تم الإعجاب مسبقاً');
-                    if (boostRes.didComment) executedTasks.push('💬 تعليق');
+                    if (boostRes.didComment) {
+                        if (conversationPair && aIdx === 0) executedTasks.push('🎭 استفسار بيعي (حساب أ)');
+                        else if (conversationPair && aIdx === 1) executedTasks.push('🎭 رد بتزكية إيجابية (حساب ب)');
+                        else executedTasks.push('💬 تعليق');
+                    }
                     if (boostRes.didShare) executedTasks.push('🔄 مشاركة');
 
                     await notifyTelegram(
@@ -864,6 +1080,8 @@ async function startBoosterCycle({
                         `👤 <b>الحساب:</b> <b>${acc.name}</b> (${aIdx + 1}/${postAccounts.length})\n` +
                         `🎯 <b>العمليات المنفذة:</b> ${executedTasks.length > 0 ? executedTasks.join(' + ') : 'تصفح المنشور'}\n` +
                         (boostRes.commentText ? `💬 <b>التعليق المكتوب:</b> <i>"${boostRes.commentText}"</i>\n` : '') +
+                        (conversationPair && aIdx === 0 ? `💡 <i>تم طرح الاستفسار وفي انتظار رد الحساب التفاعلي والصفحة...</i>\n` : '') +
+                        (conversationPair && aIdx === 1 ? `⭐ <i>تم الرد بتجربة إيجابية لدعم المصداقية الاجتماعية بنجاح!</i>\n` : '') +
                         `📊 <b>الحالة:</b> الحساب يعمل بكفاءة 🟢`
                     );
                 } else if (boostRes && boostRes.sessionExpired) {
@@ -1021,6 +1239,8 @@ module.exports = {
     loadBoosterConfig,
     saveBoosterConfig,
     generateGroqComment,
+    generateGroqConversationPair,
+    DEFAULT_CONVERSATION_PAIRS,
     addAccountWizard,
     openAccountBrowser,
     toggleAccount,

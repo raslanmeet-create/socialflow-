@@ -5457,6 +5457,10 @@ async function loadBoosterUI() {
             if (chkRandomize && st.config && st.config.randomizeTasks !== undefined) {
                 chkRandomize.checked = st.config.randomizeTasks !== false;
             }
+            const chkThreads = document.getElementById('chkBoosterThreads');
+            if (chkThreads && st.config && st.config.conversationThreads !== undefined) {
+                chkThreads.checked = st.config.conversationThreads !== false;
+            }
         }
     } catch (e) {
         console.error('Error loading booster status:', e);
@@ -5898,6 +5902,7 @@ if (btnStartBooster) {
         const useGroqAi = document.getElementById('chkBoosterGroqAi')?.checked !== false;
         const doShare = document.getElementById('chkBoosterShare')?.checked !== false;
         const randomizeTasks = document.getElementById('chkBoosterRandomizeTasks')?.checked !== false;
+        const conversationThreads = document.getElementById('chkBoosterThreads')?.checked !== false;
         const isHeadless = !document.getElementById('chkBoosterHeadless')?.checked;
         const postContent = txtUrl.dataset.postContent || '';
 
@@ -5915,6 +5920,7 @@ if (btnStartBooster) {
                     doComment,
                     doShare,
                     randomizeTasks,
+                    conversationThreads,
                     isHeadless
                 })
             });

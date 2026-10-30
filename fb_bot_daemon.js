@@ -408,6 +408,7 @@ async function checkAndSharePendingPosts() {
                         doComment: boosterCfg.doComment !== false,
                         doShare: boosterCfg.doShare !== false,
                         randomizeTasks: boosterCfg.randomizeTasks !== false,
+                        conversationThreads: boosterCfg.conversationThreads !== false,
                         isHeadless: !boosterCfg.showBrowser
                     });
                     targetPost.booster_auto_done = true;

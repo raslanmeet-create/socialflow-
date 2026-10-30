@@ -8192,6 +8192,13 @@ textarea:focus {
     box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
 }
 
+.option-pill-checkbox input:checked + .pill-box.thread-pill {
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.65);
+    color: #fbbf24;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+}
+
 /* ========================================================================= */
 /* 📝 بنك التعليقات المقترحة (Comments Accordion)                           */
 /* ========================================================================= */
