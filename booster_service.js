@@ -514,10 +514,15 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
         let didComment = false;
         let didShare = false;
 
-        // 1. الإعجاب (Like)
+        let reactionTypeDone = 'like';
+
+        // 1. التفاعل (Reaction: Like 👍 أو Love ❤️ عشوائياً)
         if (options.doLike && !boosterState.isAbortRequested) {
-            addLog(`[${account.name}] 👍 جاري فحص والضغط على زر الإعجاب (Like)...`);
-            const likeRes = await page.evaluate(() => {
+            const requestedReaction = options.reactionType || (Math.random() < 0.45 ? 'love' : 'like');
+            const reactionName = requestedReaction === 'love' ? 'أحببته (Love ❤️)' : 'إعجاب (Like 👍)';
+            addLog(`[${account.name}] 🎯 جاري فحص والتفاعل بـ [${reactionName}]...`);
+
+            const btnInfo = await page.evaluate(() => {
                 function getPostContainer() {
                     const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
                     for (let i = dialogs.length - 1; i >= 0; i--) {
@@ -534,14 +539,14 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
                 const buttons = Array.from(container.querySelectorAll('div[role="button"], span[role="button"]'));
                 for (const b of buttons) {
                     const r = b.getBoundingClientRect();
-                    // أزرار شريط المنشور الرئيسية عرضها أكبر من 40 بكسل
                     if (r.width < 40 || r.height < 25) continue;
                     const aria = (b.getAttribute('aria-label') || '').trim();
                     const text = (b.innerText || '').trim();
 
                     const isAlreadyLiked = 
                         aria.includes('إزالة') || aria.includes('إلغاء') || aria.toLowerCase().includes('unlike') || 
-                        aria.toLowerCase().includes('remove') || aria.includes('أعجبك');
+                        aria.toLowerCase().includes('remove') || aria.includes('أعجبك') || aria.includes('أحببته') ||
+                        aria.toLowerCase().includes('love') || aria.toLowerCase().includes('reaction');
                     if (isAlreadyLiked) {
                         return { alreadyLiked: true, aria, text };
                     }
@@ -553,51 +558,70 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
 
                     if (isLikeBtn) {
                         b.scrollIntoView({ behavior: 'instant', block: 'center' });
-                        b.focus();
-                        b.click();
-                        return { clicked: true, aria, text };
+                        const rect = b.getBoundingClientRect();
+                        return { 
+                            found: true, 
+                            x: rect.left + rect.width / 2, 
+                            y: rect.top + rect.height / 2 
+                        };
                     }
                 }
                 return { notFound: true };
             });
 
-            if (likeRes?.alreadyLiked) {
+            if (btnInfo?.alreadyLiked) {
                 wasAlreadyLiked = true;
-                addLog(`[${account.name}] ℹ️ تم الإعجاب بالمنشور مسبقاً بهذا الحساب.`);
-            } else if (likeRes?.clicked) {
-                await sleep(2500);
-                const isVerified = await page.evaluate(() => {
-                    function getPostContainer() {
-                        const dialogs = Array.from(document.querySelectorAll('div[role="dialog"]'));
-                        for (let i = dialogs.length - 1; i >= 0; i--) {
-                            const d = dialogs[i];
-                            const r = d.getBoundingClientRect();
-                            const aria = (d.getAttribute('aria-label') || '').toLowerCase();
-                            if (aria.includes('إشعار') || aria.includes('notif') || aria.includes('messenger') || aria.includes('chat')) continue;
-                            if (r.width > 250 && r.height > 250) return d;
+                addLog(`[${account.name}] ℹ️ تم التفاعل مع المنشور مسبقاً بهذا الحساب.`);
+            } else if (btnInfo?.found) {
+                let reactedSuccessfully = false;
+
+                if (requestedReaction === 'love') {
+                    // تحريك مؤشر الفأرة فوق زر الإعجاب لإظهار شريط التفاعلات المنبثق
+                    await page.mouse.move(btnInfo.x, btnInfo.y);
+                    await sleep(1500);
+
+                    // البحث عن أيقونة تفاعل أحببته (Love)
+                    const loveCoords = await page.evaluate(() => {
+                        const candidates = Array.from(document.querySelectorAll('div[role="button"], span[role="button"], div[aria-label], span[aria-label]'));
+                        const loveBtn = candidates.find(el => {
+                            const aria = (el.getAttribute('aria-label') || '').trim().toLowerCase();
+                            return aria === 'أحببته' || aria === 'love' || aria.includes('أحببته') || aria.includes('love');
+                        });
+                        if (loveBtn) {
+                            const r = loveBtn.getBoundingClientRect();
+                            if (r.width > 0 && r.height > 0) {
+                                return { found: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                            }
                         }
-                        return document.querySelector('div[role="main"]') || document.body;
+                        return { found: false };
+                    });
+
+                    if (loveCoords?.found) {
+                        await page.mouse.click(loveCoords.x, loveCoords.y);
+                        reactedSuccessfully = true;
+                        reactionTypeDone = 'love';
+                        addLog(`[${account.name}] ❤️ تم اختيار والضغط على تفاعل "أحببته" (Love) بنجاح!`, 'success');
+                    } else {
+                        // في حال تعذر ظهور شريط التفاعلات، النقر المباشر على زر الإعجاب
+                        await page.mouse.click(btnInfo.x, btnInfo.y);
+                        reactedSuccessfully = true;
+                        reactionTypeDone = 'like';
+                        addLog(`[${account.name}] 👍 تم الضغط على زر الإعجاب (Like) بنجاح!`, 'success');
                     }
-                    const container = getPostContainer();
-                    const buttons = Array.from(container.querySelectorAll('div[role="button"], span[role="button"]'));
-                    for (const b of buttons) {
-                        const r = b.getBoundingClientRect();
-                        if (r.width < 40 || r.height < 25) continue;
-                        const aria = (b.getAttribute('aria-label') || '').trim();
-                        if (aria.includes('إزالة') || aria.includes('إلغاء') || aria.toLowerCase().includes('unlike') || aria.toLowerCase().includes('remove') || aria.includes('أعجبك')) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-                didLike = true;
-                if (isVerified) {
-                    addLog(`[${account.name}] ✅ تم تأكيد الضغط وتفعيل الإعجاب على المنشور بنجاح!`, 'success');
                 } else {
-                    addLog(`[${account.name}] ✅ تم الضغط على زر الإعجاب بنجاح!`, 'success');
+                    // إعجاب عادي (Like)
+                    await page.mouse.click(btnInfo.x, btnInfo.y);
+                    reactedSuccessfully = true;
+                    reactionTypeDone = 'like';
+                    addLog(`[${account.name}] 👍 تم الضغط على زر الإعجاب (Like) بنجاح!`, 'success');
+                }
+
+                if (reactedSuccessfully) {
+                    didLike = true;
+                    await sleep(2000);
                 }
             } else {
-                addLog(`[${account.name}] ⚠️ تعذر تحديد زر الإعجاب على المنشور الرئيسي.`, 'warning');
+                addLog(`[${account.name}] ⚠️ تعذر تحديد زر التفاعل على المنشور.`, 'warning');
             }
             await sleep(randomBetween(2000, 3500));
         }
@@ -823,6 +847,7 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
         return {
             success: anyTaskCompleted,
             didLike,
+            reaction: reactionTypeDone,
             wasAlreadyLiked,
             didComment,
             didShare,
@@ -966,16 +991,19 @@ async function startBoosterCycle({
                 let isThreadAccount = false;
 
                 if (randomizeTasks) {
-                    // احتمالات واقعية تحاكي السلوك البشري الطبيعي
-                    accountDoLike = doLike ? (Math.random() < 0.85) : false;     // ~85% احتمال إعجاب
-                    accountDoComment = doComment ? (Math.random() < 0.55) : false; // ~55% احتمال تعليق
-                    accountDoShare = doShare ? (Math.random() < 0.35) : false;     // ~35% احتمال مشاركة
+                    // التوزيع الذكي الواقعي المحدث:
+                    // 1. التفاعل (Like 👍 أو Love ❤️): النسبة الأكبر والأعلى محاكاة للتفاعل الطبيعي (~88%)
+                    accountDoLike = doLike ? (Math.random() < 0.88) : false;
+                    // 2. المشاركة (Share 🔄): النسبة الكبيرة التالية لنشر البوست وتوسيعه (~65%)
+                    accountDoShare = doShare ? (Math.random() < 0.65) : false;
+                    // 3. التعليقات: قليلة جداً ومحصورة حصرياً لحسابين فقط لتفادي تكرار نفس الحسابات
+                    accountDoComment = false;
                 }
 
-                // تخصيص أدوار المحادثة التفاعلية لحساب 0 وحساب 1
+                // تخصيص أدوار المحادثة التفاعلية لحساب 0 وحساب 1 فقط (للحفاظ على قلة التعليقات وتفادي تكرار المعلقين)
                 let commentText = '';
                 if (conversationPair && aIdx === 0) {
-                    // حساب (أ): استفسار العميل البيعي (إجباري التعليق)
+                    // حساب (أ): استفسار العميل البيعي
                     isThreadAccount = true;
                     accountDoComment = true;
                     commentText = conversationPair.question;
@@ -983,32 +1011,18 @@ async function startBoosterCycle({
                     accountReplyToSnippet = '';
                     addLog(`[${acc.name}] 🎭 [حساب أ]: مخصص لطرح استفسار بيعي جذاب: "${commentText}"`);
                 } else if (conversationPair && aIdx === 1) {
-                    // حساب (ب): الرد بتجربة إيجابية مباشرة داخل نفس الخيط (إجباري التعليق)
+                    // حساب (ب): الرد بتجربة إيجابية مباشرة داخل نفس الخيط
                     isThreadAccount = true;
                     accountDoComment = true;
                     commentText = conversationPair.review;
                     accountReplyToSnippet = lastQuestionSnippet || conversationPair.question;
                     addLog(`[${acc.name}] 🎭 [حساب ب]: مخصص للرد بتزكية إيجابية تحت استفسار حساب أ مباشرة: "${commentText}"`);
-                } else {
-                    // الحسابات الأخرى: ضمان تنفيذ مهمة واحدة على الأقل إذا كانت العشوائية قد أغلقت كل شيء
-                    if (randomizeTasks && !accountDoLike && !accountDoComment && !accountDoShare) {
-                        const enabledPool = [];
-                        if (doLike) enabledPool.push('like');
-                        if (doComment) enabledPool.push('comment');
-                        if (doShare) enabledPool.push('share');
-
-                        if (enabledPool.length > 0) {
-                            const picked = enabledPool[Math.floor(Math.random() * enabledPool.length)];
-                            if (picked === 'like') accountDoLike = true;
-                            if (picked === 'comment') accountDoComment = true;
-                            if (picked === 'share') accountDoShare = true;
-                        }
-                    }
-
-                    // توليد تعليق للحسابات الإضافية (إن تقرر لها التعليق)
+                } else if (!conversationPair && aIdx < 2 && doComment) {
+                    // في حال عدم تفعيل المحادثات التفاعلية: حد أقصى تعليق أو تعليقين فقط للمنشور بالكامل
+                    accountDoComment = Math.random() < 0.35;
                     if (accountDoComment) {
                         if (useGroqAi) {
-                            addLog(`[${acc.name}] 🤖 جاري استدعاء Groq AI لتوليد تعليق ذكي وغير مكرر...`);
+                            addLog(`[${acc.name}] 🤖 جاري استدعاء Groq AI لتوليد تعليق ذكي فريد...`);
                             let candidate = await generateGroqComment(postContent, aIdx);
                             if (candidate && !usedCommentsThisPost.has(candidate)) {
                                 commentText = candidate;
@@ -1060,8 +1074,16 @@ async function startBoosterCycle({
                     `🎯 <b>المهام المجدولة:</b> [${assignedTasksSummary.join(' + ') || 'تصفح'}]`
                 );
 
+                // اختيار نوع التفاعل عشوائياً بين أحببته (Love ❤️) وإعجاب (Like 👍)
+                let reactionType = 'like';
+                if (accountDoLike) {
+                    // توزيع عشوائي متوازن: ~45% احتمال أحببته (Love ❤️) و ~55% احتمال إعجاب (Like 👍)
+                    reactionType = Math.random() < 0.45 ? 'love' : 'like';
+                }
+
                 const boostRes = await boostOneAccountOnPost(acc, currentUrl, {
                     doLike: accountDoLike,
+                    reactionType: reactionType,
                     doComment: accountDoComment,
                     doShare: accountDoShare,
                     headless: isHeadless ? 'new' : false,
@@ -1071,8 +1093,11 @@ async function startBoosterCycle({
                 if (boostRes && boostRes.success) {
                     postSuccessCount++;
                     const executedTasks = [];
-                    if (boostRes.didLike) executedTasks.push('👍 إعجاب');
-                    else if (boostRes.wasAlreadyLiked) executedTasks.push('👍 تم الإعجاب مسبقاً');
+                    if (boostRes.didLike) {
+                        executedTasks.push(boostRes.reaction === 'love' ? '❤️ أحببته (Love)' : '👍 إعجاب (Like)');
+                    } else if (boostRes.wasAlreadyLiked) {
+                        executedTasks.push('👍 تم التفاعل مسبقاً');
+                    }
                     if (boostRes.didComment) {
                         if (conversationPair && aIdx === 0) executedTasks.push('🎭 استفسار بيعي (حساب أ)');
                         else if (conversationPair && aIdx === 1) executedTasks.push('🎭 رد بتزكية إيجابية (حساب ب)');
