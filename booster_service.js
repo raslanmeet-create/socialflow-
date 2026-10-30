@@ -552,9 +552,9 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
                     }
 
                     const isLikeBtn = 
-                        aria === 'أعجبني' || aria.toLowerCase() === 'like' || aria === 'إعجاب' ||
+                        aria.includes('التفاعل') || aria.includes('أعجبني') || aria === 'إعجاب' ||
                         text === 'أعجبني' || text.toLowerCase() === 'like' ||
-                        aria.toLowerCase().includes('react to this post');
+                        aria.toLowerCase().includes('like') || aria.toLowerCase().includes('react');
 
                     if (isLikeBtn) {
                         b.scrollIntoView({ behavior: 'instant', block: 'center' });
@@ -576,20 +576,42 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
                 let reactedSuccessfully = false;
 
                 if (requestedReaction === 'love') {
-                    // تحريك مؤشر الفأرة فوق زر الإعجاب لإظهار شريط التفاعلات المنبثق
+                    // تحريك مؤشر الفأرة فوق زر الإعجاب وإرسال أحداث hover لإظهار شريط التفاعلات
                     await page.mouse.move(btnInfo.x, btnInfo.y);
+                    await page.evaluate((pos) => {
+                        const el = document.elementFromPoint(pos.x, pos.y);
+                        if (el) {
+                            el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, cancelable: true }));
+                            el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, cancelable: true }));
+                        }
+                    }, btnInfo);
                     await sleep(1500);
 
                     // البحث عن أيقونة تفاعل أحببته (Love)
                     const loveCoords = await page.evaluate(() => {
-                        const candidates = Array.from(document.querySelectorAll('div[role="button"], span[role="button"], div[aria-label], span[aria-label]'));
-                        const loveBtn = candidates.find(el => {
-                            const aria = (el.getAttribute('aria-label') || '').trim().toLowerCase();
-                            return aria === 'أحببته' || aria === 'love' || aria.includes('أحببته') || aria.includes('love');
-                        });
-                        if (loveBtn) {
-                            const r = loveBtn.getBoundingClientRect();
-                            if (r.width > 0 && r.height > 0) {
+                        const selectors = [
+                            'div[role="toolbar"] [aria-label]',
+                            'div[aria-label*="تفاعلات"] [aria-label]',
+                            'div[aria-label*="Reactions"] [aria-label]',
+                            'div[aria-label="أحببته"]',
+                            'div[aria-label="Love"]',
+                            'span[aria-label="أحببته"]',
+                            'span[aria-label="Love"]'
+                        ];
+                        const candidates = Array.from(document.querySelectorAll(selectors.join(', ')));
+                        for (const el of candidates) {
+                            const aria = (el.getAttribute('aria-label') || '').trim();
+                            if (aria === 'أحببته' || aria.toLowerCase() === 'love' || aria.startsWith('أحببته')) {
+                                const r = el.getBoundingClientRect();
+                                if (r.width > 10 && r.height > 10) {
+                                    return { found: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                                }
+                            }
+                        }
+                        const fallback = document.querySelector('[aria-label="أحببته"], [aria-label="Love"]');
+                        if (fallback) {
+                            const r = fallback.getBoundingClientRect();
+                            if (r.width > 10 && r.height > 10) {
                                 return { found: true, x: r.left + r.width / 2, y: r.top + r.height / 2 };
                             }
                         }
@@ -597,6 +619,8 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
                     });
 
                     if (loveCoords?.found) {
+                        await page.mouse.move(loveCoords.x, loveCoords.y);
+                        await sleep(250);
                         await page.mouse.click(loveCoords.x, loveCoords.y);
                         reactedSuccessfully = true;
                         reactionTypeDone = 'love';
@@ -606,7 +630,7 @@ async function boostOneAccountOnPost(account, postUrl, options, commentText) {
                         await page.mouse.click(btnInfo.x, btnInfo.y);
                         reactedSuccessfully = true;
                         reactionTypeDone = 'like';
-                        addLog(`[${account.name}] 👍 تم الضغط على زر الإعجاب (Like) بنجاح!`, 'success');
+                        addLog(`[${account.name}] 👍 لم يظهر شريط التفاعلات، تم الضغط كإعجاب (Like) بنجاح!`, 'success');
                     }
                 } else {
                     // إعجاب عادي (Like)
